@@ -5,11 +5,16 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-  encoding: "utf8",
-}).trim();
+// cwd に依存せずスクリプトの設置場所からリポジトリを特定する
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = execFileSync(
+  "git",
+  ["-C", SCRIPT_DIR, "rev-parse", "--show-toplevel"],
+  { encoding: "utf8" }
+).trim();
 const MY_COPY_ROOT =
   process.env.MY_COPY_SOURCE_ROOT ?? `${process.env.HOME}/tools/workbench/my-copy`;
 const DRY_RUN = process.argv.includes("--dry-run");
