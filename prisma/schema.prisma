@@ -62,6 +62,13 @@ model CheckIn {
   @@unique([experimentId, date])
 }
 
+// LP の waitlist 登録
+model WaitlistSignup {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
 // sr-cards.json からの移行モデル (SM-2 簡易版スケジュール管理のみ)
 model SrCard {
   id          String    @id

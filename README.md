@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Applied Loop
 
-## Getting Started
+読んだ本を、実務の意思決定に変える。
+学び → 実務適用 → 証跡のループで「使った」が残る学習ツール。
 
-First, run the development server:
+プロダクト基盤（Core/Why/What/How）は [docs/adr/0001-product-foundation.md](docs/adr/0001-product-foundation.md) を参照。
+
+## セットアップ
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx prisma migrate dev   # dev.db 作成 (プロジェクトルート)
+npx prisma generate      # Prisma Client 生成
+npm run dev              # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 初期データ移行
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+pm-learn (`~/.my-copy/pm-learn/entries.jsonl`) と
+SR カード (`~/.claude/learning/sr-cards.json`) を取り込む。冪等なので再実行可。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run import:data      # dry-run は npx tsx scripts/import.ts --dry-run
+npm run seed:exp1        # 実験#1 (メタ dogfooding) の seed
+```
 
-## Learn More
+## 週次ダイジェスト
 
-To learn more about Next.js, take a look at the following resources:
+git log と新規 ADR を koki-central へ投影 (my-copy obsidian_capture 経由・read-only 投影)。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run digest           # dry-run は node scripts/weekly-digest.mjs --dry-run
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 構成
 
-## Deploy on Vercel
+- Next.js 16 (App Router, Turbopack) + TypeScript + Tailwind CSS 4
+- Prisma 7 + SQLite (better-sqlite3 driver adapter)
+  - 公開時は Supabase (Postgres) へ adapter ごと移行予定
+- `/` ダッシュボード (チェックイン・未適用リマインド・期限切れカード)
+- `/entries` 学びの登録と適用記録 (イベント型ループの中核)
+- `/experiments/[id]` オプションの30日実験
+- `/cards` SR カード (SM-2 簡易版)
+- `/lp` ランディングページ (waitlist 登録)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 運用メモ
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- appetite: 8週間 (2026-07-31 起算。業務 KDI 枠外・業務外時間)
+- 意思決定は docs/adr/ に ADR として記録する (テンプレ: 0000-template.md)
+- 週次ふりかえりで digest を投影し、埋もれ対策とする
