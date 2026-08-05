@@ -166,7 +166,42 @@ const handler = createMcpHandler(
             decisionChanged: decisionChanged?.trim() || null,
           },
         });
-        return text(`実務使用の記録を登録しました (id: ${app.id})。証跡タイムラインに追加されます。`);
+        const entry = await prisma.entry.findUnique({
+          where: { id },
+          select: { title: true },
+        });
+        // Goal 証跡の能動提案 (ADR-0008 / 0012)
+        const { suggestLinksForTarget } = await import("@/lib/goal");
+        const linked = await suggestLinksForTarget({
+          targetType: "application",
+          targetId: app.id,
+          title: `${entry?.title ?? "学び"} → ${appliedTo.trim()}`,
+        }).catch(() => 0);
+
+        const applied = appliedTo.trim();
+        const repoHint =
+          /workbench|applied-loop|triple-|my-copy|harness/i.test(applied)
+            ? applied
+            : null;
+        const followUp = [
+          `実務使用の記録を登録しました (id: ${app.id})。証跡タイムラインに追加されます。`,
+          linked > 0
+            ? `Goal への紐付け提案を ${linked} 件作成しました。approve_goal_link で確定できます。`
+            : null,
+          repoHint
+            ? [
+                "## 再観測 (閉ループ)",
+                `- appliedTo が repo/ハーネス系に見えるので、翌セッションで suggest_cache_prefix_fix(repo) か /harness で効果を確認せよ。`,
+                `- 候補文字列: ${repoHint}`,
+              ].join("\n")
+            : [
+                "## 再観測 (閉ループ)",
+                "- 翌週のもくひょう証跡・しれん再出題で「効いたか」を見よ。",
+              ].join("\n"),
+        ]
+          .filter(Boolean)
+          .join("\n");
+        return text(followUp);
       }
     );
 
@@ -180,10 +215,15 @@ const handler = createMcpHandler(
       async () => {
         await requireAuth();
         const now = new Date();
+        const { getWeaknessPatternsForDashboard } = await import(
+          "@/lib/weakness"
+        );
+        const weaknesses = await getWeaknessPatternsForDashboard();
+        const weakAspects = (weaknesses ?? []).map((w) => w.aspect.toLowerCase());
         const gates = await prisma.gate.findMany({
           where: pendingGateWhere(now),
           orderBy: { createdAt: "desc" },
-          take: 10,
+          take: 20,
           include: {
             event: { select: { repo: true, summary: true, ref: true } },
           },
@@ -191,8 +231,22 @@ const handler = createMcpHandler(
         if (gates.length === 0) {
           return text("出題中のゲートはありません。");
         }
-        const lines: string[] = [`# 出題中ゲート: ${gates.length} 件`, ""];
-        for (const g of gates) {
+        // 弱い観点ラベルが問い／論点に含まれるものを前へ (ADR-0011)
+        const scored = gates.map((g) => {
+          const blob = `${g.question}\n${g.targetConcept ?? ""}`.toLowerCase();
+          const hit = weakAspects.findIndex((a) => a && blob.includes(a));
+          return { g, pri: hit === -1 ? 99 : hit };
+        });
+        scored.sort((a, b) => a.pri - b.pri || 0);
+        const ordered = scored.slice(0, 10).map((s) => s.g);
+        const lines: string[] = [
+          `# 出題中ゲート: ${ordered.length} 件`,
+          weakAspects.length
+            ? `(弱点優先: ${weakAspects.slice(0, 3).join(" / ")})`
+            : "",
+          "",
+        ].filter((l) => l !== undefined);
+        for (const g of ordered) {
           const resources = parseJsonArray(g.resources);
           const rubric = parseJsonArray(g.rubricCriteria);
           const contextSummary =
@@ -321,6 +375,10 @@ const handler = createMcpHandler(
           ? "pass"
           : "fail";
         const payload = parseGradePayload(gate.rubricResult);
+        const { formatRootCauseNextMarkdown } = await import(
+          "@/lib/root-cause-next"
+        );
+        const rootNext = formatRootCauseNextMarkdown(payload.rootCause);
         return text(
           [
             `# ゲート結果 (id: ${gate.id})`,
@@ -340,6 +398,7 @@ const handler = createMcpHandler(
                 ? JSON.stringify(payload.rubric, null, 2)
                 : "[]"
             }`,
+            rootNext,
           ]
             .filter(Boolean)
             .join("\n")
@@ -1018,7 +1077,7 @@ const handler = createMcpHandler(
           }
           if (r.suggestedGateCount > 0) {
             lines.push(
-              `(確認待ちの紐付け提案: ${r.suggestedGateCount} 件 — /requirements で承認)`
+              `(確認待ちの紐付け提案: ${r.suggestedGateCount} 件 — approve_requirement_link / /requirements)`
             );
           }
           lines.push("");
@@ -1049,6 +1108,43 @@ const handler = createMcpHandler(
           ? text(result.message)
           : { ...text(result.message), isError: true };
       }
+    );
+
+    server.registerTool(
+      "approve_requirement_link",
+      {
+        description:
+          "要件↔ゲートの suggested 紐付けを承認する（メテオフォール。アプリUIと同等）。",
+        inputSchema: {
+          linkId: z.string().describe("RequirementLink ID"),
+        },
+      },
+      async ({ linkId }) => {
+        await requireAuth();
+        const { approveRequirementLink } = await import("@/lib/requirement");
+        const result = await approveRequirementLink(linkId.trim());
+        return result.ok
+          ? text(result.message)
+          : { ...text(result.message), isError: true };
+      },
+    );
+
+    server.registerTool(
+      "reject_requirement_link",
+      {
+        description: "要件↔ゲートの suggested 紐付けを却下する。",
+        inputSchema: {
+          linkId: z.string().describe("RequirementLink ID"),
+        },
+      },
+      async ({ linkId }) => {
+        await requireAuth();
+        const { rejectRequirementLink } = await import("@/lib/requirement");
+        const result = await rejectRequirementLink(linkId.trim());
+        return result.ok
+          ? text(result.message)
+          : { ...text(result.message), isError: true };
+      },
     );
   },
   { serverInfo: { name: "applied-loop", version: "0.2.0" } }

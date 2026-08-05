@@ -6,7 +6,9 @@ import {
   rootCauseLabel,
   type GateDebrief,
 } from "@/lib/grade-payload";
+import { rootCauseNextSteps } from "@/lib/root-cause-next";
 import type { MicroCheckResult } from "@/lib/micro-check";
+import Link from "next/link";
 import {
   buildAnswerSeedFromMicro,
   clearMicroProgress,
@@ -21,10 +23,19 @@ export type PollResult = {
   debrief?: GateDebrief | null;
 };
 
+export type BattleResource = {
+  kind: string;
+  label: string;
+  href?: string | null;
+};
+
 export type AtlasBattleProps = {
   question: string;
   gateId: string;
   domain?: string | null;
+  /** このコミット／状況の 2–3 行要約 (ADR-0011) */
+  contextSummary?: string | null;
+  resources?: BattleResource[];
   tags?: string[];
   /** Override display name; sprite stays the single default enemy for now */
   enemyName?: string;
@@ -107,6 +118,7 @@ function DebriefPanel({
   }
 
   const cause = rootCauseLabel(debrief?.rootCause ?? null);
+  const next = rootCauseNextSteps(debrief?.rootCause ?? null);
   const hasBody =
     debrief?.gap ||
     debrief?.correctModel ||
@@ -181,6 +193,24 @@ function DebriefPanel({
             </ul>
           </section>
         ) : null}
+
+        {next ? (
+          <section className="mt-3 border-t-2 border-[#002070] pt-2.5">
+            <h3 className="m-0 mb-1 font-[family-name:var(--font-pixel)] text-[9px] text-[#9ec0ff]">
+              ④ 根因に応じた次の一手（{next.label}）
+            </h3>
+            <p className="m-0 mb-2 text-[13px] leading-relaxed text-[#c9c3a0]">
+              {next.focus}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {next.actions.map((a) => (
+                <Link key={a.href} href={a.href} className="dq-btn !px-3 !py-2 text-[8px]">
+                  {a.label}
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
     </div>
   );
@@ -193,6 +223,8 @@ function DebriefPanel({
 export function AtlasBattle({
   question,
   gateId,
+  contextSummary = null,
+  resources = [],
   enemyName,
   initialHp = 72,
   initialVerdict = null,
@@ -487,6 +519,33 @@ export function AtlasBattle({
             <p className="m-0 text-[18px] leading-relaxed text-[#f7f3d9] md:text-[20px]">
               「{question}」
             </p>
+            {contextSummary ? (
+              <div className="mt-3 border-l-[3px] border-[#9ec0ff] pl-2.5">
+                <div className="mb-1 font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
+                  ◆ 当時の状況
+                </div>
+                <p className="m-0 whitespace-pre-wrap text-[13px] leading-relaxed text-[#c9c3a0]">
+                  {contextSummary}
+                </p>
+              </div>
+            ) : null}
+            {resources.length > 0 ? (
+              <ul className="mt-2 mb-0 list-none space-y-1 p-0">
+                {resources.map((r) => (
+                  <li key={`${r.kind}:${r.label}`} className="text-[12px] text-[#9ec0ff]">
+                    {r.href ? (
+                      <a href={r.href} className="text-[#9ec0ff] no-underline hover:underline">
+                        [{r.kind}] {r.label}
+                      </a>
+                    ) : (
+                      <span>
+                        [{r.kind}] {r.label}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
               ……と、まものが言い放った。この問いにこたえて、あかりをともせ！
             </p>

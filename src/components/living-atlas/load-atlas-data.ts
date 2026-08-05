@@ -133,6 +133,15 @@ async function loadSystemStars(): Promise<SystemStar[]> {
 
 export async function loadHomeProps(): Promise<AtlasDashboardProps> {
   const now = new Date();
+  // briefing を呼ばない日でも due 再出題を消化 (ADR-0006)
+  const { scheduleDueGates } = await import("@/lib/gate");
+  await scheduleDueGates().catch((e) =>
+    console.error("[home] scheduleDueGates failed:", e),
+  );
+
+  const { resolveTaskMapForDisplay } = await import("@/lib/task-map");
+  const { getWeaknessPatternsForDashboard } = await import("@/lib/weakness");
+
   const [
     growth,
     streakDays,
@@ -141,6 +150,8 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     openMisconceptionCount,
     weakRepos,
     systemStars,
+    taskMap,
+    weaknesses,
   ] = await Promise.all([
     resolvedGrowthStats(now),
     recordStreak(now),
@@ -160,6 +171,8 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     }),
     repoCacheReadRates(now, { take: 1 }),
     loadSystemStars(),
+    resolveTaskMapForDisplay(dateKeyJST(now)),
+    getWeaknessPatternsForDashboard(),
   ]);
 
   const todos: { title: string; meta: string }[] = [];
@@ -175,7 +188,12 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
       meta: `にっき → 未仕分け ${pendingCaptureCount} 件`,
     });
   }
-  if (weakRepos[0]) {
+  if (weaknesses && weaknesses.length > 0) {
+    todos.push({
+      title: `③ よわい観点「${weaknesses[0].aspect}」を意識して解く`,
+      meta: `欠落率 ${Math.round(weaknesses[0].missRate * 100)}%`,
+    });
+  } else if (weakRepos[0]) {
     todos.push({
       title: "③ 弱ってる repo の処方を見る",
       meta: `どうぐ → ${weakRepos[0].repo}`,
@@ -212,6 +230,8 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     streakDays,
     adventurer,
     systemStars,
+    taskMap,
+    weaknesses,
     pendingGate: pendingGate
       ? {
           id: pendingGate.id,
@@ -678,6 +698,8 @@ export async function loadGateById(id: string): Promise<{
   id: string;
   question: string;
   domain?: string | null;
+  contextSummary?: string | null;
+  resources: { kind: string; label: string; href?: string | null }[];
   initialVerdict: "pass" | "retry" | null;
   initialDebrief: ReturnType<typeof buildGateDebrief> | null;
 } | null> {
@@ -691,14 +713,26 @@ export async function loadGateById(id: string): Promise<{
       status: true,
       gradeNote: true,
       rubricResult: true,
+      contextSummary: true,
+      resources: true,
+      event: { select: { repoPath: true } },
     },
   });
   if (!gate) return null;
   const initialVerdict = mapInitialVerdict(gate.status);
+  const { parseGateResources, resolveResourceItems } = await import(
+    "@/lib/gate-resources"
+  );
+  const resources = await resolveResourceItems(
+    parseGateResources(gate.resources),
+    gate.event?.repoPath,
+  );
   return {
     id: gate.id,
     question: gate.question,
     domain: gate.domain,
+    contextSummary: gate.contextSummary,
+    resources,
     initialVerdict,
     initialDebrief: initialVerdict
       ? buildGateDebrief(gate.gradeNote, gate.rubricResult)

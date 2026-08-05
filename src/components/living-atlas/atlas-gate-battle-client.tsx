@@ -18,6 +18,8 @@ export function AtlasGateBattleClient({
     id: string;
     question: string;
     domain?: string | null;
+    contextSummary?: string | null;
+    resources?: { kind: string; label: string; href?: string | null }[];
     initialVerdict?: Extract<BattleVerdict, "pass" | "retry"> | null;
     initialDebrief?: GateDebrief | null;
   };
@@ -28,6 +30,8 @@ export function AtlasGateBattleClient({
       gateId={gate.id}
       question={gate.question}
       domain={gate.domain}
+      contextSummary={gate.contextSummary}
+      resources={gate.resources}
       initialVerdict={gate.initialVerdict ?? null}
       initialDebrief={gate.initialDebrief ?? null}
       onFlee={() => router.push("/")}

@@ -34,6 +34,16 @@ export type AtlasDashboardProps = {
     tags?: string[];
   };
   todos?: { title: string; meta: string }[];
+  /** 今日のタスク × 学び (ADR-0013) */
+  taskMap?: {
+    dateKey: string;
+    tasks: {
+      task: string;
+      related: { title: string; href: string; reason?: string }[];
+    }[];
+  } | null;
+  /** 弱点観点トップ (ADR-0011) */
+  weaknesses?: { aspect: string; missRate: number; sampleCount: number }[] | null;
 };
 
 const LOG: Record<string, { who: string; title: string; body: string }> = {
@@ -66,6 +76,8 @@ export function AtlasDashboard({
     { title: "② 受信箱の学びを仕分ける", meta: "にっき → capture 候補を確認" },
     { title: "③ 弱ってる repo の処方を見る", meta: "どうぐ → cache / harness 処方" },
   ],
+  taskMap = null,
+  weaknesses = null,
 }: AtlasDashboardProps) {
   const [activeId, setActiveId] = useState(pendingGate ? "quest-1" : "you");
   const adventurer =
@@ -230,9 +242,84 @@ export function AtlasDashboard({
         </AtlasReveal>
       </div>
 
+      {(taskMap && taskMap.tasks.length > 0) ||
+      (weaknesses && weaknesses.length > 0) ? (
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {taskMap && taskMap.tasks.length > 0 ? (
+            <AtlasReveal as="section" delayIndex={2} className="dq-win p-3.5">
+              <h2 className="dq-win-title">きょうのタスク × 学び</h2>
+              <p className="mt-0 mb-3 text-[12px] text-[#c9c3a0]">
+                {taskMap.dateKey} · MCP morning_briefing / save_task_mappings
+              </p>
+              <ul className="m-0 list-none p-0">
+                {taskMap.tasks.slice(0, 4).map((t, i) => (
+                  <li
+                    key={`${t.task}-${i}`}
+                    className={`py-2.5 ${i ? "border-t-2 border-[#002070]" : "pt-0"}`}
+                  >
+                    <p className="m-0 text-[14px] leading-snug text-[#f7f3d9]">{t.task}</p>
+                    {t.related.length > 0 ? (
+                      <ul className="mt-1.5 mb-0 list-none space-y-1 p-0">
+                        {t.related.slice(0, 3).map((r) => (
+                          <li key={r.href + r.title}>
+                            <Link
+                              href={r.href}
+                              className="text-[12px] text-[#9ec0ff] no-underline hover:underline"
+                            >
+                              {r.title}
+                            </Link>
+                            {r.reason ? (
+                              <span className="ml-1 text-[11px] text-[#c9c3a0]">
+                                — {r.reason}
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1 mb-0 text-[12px] text-[#c9c3a0]">関連学びなし</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </AtlasReveal>
+          ) : null}
+
+          {weaknesses && weaknesses.length > 0 ? (
+            <AtlasReveal as="section" delayIndex={3} className="dq-win p-3.5">
+              <h2 className="dq-win-title">よわい観点</h2>
+              <p className="mt-0 mb-3 text-[12px] text-[#c9c3a0]">
+                横断で欠ける論点。次のしれんで優先せよ。
+              </p>
+              <ul className="m-0 list-none p-0">
+                {weaknesses.map((w, i) => (
+                  <li
+                    key={w.aspect}
+                    className={`flex items-baseline justify-between gap-2 py-2 ${
+                      i ? "border-t-2 border-[#002070]" : "pt-0"
+                    }`}
+                  >
+                    <span className="text-[14px] text-[#f7f3d9]">{w.aspect}</span>
+                    <span className="font-[family-name:var(--font-pixel)] text-[9px] text-[#e84848]">
+                      欠 {Math.round(w.missRate * 100)}% · n={w.sampleCount}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/gates"
+                className="mt-3 inline-block font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a] no-underline"
+              >
+                しれん一覧へ →
+              </Link>
+            </AtlasReveal>
+          ) : null}
+        </div>
+      ) : null}
+
       <AtlasReveal
         as="section"
-        delayIndex={3}
+        delayIndex={4}
         className="dq-win grid grid-cols-1 items-center gap-3 p-3.5 md:grid-cols-[1fr_auto]"
       >
         <div>
