@@ -45,3 +45,10 @@ next-env.d.ts
 # Local database
 dev.db
 dev.db-journal
+
+# Local atlas UI backups (do not publish)
+.atlas-backup-*/
+
+# Harness collect incremental state (local machine only)
+scripts/.harness-collect-state.json
+scripts/harness-collect.log

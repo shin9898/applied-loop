@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Applied Loop — リッチ UI モック</title>
+<style>
+  /* warm journal トークン (現行踏襲) + リッチ化の拡張 */
+  :root {
+    --bg: #f4eee2;
+    --surface: #fbf8f0;
+    --surface-raised: #fdfbf5;
+    --border: #e3d9c4;
+    --accent: #bc5b33;
+    --accent-soft: #bc5b3318;
+    --warn: #a8832f;
+    --warn-soft: #a8832f1a;
+    --ink: #2e2418;
+    --ink-secondary: #8a7c66;
+    --ink-faint: #b8ab90;
+    --pass: #4a7c59;
+    --pass-soft: #4a7c5918;
+    --font-display: "Shippori Mincho", "Hiragino Mincho ProN", serif;
+    --font-body: "Noto Sans JP", "Hiragino Kaku Gothic ProN", sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  .font-display { font-family: var(--font-display); }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 64px; border-bottom: 1px solid var(--border);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark {
+    width: 28px; height: 28px; border-radius: 8px; background: var(--accent);
+    display: flex; align-items: center; justify-content: center; color: var(--surface);
+    font-weight: bold; font-size: 15px;
+  }
+  .logo span:last-child { font-family: var(--font-display); font-size: 19px; font-weight: bold; }
+  nav { display: flex; gap: 28px; font-size: 14px; color: var(--ink-secondary); }
+  nav a { color: inherit; text-decoration: none; cursor: pointer; }
+  nav a.active { color: var(--ink); font-weight: bold; border-bottom: 2px solid var(--accent); padding-bottom: 3px; }
+  .streak-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--accent-soft); border-radius: 999px; padding: 8px 14px;
+    font-family: var(--font-display); font-weight: bold; color: var(--accent);
+  }
+
+  main { max-width: 1312px; margin: 0 auto; padding: 48px 64px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ============ ヒーロー: 理解の地形 (ヒートマップ + 成長曲線) ============ */
+  .hero {
+    display: flex; gap: 24px; margin-bottom: 40px;
+  }
+  .hero-card {
+    background: var(--surface); border-radius: 12px; padding: 28px;
+    flex: 1; min-width: 0;
+  }
+  .hero-card h2 { font-family: var(--font-display); font-size: 17px; margin-bottom: 4px; }
+  .hero-card .sub { font-size: 12px; color: var(--ink-faint); margin-bottom: 18px; }
+
+  /* GitHub 草風ヒートマップ */
+  .heatmap { display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; gap: 4px; }
+  .hm-cell { width: 15px; height: 15px; border-radius: 3px; background: var(--border); position: relative; }
+  .hm-cell.pass { background: #6d9c7f; }
+  .hm-cell.misconception { background: #d9a441; }
+  .hm-cell.resolved { background: var(--accent); }
+  .hm-cell.today { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .hm-cell:hover::after {
+    content: attr(data-tip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--surface); font-size: 11px; padding: 4px 8px;
+    border-radius: 6px; white-space: nowrap; z-index: 10; pointer-events: none;
+  }
+  .hm-legend { display: flex; gap: 14px; margin-top: 14px; font-size: 11px; color: var(--ink-secondary); align-items: center; }
+  .hm-legend .hm-cell { width: 11px; height: 11px; }
+
+  /* 成長曲線 */
+  .growth-stat { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+  .growth-stat .num { font-family: var(--font-display); font-size: 44px; font-weight: bold; line-height: 1; color: var(--accent); }
+  .growth-stat .unit { font-size: 13px; color: var(--ink-secondary); }
+  .growth-stat .delta { font-size: 12px; color: var(--pass); font-weight: bold; margin-left: 6px; }
+
+  /* ============ コンテキストチップ ============ */
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: bold; padding: 3px 9px; border-radius: 999px;
+    line-height: 1.4;
+  }
+  .chip .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .chip-repo { background: #3d5a8012; color: #3d5a80; }
+  .chip-repo .dot { background: #3d5a80; }
+  .chip-domain { background: #6d4c9012; color: #6d4c90; }
+  .chip-domain .dot { background: #6d4c90; }
+  .chip-goal { background: #4a7c5912; color: #4a7c59; }
+  .chip-goal .dot { background: #4a7c59; }
+
+  /* ============ ゲートカード (3D ボタン) ============ */
+  .gate-hero {
+    background: var(--surface-raised); border: 1px solid var(--warn);
+    border-left: 6px solid var(--warn); border-radius: 12px; padding: 32px 36px;
+    box-shadow: 0 12px 40px #a8832f1f; margin-bottom: 40px;
+  }
+  .gate-hero .label { font-size: 13px; font-weight: bold; letter-spacing: 2px; color: var(--warn); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .gate-hero h2 { font-family: var(--font-display); font-size: 21px; line-height: 1.7; margin-bottom: 16px; }
+  .gate-context {
+    background: var(--bg); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .gate-context .commit { font-size: 12px; color: var(--ink-secondary); font-family: ui-monospace, monospace; }
+
+  .btn-3d {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent); color: var(--surface); font-weight: bold; font-size: 14px;
+    border: none; border-radius: 12px; padding: 14px 28px; cursor: pointer;
+    border-bottom: 4px solid #96431f;
+    transition: transform .08s, border-bottom-width .08s;
+  }
+  .btn-3d:hover { filter: brightness(1.05); }
+  .btn-3d:active { transform: translateY(3px); border-bottom-width: 1px; }
+  .btn-ghost {
+    background: none; border: 1px solid var(--border); border-radius: 12px;
+    color: var(--ink-secondary); font-size: 14px; padding: 14px 20px; cursor: pointer;
+  }
+
+  /* ============ 今日の問いかけ (コンテキスト付き) ============ */
+  .section-title { font-family: var(--font-display); font-size: 19px; font-weight: bold; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .section-title .count { font-size: 12px; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 3px 10px; font-family: var(--font-body); }
+
+  .knowledge-card {
+    background: var(--surface); border-radius: 10px; padding: 20px 22px;
+    margin-bottom: 12px; border-left: 4px solid transparent;
+  }
+  .knowledge-card .kc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .knowledge-card .kc-title { font-family: var(--font-display); font-weight: bold; font-size: 15px; }
+  .knowledge-card .kc-meta { font-size: 11px; color: var(--ink-faint); margin-top: 8px; }
+
+  /* ============ 誤解図鑑 ============ */
+  .zukan-progress {
+    background: var(--surface); border-radius: 12px; padding: 24px 28px; margin-bottom: 32px;
+    display: flex; align-items: center; gap: 24px;
+  }
+  .zukan-ring { position: relative; width: 88px; height: 88px; flex-shrink: 0; }
+  .zukan-ring svg { transform: rotate(-90deg); }
+  .zukan-ring .ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .zukan-ring .ring-label .n { font-family: var(--font-display); font-size: 24px; font-weight: bold; color: var(--accent); line-height: 1; }
+  .zukan-ring .ring-label .d { font-size: 10px; color: var(--ink-faint); }
+  .zukan-domains { display: flex; gap: 18px; flex-wrap: wrap; }
+  .zd { text-align: center; }
+  .zd .zd-n { font-family: var(--font-display); font-size: 20px; font-weight: bold; }
+  .zd .zd-l { font-size: 11px; color: var(--ink-secondary); }
+
+  .zukan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .zukan-card {
+    background: var(--surface); border-radius: 12px; padding: 22px;
+    position: relative; overflow: hidden; transition: transform .15s, box-shadow .15s;
+  }
+  .zukan-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px #2e241812; }
+  .zukan-card.open { border: 1px dashed var(--warn); }
+  .zukan-card.resolved { border: 1px solid var(--pass); }
+  .zukan-card .zc-icon {
+    width: 44px; height: 44px; border-radius: 10px; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .zukan-card.open .zc-icon { background: var(--warn-soft); filter: grayscale(.3); }
+  .zukan-card.resolved .zc-icon { background: var(--pass-soft); }
+  .zukan-card .zc-status { position: absolute; top: 16px; right: 16px; font-size: 10px; font-weight: bold; padding: 3px 9px; border-radius: 999px; }
+  .zukan-card.open .zc-status { background: var(--warn-soft); color: var(--warn); }
+  .zukan-card.resolved .zc-status { background: var(--pass-soft); color: var(--pass); }
+  .zukan-card .zc-concept { font-family: var(--font-display); font-weight: bold; font-size: 14px; line-height: 1.5; margin-bottom: 10px; }
+  .zukan-card.open .zc-concept { color: var(--ink-secondary); }
+  .zukan-card .zc-origin { font-size: 11px; color: var(--ink-faint); margin-bottom: 10px; }
+  .zukan-card .zc-next { font-size: 11px; color: var(--warn); font-weight: bold; }
+
+  /* ============ ゲート回答画面 ============ */
+  .answer-layout { display: flex; gap: 32px; }
+  .answer-main { flex: 1; min-width: 0; }
+  .answer-side { width: 320px; flex-shrink: 0; }
+  .diff-preview {
+    background: #2e2418; color: #e8dcc8; border-radius: 10px; padding: 18px 20px;
+    font-family: ui-monospace, "SF Mono", monospace; font-size: 11.5px; line-height: 1.65;
+    overflow-x: auto; margin-bottom: 16px;
+  }
+  .diff-preview .add { color: #8fc7a0; }
+  .diff-preview .del { color: #d98c7a; }
+  .diff-preview .hunk { color: #7a9cc7; }
+  .diff-preview .meta { color: #8a7c66; }
+  textarea.mock-answer {
+    width: 100%; min-height: 160px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface-raised); padding: 16px; font-family: var(--font-body); font-size: 14px;
+    line-height: 1.7; resize: vertical;
+  }
+  .side-card { background: var(--surface); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .side-card h3 { font-family: var(--font-display); font-size: 14px; margin-bottom: 10px; }
+  .side-card .kv { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .side-card .kv:last-child { border: none; }
+  .side-card .kv .k { color: var(--ink-secondary); }
+  .hint-box { background: var(--accent-soft); border-radius: 10px; padding: 16px 18px; font-size: 12.5px; color: var(--accent); line-height: 1.7; }
+
+  .mock-note {
+    background: #2e2418; color: #e8dcc8; border-radius: 10px; padding: 18px 24px;
+    font-size: 12.5px; margin-bottom: 32px; line-height: 1.8;
+  }
+  .mock-note b { color: #f4c97a; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-mark">↻</span>
+    <span>Applied Loop</span>
+  </div>
+  <nav>
+    <a class="active" data-page="dashboard" onclick="showPage('dashboard', this)">ダッシュボード</a>
+    <a data-page="zukan" onclick="showPage('zukan', this)">誤解図鑑</a>
+    <a data-page="gate" onclick="showPage('gate', this)">ゲート回答</a>
+  </nav>
+  <div class="streak-pill">🔥 12日連続</div>
+</header>
+
+<main>
+
+<!-- ==================== ダッシュボード ==================== -->
+<div class="page active" id="page-dashboard">
+
+  <div class="mock-note">
+    <b>モックの論点①:</b> ヒーローを「理解の地形」に。GitHub 草の文法を借りつつ、
+    色の意味を <b>合格(緑) / 誤解発生(黄) / 誤解解消(橙)</b> に再定義。
+    活動量ではなく「理解の変化」が見える草にする。
+  </div>
+
+  <div class="hero">
+    <div class="hero-card" style="flex: 1.6;">
+      <h2>理解の地形</h2>
+      <p class="sub">直近12週 — ゲートの結果を日別に</p>
+      <div class="heatmap" id="heatmap"></div>
+      <div class="hm-legend">
+        <span class="hm-cell pass"></span>合格
+        <span class="hm-cell misconception"></span>誤解発生
+        <span class="hm-cell resolved"></span>誤解解消
+        <span class="hm-cell"></span>記録なし
+      </div>
+    </div>
+    <div class="hero-card">
+      <h2>解消した誤解</h2>
+      <p class="sub">NSM — 累積と週次</p>
+      <div class="growth-stat">
+        <span class="num">14</span><span class="unit">件</span>
+        <span class="delta">▲ 今週 +3</span>
+      </div>
+      <svg width="100%" height="88" viewBox="0 0 260 88" preserveAspectRatio="none">
+        <path d="M0,80 L20,78 L40,74 L60,72 L80,66 L100,64 L120,58 L140,52 L160,46 L180,38 L200,30 L220,22 L240,14 L260,8"
+              fill="none" stroke="#bc5b33" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M0,80 L20,78 L40,74 L60,72 L80,66 L100,64 L120,58 L140,52 L160,46 L180,38 L200,30 L220,22 L240,14 L260,8 L260,88 L0,88 Z"
+              fill="url(#ggrad)" opacity=".25"/>
+        <defs><linearGradient id="ggrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#bc5b33"/><stop offset="100%" stop-color="#bc5b3300"/>
+        </linearGradient></defs>
+      </svg>
+      <p style="font-size:11px;color:var(--ink-faint);margin-top:8px;">発火→回答率 78% / 新規 open 今週 2件</p>
+    </div>
+  </div>
+
+  <!-- ゲートヒーロー -->
+  <div class="gate-hero">
+    <div class="label">◆ 理解度ゲート — 出題中</div>
+    <h2>なぜ週次 Goal OS を最初から詳細に enrich するのではなく、まずマイルストーン単位の wall-bounce で合意を取り、その後に Phase B として enrich する二段階構成にしたのか。これにより、どのような判断のズレや手戻りを防ごうとしているか？</h2>
+    <div class="gate-context">
+      <div class="chips">
+        <span class="chip chip-repo"><span class="dot"></span>workbench</span>
+        <span class="chip chip-domain"><span class="dot"></span>PdM / 目標設計</span>
+        <span class="chip chip-goal"><span class="dot"></span>H2目標: 学習基盤の自立化</span>
+      </div>
+      <span class="commit">f568033 docs(goal-os): require weekly wall-bounce before enrich (#24)</span>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <button class="btn-3d" onclick="showPage('gate', document.querySelector('[data-page=gate]'))">回答する →</button>
+      <button class="btn-ghost">見送る</button>
+    </div>
+  </div>
+
+  <!-- 今日の問いかけ + ナレッジ (コンテキスト付き) -->
+  <div class="section-title">今日の問いかけ <span class="count">2件</span></div>
+
+  <div class="knowledge-card" style="border-left-color: var(--accent);">
+    <div class="kc-head">
+      <div class="kc-title">「mcp-handler 2.1 は createMcpHandler の第3引数を取らない」— 今日のタスクで試せますか？</div>
+    </div>
+    <div class="chips">
+      <span class="chip chip-repo"><span class="dot"></span>applied-loop</span>
+      <span class="chip chip-domain"><span class="dot"></span>TypeScript / MCP</span>
+      <span class="chip chip-goal"><span class="dot"></span>H2目標: 学習基盤の自立化</span>
+    </div>
+    <p class="kc-meta">Cursor との会話 — 2026-08-01 · 登録から 0 日 · 未適用</p>
+  </div>
+
+  <div class="knowledge-card" style="border-left-color: var(--warn);">
+    <div class="kc-head">
+      <div class="kc-title">「Prisma 7 は driver adapter が必須」— 適用から2週間、再出題</div>
+    </div>
+    <div class="chips">
+      <span class="chip chip-repo"><span class="dot"></span>applied-loop</span>
+      <span class="chip chip-domain"><span class="dot"></span>DB / Prisma</span>
+    </div>
+    <p class="kc-meta">適用記録 2件 · 最終適用 2026-07-18</p>
+  </div>
+
+</div>
+
+<!-- ==================== 誤解図鑑 ==================== -->
+<div class="page" id="page-zukan">
+
+  <div class="mock-note">
+    <b>モックの論点②:</b> 誤解パターンを「一覧テーブル」から<b>図鑑</b>へ。
+    未解消はシルエット的に、解消するとカラーになる。コレクション欲求で再出題を「ご褒美」に変える。
+    各カードに出自（どのリポジトリのどのコミットで誤解したか）を表示。
+  </div>
+
+  <div class="zukan-progress">
+    <div class="zukan-ring">
+      <svg width="88" height="88">
+        <circle cx="44" cy="44" r="38" fill="none" stroke="#e3d9c4" stroke-width="9"/>
+        <circle cx="44" cy="44" r="38" fill="none" stroke="#bc5b33" stroke-width="9"
+                stroke-linecap="round" stroke-dasharray="176 239"/>
+      </svg>
+      <div class="ring-label"><span class="n">14</span><span class="d">/ 19 解消</span></div>
+    </div>
+    <div style="flex:1;">
+      <h2 class="font-display" style="font-size:19px;margin-bottom:6px;">誤解図鑑</h2>
+      <p style="font-size:12.5px;color:var(--ink-secondary);margin-bottom:14px;">あなたが誤解しがちな概念のコレクション。再出題に合格するとカラーが解禁されます。</p>
+      <div class="zukan-domains">
+        <div class="zd"><div class="zd-n" style="color:#3d5a80;">6</div><div class="zd-l">TypeScript/基盤</div></div>
+        <div class="zd"><div class="zd-n" style="color:#6d4c90;">5</div><div class="zd-l">PdM/設計</div></div>
+        <div class="zd"><div class="zd-n" style="color:#a8832f;">4</div><div class="zd-l">DB/データ</div></div>
+        <div class="zd"><div class="zd-n" style="color:#4a7c59;">4</div><div class="zd-l">CS/運用</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="zukan-grid">
+    <div class="zukan-card resolved">
+      <span class="zc-status">解消 ✓</span>
+      <div class="zc-icon">🔄</div>
+      <div class="zc-concept">冪等性は「エラー対策」ではなく、何度実行しても同じ最終状態に収束する性質</div>
+      <div class="zc-origin">📁 applied-loop · 3e9a720 Add MVP…</div>
+      <div class="chips"><span class="chip chip-domain"><span class="dot"></span>DB / Prisma</span></div>
+    </div>
+    <div class="zukan-card resolved">
+      <span class="zc-status">解消 ✓</span>
+      <div class="zc-icon">🧭</div>
+      <div class="zc-concept">イベント駆動の主目的は非同期処理ではなく、出来事の独立記録と履歴追跡の柔軟性</div>
+      <div class="zc-origin">📁 applied-loop · 3e9a720 Add MVP…</div>
+      <div class="chips"><span class="chip chip-domain"><span class="dot"></span>TypeScript / 設計</span></div>
+    </div>
+    <div class="zukan-card open">
+      <span class="zc-status">未解消</span>
+      <div class="zc-icon">🧱</div>
+      <div class="zc-concept">段階的進行 (wall-bounce) の主目的は情報量対策ではなく、前提の誤りによる手戻り防止</div>
+      <div class="zc-origin">📁 workbench · f568033 docs(goal-os)…</div>
+      <div class="chips" style="margin-bottom:10px;"><span class="chip chip-domain"><span class="dot"></span>PdM / 目標設計</span></div>
+      <div class="zc-next">⏰ 再出題まで あと 51 時間</div>
+    </div>
+    <div class="zukan-card open">
+      <span class="zc-status">未解消</span>
+      <div class="zc-icon">🔐</div>
+      <div class="zc-concept">Bearer 認証の境界は「通信の暗号化」ではなく「呼び出し主体の識別」にある</div>
+      <div class="zc-origin">📁 applied-loop · 9c21ab7 add mcp auth…</div>
+      <div class="chips" style="margin-bottom:10px;"><span class="chip chip-domain"><span class="dot"></span>TypeScript / MCP</span></div>
+      <div class="zc-next">⏰ 再出題まで あと 4 時間</div>
+    </div>
+    <div class="zukan-card resolved">
+      <span class="zc-status">解消 ✓</span>
+      <div class="zc-icon">📊</div>
+      <div class="zc-concept">NSM は「努力の量」ではなく「価値の発生」を直接数える指標でなければゲーム化される</div>
+      <div class="zc-origin">📁 workbench · 71aa3cf metrics review…</div>
+      <div class="chips"><span class="chip chip-domain"><span class="dot"></span>PdM / 計測</span></div>
+    </div>
+    <div class="zukan-card open">
+      <span class="zc-status">未解消</span>
+      <div class="zc-icon">🗃️</div>
+      <div class="zc-concept">SQLite の driver adapter が必要な理由は「方言の吸収」ではなく「接続方式の多様化」への対応</div>
+      <div class="zc-origin">📁 applied-loop · b41f2e1 prisma 7 upgrade…</div>
+      <div class="chips" style="margin-bottom:10px;"><span class="chip chip-domain"><span class="dot"></span>DB / Prisma</span></div>
+      <div class="zc-next">⏰ 再出題まで あと 27 時間</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ゲート回答 ==================== -->
+<div class="page" id="page-gate">
+
+  <div class="mock-note">
+    <b>モックの論点③:</b> 回答画面の右カラムに<b>対象コミットのコンテキスト</b>を常駐させる。
+    「どのリポジトリで何をしていた時の学びか」が常に見える状態に。
+    左には diff の一部を確認できるビューア（ただし見て答えるとカンニングになるので、
+    デフォルトは折りたたみ — 開いたら自己申告扱い、という設計論点あり）。
+  </div>
+
+  <div class="answer-layout">
+    <div class="answer-main">
+      <div class="gate-hero" style="margin-bottom:24px;">
+        <div class="label">◆ 初回出題 — コードを見ずに答えてください</div>
+        <h2>なぜ週次 Goal OS を最初から詳細に enrich するのではなく、まずマイルストーン単位の wall-bounce で合意を取り、その後に Phase B として enrich する二段階構成にしたのか。</h2>
+        <div class="chips">
+          <span class="chip chip-repo"><span class="dot"></span>workbench</span>
+          <span class="chip chip-domain"><span class="dot"></span>PdM / 目標設計</span>
+          <span class="chip chip-goal"><span class="dot"></span>H2目標: 学習基盤の自立化</span>
+        </div>
+      </div>
+
+      <details style="margin-bottom:16px;">
+        <summary style="font-size:12px;color:var(--ink-faint);cursor:pointer;">対象コミットの diff を確認する（自己申告制 · 開くと「参考閲覧」として記録されます）</summary>
+        <div class="diff-preview" style="margin-top:12px;">
+<span class="meta">commit f568033 — docs(goal-os): require weekly wall-bounce before enrich (#24)</span>
+<span class="hunk">@@ docs/goal-os/weekly.md §3</span>
+<span class="del">- 週次 Goal OS は月曜に enrich まで一気通貫で行う</span>
+<span class="add">+ 週次 Goal OS は Phase A (マイルストーンの wall-bounce 合意) と</span>
+<span class="add">+ Phase B (enrich) に分離する。Phase B は合意後にのみ実施する</span>
+        </div>
+      </details>
+
+      <textarea class="mock-answer" placeholder="自分の言葉で説明してください。例: 「二段階にしたのは…」"></textarea>
+      <div style="display:flex;gap:12px;margin-top:16px;align-items:center;">
+        <button class="btn-3d">回答を採点する</button>
+        <button class="btn-ghost">わからない — 誤解として記録</button>
+      </div>
+    </div>
+
+    <div class="answer-side">
+      <div class="side-card">
+        <h3>出題の出自</h3>
+        <div class="kv"><span class="k">リポジトリ</span><span>workbench</span></div>
+        <div class="kv"><span class="k">コミット</span><span style="font-family:ui-monospace,monospace;">f568033</span></div>
+        <div class="kv"><span class="k">変更</span><span>docs(goal-os) 週次運用</span></div>
+        <div class="kv"><span class="k">出題日</span><span>2026-08-01</span></div>
+      </div>
+      <div class="side-card">
+        <h3>関連する目標</h3>
+        <div class="chips" style="margin-bottom:8px;">
+          <span class="chip chip-goal"><span class="dot"></span>H2目標: 学習基盤の自立化</span>
+        </div>
+        <p style="font-size:11.5px;color:var(--ink-secondary);">KDI: 週次 Goal OS の運用定着率 80%。この学びは目標の「運用設計」に貢献。</p>
+      </div>
+      <div class="hint-box">
+        💡 この論点は 2 回目の出題です。前回 (7/28) は「情報量対策」と回答し不合格でした。「手戻り防止」の観点で整理してみましょう。
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+  // ページ切り替え
+  function showPage(id, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    if (el) el.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  // ヒートマップ生成 (直近12週、デモデータ)
+  const hm = document.getElementById('heatmap');
+  const states = ['','pass','','misconception','pass','','pass','resolved','','pass','misconception','pass','','resolved','pass','pass','','pass','misconception','resolved','pass','','pass','pass','misconception','','pass','resolved','pass','pass','','misconception','pass','pass','resolved','','pass','pass','pass','misconception','pass','','resolved','pass','pass','misconception','pass','','pass','resolved','pass','','pass','pass','misconception','pass','','pass','resolved','pass','pass','','pass','misconception','pass','pass','resolved','pass','','pass','pass','pass','misconception','resolved','pass','pass','','pass','resolved','pass','misconception','pass','pass'];
+  const today = new Date();
+  for (let i = 0; i < 84; i++) {
+    const cell = document.createElement('span');
+    const s = states[i % states.length];
+    cell.className = 'hm-cell' + (s ? ' ' + s : '');
+    const d = new Date(today.getTime() - (83 - i) * 86400000);
+    const label = { pass: '合格', misconception: '誤解発生', resolved: '誤解解消', '': '記録なし' }[s];
+    cell.dataset.tip = `${d.getMonth()+1}/${d.getDate()} — ${label}`;
+    if (i === 83) cell.classList.add('today');
+    hm.appendChild(cell);
+  }
+</script>
+</body>
+</html>

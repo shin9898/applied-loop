@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter%3Awght%40100..900&family=Shippori+Mincho%3Awght%40400%3B700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      *, ::before, ::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      data-pencil-name="Dashboard v2"
+      style="align-items: flex-start; background-color: #F4EEE2; box-sizing: border-box; display: flex; flex-direction: column; gap: 0px; height: 1092px; justify-content: flex-start; overflow: hidden; width: 1440px"
+    >
+      <div
+        data-pencil-name="Header"
+        style="align-items: center; background-color: #F4EEE2; border-color: #E3D9C4; border-style: solid; border-width: 0px 0px 1px 0px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: space-between; padding: 20px 64px; width: 100%"
+      >
+        <div
+          data-pencil-name="Logo"
+          style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; width: fit-content"
+        >
+          <div
+            data-pencil-name="Logo Mark"
+            style="align-items: center; background-color: #BC5B33; border-radius: 8px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: 28px; justify-content: center; width: 28px"
+          >
+            <div
+              data-pencil-name="Logo Icon"
+              style='box-sizing: border-box; color: #FBF8F0; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 15px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+            >
+              ↻
+            </div>
+          </div>
+          <div
+            data-pencil-name="Logo Text"
+            style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 19px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+          >
+            Applied Loop
+          </div>
+        </div>
+        <div
+          data-pencil-name="Nav"
+          style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 28px; height: fit-content; justify-content: flex-start; width: fit-content"
+        >
+          <div
+            data-pencil-name="Nav Dashboard"
+            style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+          >
+            ダッシュボード
+          </div>
+          <div
+            data-pencil-name="Nav Zukan"
+            style="box-sizing: border-box; color: #2E2418; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+          >
+            誤解図鑑
+          </div>
+          <div
+            data-pencil-name="Nav Inbox"
+            style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+          >
+            受信箱
+          </div>
+          <div
+            data-pencil-name="Nav Entries"
+            style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+          >
+            エントリ
+          </div>
+        </div>
+        <div
+          data-pencil-name="Streak Pill"
+          style="align-items: center; background-color: #BC5B3318; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; padding: 8px 14px; width: fit-content"
+        >
+          <svg
+            data-pencil-name="Streak Icon"
+            data-icon-name="flame"
+            data-icon-set="lucide"
+            viewBox="0 0 13.99993896484375 14"
+            preserveAspectRatio="xMidYMid meet"
+            xmlns="http://www.w3.org/2000/svg"
+            style="box-sizing: border-box; flex-shrink: 0; height: 16px; width: 16px"
+          >
+            <path
+              d="M6.84619 1.18945q-0.23926 0.07178-0.78271 0.61524-0.51953 0.5332-0.78614 1.05273-0.2666 0.51611-0.32129 1.09033-0.01367 0.21191 0.02735 0.5127 0.04102 0.30078 0.1333 0.56055 0.09229 0.25635 0.33496 0.77588 0.24609 0.51611 0.30078 0.70068 0.05811 0.18115 0.07178 0.46142 0 0.18115-0.00684 0.23926-0.00684 0.05469-0.03418 0.10938-0.12646 0.29395-0.37939 0.44092-0.25293 0.14697-0.54688 0.11962-0.29395-0.02734-0.50244-0.23925-0.12646-0.12646-0.18457-0.24952-0.05469-0.12646-0.08203-0.34179-0.02734-0.21875-0.09912-0.34522-0.06836-0.12646-0.23584-0.21191-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04102 0.01367-0.09912 0.04102-0.14014 0.07178-0.28027 0.2666-0.42041 0.57422-0.55713 1.30225-0.1709 0.86816 0.06152 1.81494 0.23242 0.94336 0.80322 1.69873 0.57422 0.75537 1.40137 1.23389 0.82715 0.4751 1.79102 0.58789 0.18457 0.02734 0.5332 0.02734 0.34863 0 0.51953-0.02734 1.04932-0.12647 1.92432-0.65625 0.875-0.5332 1.44922-1.40137 0.51611-0.77246 0.69043-1.69531 0.17773-0.92285-0.02051-1.80469-0.10938-0.43408-0.3418-0.88867-0.23242-0.45801-0.54004-0.86133-0.2085-0.2666-0.40674-0.45459-0.19482-0.19141-0.58789-0.54004-0.54346-0.49219-0.91601-0.96045-0.36914-0.46826-0.66309-1.05615-0.33838-0.67334-0.50586-1.34326-0.06836-0.2666-0.18115-0.3794-0.15381-0.15381-0.39307-0.16748-0.14014 0-0.18115 0.01367z m-0.05469 1.79102q0.14014 0.37939 0.33496 0.74512 0.34863 0.65625 0.76905 1.18261 0.42041 0.52295 1.03564 1.06299 0.61523 0.54004 0.95703 1.0083 0.34521 0.46826 0.49903 0.9878 0.21191 0.7417 0.0205 1.56201-0.18799 0.81689-0.72119 1.4458-0.48877 0.60156-1.17578 0.92627-0.88184 0.43408-1.86963 0.32812-0.98438-0.10596-1.78418-0.70752-0.28027-0.22559-0.55371-0.54687-0.27002-0.32129-0.46142-0.72803-0.18799-0.40674-0.27344-0.79639-0.0957-0.54688-0.05469-0.90918l0.01367-0.08545 0.1128 0.09913q0.37939 0.32129 0.86132 0.43408 0.48193 0.10938 0.95704-0.01367 0.68701-0.1709 1.11425-0.72803 0.42725-0.56055 0.42725-1.26123 0-0.50586-0.2085-1.04932-0.05811-0.15381-0.25293-0.58789-0.2666-0.54688-0.33837-0.75537-0.06836-0.21191-0.06836-0.49219 0-0.22217 0.03418-0.34179 0.0376-0.11963 0.11962-0.30079 0.08545-0.18457 0.16065-0.30078 0.07861-0.11963 0.16748-0.23242 0.09229-0.11279 0.10596-0.09912 0.01367 0.01367 0.07177 0.15381z"
+              fill="#BC5B33"
+            ></path>
+          </svg>
+          <div
+            data-pencil-name="Streak Text"
+            style='box-sizing: border-box; color: #BC5B33; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+          >
+            12日連続
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="Main"
+        style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 32px; height: fit-content; justify-content: flex-start; padding: 40px 64px; width: 100%"
+      >
+        <div
+          data-pencil-name="Hero Row"
+          style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 24px; height: fit-content; justify-content: flex-start; width: 100%"
+        >
+          <div
+            data-pencil-name="Heatmap Card"
+            style="align-items: flex-start; background-color: #FBF8F0; border-radius: 12px; box-sizing: border-box; display: flex; flex-direction: column; flex: 1 1 0; gap: 6px; height: fit-content; justify-content: flex-start; padding: 28px"
+          >
+            <div
+              data-pencil-name="HM Title"
+              style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 17px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+            >
+              理解の地形
+            </div>
+            <div
+              data-pencil-name="HM Sub"
+              style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+            >
+              直近12週 — ゲートの結果を日別に
+            </div>
+            <div
+              data-pencil-name="Heatmap Grid"
+              style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; padding: 12px 0px 0px 0px; width: fit-content"
+            >
+              <div
+                data-pencil-name="Week 1"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w0d0"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w0d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w0d2"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w0d3"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w0d4"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w0d5"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w0d6"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 2"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w1d0"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w1d1"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w1d2"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w1d3"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w1d4"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w1d5"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w1d6"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 3"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w2d0"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w2d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w2d2"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w2d3"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w2d4"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w2d5"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w2d6"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 4"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w3d0"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w3d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w3d2"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w3d3"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w3d4"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w3d5"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w3d6"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 5"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w4d0"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w4d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w4d2"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w4d3"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w4d4"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w4d5"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w4d6"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 6"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w5d0"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w5d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w5d2"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w5d3"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w5d4"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w5d5"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w5d6"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 7"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w6d0"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w6d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w6d2"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w6d3"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w6d4"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w6d5"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w6d6"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 8"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w7d0"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w7d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w7d2"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w7d3"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w7d4"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w7d5"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w7d6"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 9"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w8d0"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w8d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w8d2"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w8d3"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w8d4"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w8d5"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w8d6"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 10"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w9d0"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w9d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w9d2"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w9d3"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w9d4"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w9d5"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w9d6"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 11"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w10d0"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w10d1"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w10d2"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w10d3"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w10d4"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w10d5"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w10d6"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+              <div
+                data-pencil-name="Week 12"
+                style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Cell w11d0"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w11d1"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w11d2"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w11d3"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w11d4"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w11d5"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+                <div
+                  data-pencil-name="Cell w11d6"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+                ></div>
+              </div>
+            </div>
+            <div
+              data-pencil-name="HM Legend"
+              style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 14px; height: fit-content; justify-content: flex-start; padding: 10px 0px 0px 0px; width: fit-content"
+            >
+              <div
+                data-pencil-name="Legend 合格"
+                style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Legend Chip 合格"
+                  style="background-color: #6D9C7F; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 11px; width: 11px"
+                ></div>
+                <div
+                  data-pencil-name="Legend Label 合格"
+                  style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  合格
+                </div>
+              </div>
+              <div
+                data-pencil-name="Legend 誤解発生"
+                style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Legend Chip 誤解発生"
+                  style="background-color: #D9A441; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 11px; width: 11px"
+                ></div>
+                <div
+                  data-pencil-name="Legend Label 誤解発生"
+                  style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  誤解発生
+                </div>
+              </div>
+              <div
+                data-pencil-name="Legend 誤解解消"
+                style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Legend Chip 誤解解消"
+                  style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 11px; width: 11px"
+                ></div>
+                <div
+                  data-pencil-name="Legend Label 誤解解消"
+                  style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  誤解解消
+                </div>
+              </div>
+              <div
+                data-pencil-name="Legend 記録なし"
+                style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Legend Chip 記録なし"
+                  style="background-color: #E3D9C4; border-radius: 3px; box-sizing: border-box; flex-shrink: 0; height: 11px; width: 11px"
+                ></div>
+                <div
+                  data-pencil-name="Legend Label 記録なし"
+                  style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  記録なし
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Growth Card"
+            style="align-items: flex-start; background-color: #FBF8F0; border-radius: 12px; box-sizing: border-box; display: flex; flex-direction: column; flex: 1 1 0; gap: 6px; height: fit-content; justify-content: flex-start; padding: 28px"
+          >
+            <div
+              data-pencil-name="GR Title"
+              style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 17px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+            >
+              解消した誤解
+            </div>
+            <div
+              data-pencil-name="GR Sub"
+              style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+            >
+              NSM — 累積と週次
+            </div>
+            <div
+              data-pencil-name="GR Stat"
+              style="align-items: flex-end; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; padding: 10px 0px 0px 0px; width: fit-content"
+            >
+              <div
+                data-pencil-name="GR Num"
+                style='box-sizing: border-box; color: #BC5B33; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 44px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: 44px; text-align: left; white-space: nowrap'
+              >
+                14
+              </div>
+              <div
+                data-pencil-name="GR Unit"
+                style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 13px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                件
+              </div>
+              <div
+                data-pencil-name="GR Delta"
+                style="box-sizing: border-box; color: #4A7C59; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                ▲ 今週 +3
+              </div>
+            </div>
+            <div
+              data-pencil-name="GR Chart"
+              style="align-items: flex-end; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 4px; height: 92px; justify-content: flex-start; padding: 8px 0px 0px 0px; width: 100%"
+            >
+              <div
+                data-pencil-name="Week Bar 1"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 6px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 2"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 28px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 3"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 6px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 4"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 28px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 5"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 56px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 6"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 6px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 7"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 28px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 8"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 56px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 9"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 28px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 10"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 56px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 11"
+                style="background-color: #BC5B334D; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 28px"
+              ></div>
+              <div
+                data-pencil-name="Week Bar 12"
+                style="background-color: #BC5B33; border-radius: 3px; box-sizing: border-box; flex: 1 1 0; height: 84px"
+              ></div>
+            </div>
+            <div
+              data-pencil-name="GR Foot"
+              style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+            >
+              発火→回答率 78% / 新規 open 今週 2件
+            </div>
+          </div>
+        </div>
+        <div
+          data-pencil-name="Gate Hero"
+          style="align-items: flex-start; background-color: #FDFBF5; border-color: #A8832F; border-radius: 12px; border-style: solid; border-width: 1px 1px 1px 6px; box-shadow: 0px 12px 40px 0px #A8832F1F; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 14px; height: fit-content; justify-content: flex-start; padding: 32px 36px; width: 100%"
+        >
+          <div
+            data-pencil-name="GH Label Row"
+            style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; width: fit-content"
+          >
+            <div
+              data-pencil-name="GH Label"
+              style="box-sizing: border-box; color: #A8832F; font-family: Inter, system-ui, sans-serif; font-size: 13px; font-style: normal; font-weight: 700; letter-spacing: 2px; line-height: normal; text-align: left; white-space: nowrap"
+            >
+              ◆ 理解度ゲート — 出題中
+            </div>
+          </div>
+          <div
+            data-pencil-name="GH Question"
+            style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 20px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: 33px; text-align: left; width: 100%'
+          >
+            なぜ週次 Goal OS を最初から詳細に enrich するのではなく、まずマイルストーン単位の
+            wall-bounce で合意を取り、その後に Phase B として enrich
+            する二段階構成にしたのか。これにより、どのような判断のズレや手戻りを防ごうとしているか？
+          </div>
+          <div
+            data-pencil-name="GH Context"
+            style="align-items: center; background-color: #F4EEE2; border-radius: 10px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 14px; height: fit-content; justify-content: flex-start; padding: 14px 18px; width: 100%"
+          >
+            <div
+              data-pencil-name="GH Chips"
+              style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 6px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <div
+                data-pencil-name="Chip Repo"
+                style="align-items: center; background-color: #3D5A8012; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; padding: 3px 9px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Chip Dot"
+                  style="background-color: #3D5A80; border-radius: 50%; box-sizing: border-box; flex-shrink: 0; height: 6px; width: 6px"
+                ></div>
+                <div
+                  data-pencil-name="Chip Label"
+                  style="box-sizing: border-box; color: #3D5A80; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  workbench
+                </div>
+              </div>
+              <div
+                data-pencil-name="Chip Domain"
+                style="align-items: center; background-color: #6D4C9012; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; padding: 3px 9px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Chip Dot"
+                  style="background-color: #6D4C90; border-radius: 50%; box-sizing: border-box; flex-shrink: 0; height: 6px; width: 6px"
+                ></div>
+                <div
+                  data-pencil-name="Chip Label"
+                  style="box-sizing: border-box; color: #3D5A80; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  PdM / 目標設計
+                </div>
+              </div>
+              <div
+                data-pencil-name="Chip Goal"
+                style="align-items: center; background-color: #4A7C5912; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; padding: 3px 9px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Chip Dot"
+                  style="background-color: #4A7C59; border-radius: 50%; box-sizing: border-box; flex-shrink: 0; height: 6px; width: 6px"
+                ></div>
+                <div
+                  data-pencil-name="Chip Label"
+                  style="box-sizing: border-box; color: #3D5A80; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  H2目標: 学習基盤の自立化
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-name="GH Commit"
+              style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+            >
+              f568033 docs(goal-os): require weekly wall-bounce before enrich (#24)
+            </div>
+          </div>
+          <div
+            data-pencil-name="GH Actions"
+            style="align-items: flex-end; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 12px; height: fit-content; justify-content: flex-start; width: fit-content"
+          >
+            <div
+              data-pencil-name="GH Primary 3D"
+              style="align-items: flex-start; border-radius: 12px; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: flex-start; width: 200px"
+            >
+              <div
+                data-pencil-name="GH Primary Top"
+                style="align-items: center; background-color: #BC5B33; border-radius: 12px 12px 9px 9px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: center; padding: 13px 28px; width: 100%"
+              >
+                <div
+                  data-pencil-name="GH Primary Label"
+                  style="box-sizing: border-box; color: #FBF8F0; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  回答する →
+                </div>
+              </div>
+              <div
+                data-pencil-name="GH Primary Bottom"
+                style="background-color: #96431F; border-radius: 0px 0px 12px 12px; box-sizing: border-box; flex-shrink: 0; height: 4px; width: 100%"
+              ></div>
+            </div>
+            <div
+              data-pencil-name="GH Ghost"
+              style="align-items: center; border-radius: 12px; border: 1px solid #E3D9C4; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: flex-start; padding: 13px 20px; width: fit-content"
+            >
+              <div
+                data-pencil-name="GH Ghost Label"
+                style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                見送る
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          data-pencil-name="Today Section"
+          style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 14px; height: fit-content; justify-content: flex-start; width: 100%"
+        >
+          <div
+            data-pencil-name="Today Title Row"
+            style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; width: fit-content"
+          >
+            <div
+              data-pencil-name="Today Title"
+              style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 19px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+            >
+              今日の問いかけ
+            </div>
+            <div
+              data-pencil-name="Today Count"
+              style="align-items: flex-start; background-color: #BC5B3318; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: flex-start; padding: 3px 10px; width: fit-content"
+            >
+              <div
+                data-pencil-name="Today Count Label"
+                style="box-sizing: border-box; color: #BC5B33; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                2件
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Knowledge Card 1"
+            style="align-items: flex-start; background-color: #FBF8F0; border-color: #BC5B33; border-radius: 10px; border-style: solid; border-width: 0px 0px 0px 4px; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; padding: 20px 22px 20px 26px; width: 100%"
+          >
+            <div
+              data-pencil-name="KC Title 1"
+              style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 15px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: 24px; text-align: left; width: 100%'
+            >
+              「mcp-handler 2.1 は createMcpHandler の第3引数を取らない」— 今日のタスクで試せますか?
+            </div>
+            <div
+              data-pencil-name="KC Chips 1"
+              style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 6px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <div
+                data-pencil-name="KC Chip repo 1"
+                style="align-items: center; background-color: #3D5A8012; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; padding: 3px 9px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Chip Dot"
+                  style="background-color: #3D5A80; border-radius: 50%; box-sizing: border-box; flex-shrink: 0; height: 6px; width: 6px"
+                ></div>
+                <div
+                  data-pencil-name="Chip Label"
+                  style="box-sizing: border-box; color: #3D5A80; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  applied-loop
+                </div>
+              </div>
+              <div
+                data-pencil-name="KC Chip domain 1"
+                style="align-items: center; background-color: #6D4C9012; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; padding: 3px 9px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Chip Dot"
+                  style="background-color: #6D4C90; border-radius: 50%; box-sizing: border-box; flex-shrink: 0; height: 6px; width: 6px"
+                ></div>
+                <div
+                  data-pencil-name="Chip Label"
+                  style="box-sizing: border-box; color: #3D5A80; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  TypeScript / MCP
+                </div>
+              </div>
+              <div
+                data-pencil-name="KC Chip goal 1"
+                style="align-items: center; background-color: #4A7C5912; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; padding: 3px 9px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Chip Dot"
+                  style="background-color: #4A7C59; border-radius: 50%; box-sizing: border-box; flex-shrink: 0; height: 6px; width: 6px"
+                ></div>
+                <div
+                  data-pencil-name="Chip Label"
+                  style="box-sizing: border-box; color: #3D5A80; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  H2目標: 学習基盤の自立化
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-name="KC Meta 1"
+              style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+            >
+              Cursor との会話 — 2026-08-01 · 登録から 0 日 · 未適用
+            </div>
+          </div>
+          <div
+            data-pencil-name="Knowledge Card 2"
+            style="align-items: flex-start; background-color: #FBF8F0; border-color: #A8832F; border-radius: 10px; border-style: solid; border-width: 0px 0px 0px 4px; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; padding: 20px 22px 20px 26px; width: 100%"
+          >
+            <div
+              data-pencil-name="KC Title 2"
+              style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 15px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: 24px; text-align: left; width: 100%'
+            >
+              「Prisma 7 は driver adapter が必須」— 適用から2週間、再出題
+            </div>
+            <div
+              data-pencil-name="KC Chips 2"
+              style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 6px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <div
+                data-pencil-name="KC Chip repo 2"
+                style="align-items: center; background-color: #3D5A8012; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; padding: 3px 9px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Chip Dot"
+                  style="background-color: #3D5A80; border-radius: 50%; box-sizing: border-box; flex-shrink: 0; height: 6px; width: 6px"
+                ></div>
+                <div
+                  data-pencil-name="Chip Label"
+                  style="box-sizing: border-box; color: #3D5A80; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  applied-loop
+                </div>
+              </div>
+              <div
+                data-pencil-name="KC Chip domain 2"
+                style="align-items: center; background-color: #6D4C9012; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 5px; height: fit-content; justify-content: flex-start; padding: 3px 9px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Chip Dot"
+                  style="background-color: #6D4C90; border-radius: 50%; box-sizing: border-box; flex-shrink: 0; height: 6px; width: 6px"
+                ></div>
+                <div
+                  data-pencil-name="Chip Label"
+                  style="box-sizing: border-box; color: #3D5A80; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  DB / Prisma
+                </div>
+              </div>
+            </div>
+            <div
+              data-pencil-name="KC Meta 2"
+              style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+            >
+              適用記録 2件 · 最終適用 2026-07-18
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DQ コマンドドック — モック比較（案A–D）</title>
+  <style>
+    :root {
+      --navy: #001a8c;
+      --navy-deep: #000c4a;
+      --cream: #f7f3d9;
+      --cream-dim: #c9c3a0;
+      --gold: #f0d25a;
+      --edge: #fff;
+      --hp: #3ecf5a;
+      --danger: #e84848;
+      --font-pixel: "Press Start 2P", "DotGothic16", monospace;
+      --font-jp: "DotGothic16", "Hiragino Kaku Gothic ProN", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0a0a18;
+      color: var(--cream);
+      font-family: var(--font-jp);
+      min-height: 100vh;
+    }
+    a { color: var(--gold); }
+
+    /* —— chrome outside the phone —— */
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px 16px 48px;
+    }
+    h1 {
+      font-family: var(--font-pixel);
+      font-size: 14px;
+      color: var(--gold);
+      text-shadow: 2px 2px 0 #000;
+      margin: 0 0 8px;
+    }
+    .lede {
+      color: var(--cream-dim);
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0 0 16px;
+      max-width: 62ch;
+    }
+    .rec {
+      border: 3px solid var(--gold);
+      background: var(--navy);
+      padding: 12px 14px;
+      margin-bottom: 18px;
+      box-shadow: 4px 4px 0 #000;
+    }
+    .rec strong {
+      font-family: var(--font-pixel);
+      font-size: 11px;
+      color: var(--gold);
+    }
+    .rec p { margin: 8px 0 0; font-size: 14px; line-height: 1.55; color: var(--cream); }
+
+    .tabs, .scenes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .tab, .scene-btn {
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      border: 3px solid var(--edge);
+      background: var(--navy-deep);
+      color: var(--cream);
+      padding: 10px 12px;
+      cursor: pointer;
+      box-shadow: 3px 3px 0 #000;
+    }
+    .tab[aria-selected="true"], .scene-btn[aria-selected="true"] {
+      background: var(--gold);
+      color: #1a1000;
+    }
+    .tab .badge {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 9px;
+      color: var(--hp);
+    }
+    .tab[aria-selected="true"] .badge { color: #003018; }
+
+    .compare {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 20px;
+      font-size: 13px;
+    }
+    .compare th, .compare td {
+      border: 2px solid #223;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .compare th {
+      background: var(--navy);
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      color: var(--gold);
+    }
+    .compare td { background: #0e1230; color: var(--cream-dim); }
+    .compare tr.hl td { background: #1a2850; color: var(--cream); }
+    .compare .best { color: var(--hp); }
+
+    .stage-wrap {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    @media (min-width: 900px) {
+      .stage-wrap { grid-template-columns: 1fr 280px; align-items: start; }
+    }
+
+    /* —— phone frame —— */
+    .phone {
+      position: relative;
+      border: 4px solid #333;
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--navy-deep);
+      height: min(720px, 78vh);
+      box-shadow: 0 0 0 3px #111, 8px 8px 0 #000;
+    }
+    .phone-label {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      z-index: 5;
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      color: var(--gold);
+      background: rgba(0, 12, 74, 0.85);
+      border: 2px solid var(--edge);
+      padding: 4px 8px;
+      pointer-events: none;
+    }
+
+    .viewport {
+      position: absolute;
+      inset: 0;
+      overflow: auto;
+      scroll-behavior: smooth;
+    }
+
+    /* safe zones visualized */
+    .safe-zone {
+      pointer-events: none;
+      position: absolute;
+      z-index: 2;
+      border: 2px dashed rgba(240, 210, 90, 0.45);
+      background: rgba(240, 210, 90, 0.08);
+    }
+
+    /* —— scene content —— */
+    .scene-map, .scene-battle { min-height: 1200px; position: relative; }
+
+    .map-bg {
+      background:
+        radial-gradient(ellipse at 30% 20%, #1a4a28 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 60%, #1a3a70 0%, transparent 45%),
+        linear-gradient(#0c2818, #061208 60%, #000c4a);
+      padding: 48px 14px 200px;
+    }
+    .battle-bg {
+      background: linear-gradient(#2a4a7a 0%, #1a3a18 48%, #0c220c 100%);
+      padding: 48px 14px 280px;
+    }
+
+    .dq-panel {
+      background: var(--navy);
+      border: 4px solid var(--edge);
+      outline: 3px solid var(--navy-deep);
+      box-shadow: 5px 5px 0 #000;
+      color: var(--cream);
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .dq-panel h2 {
+      margin: 0 0 8px;
+      font-family: var(--font-pixel);
+      font-size: 11px;
+      color: var(--gold);
+    }
+    .dq-panel p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--cream-dim); }
+
+    .map-band {
+      border: 4px solid var(--gold);
+      background: var(--navy);
+      padding: 14px;
+      margin-bottom: 12px;
+      display: grid;
+      gap: 10px;
+    }
+    @media (min-width: 520px) {
+      .map-band { grid-template-columns: 1fr auto; align-items: center; }
+    }
+    .fake-btn {
+      font-family: var(--font-pixel);
+      font-size: 11px;
+      background: var(--gold);
+      color: #1a1000;
+      border: 3px solid var(--edge);
+      padding: 12px 14px;
+      box-shadow: 3px 3px 0 #000;
+      text-align: center;
+    }
+
+    .battle-stage {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    @media (min-width: 560px) {
+      .battle-stage { grid-template-columns: 0.9fr 1.4fr; align-items: center; }
+    }
+    .enemy-box { text-align: center; }
+    .enemy-sprite {
+      width: 96px; height: 96px; margin: 8px auto;
+      background: #3ecf5a;
+      border: 3px solid #000;
+      box-shadow: 4px 4px 0 #000;
+      image-rendering: pixelated;
+      clip-path: polygon(20% 10%, 80% 10%, 95% 40%, 70% 95%, 30% 95%, 5% 40%);
+    }
+    .speech {
+      background: var(--navy);
+      border: 4px solid var(--edge);
+      padding: 12px;
+      box-shadow: 4px 4px 0 #000;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .battle-cmds {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      background: var(--navy-deep);
+      border: 4px solid #000;
+      padding: 10px;
+    }
+    .battle-cmds button {
+      font-family: var(--font-pixel);
+      font-size: 11px;
+      text-align: left;
+      background: var(--navy);
+      color: var(--cream);
+      border: 3px solid var(--edge);
+      padding: 12px;
+      cursor: default;
+    }
+    .narrator {
+      background: var(--navy);
+      border: 4px solid var(--edge);
+      padding: 12px;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 72px;
+    }
+    .overlap-hot {
+      outline: 3px dashed var(--danger) !important;
+      outline-offset: 2px;
+    }
+    .overlap-note {
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      color: var(--danger);
+      margin-top: 6px;
+    }
+
+    /* —— command dock variants —— */
+    .cmd-win {
+      background: var(--navy);
+      border: 4px solid var(--edge);
+      box-shadow: 5px 5px 0 #000, inset 0 0 0 2px var(--navy-deep);
+      color: var(--cream);
+      font-family: var(--font-pixel);
+      font-size: 11px;
+      line-height: 1.7;
+    }
+    .cmd-win-title {
+      position: relative;
+      text-align: center;
+      color: var(--gold);
+      font-size: 10px;
+      margin: -2px 8px 6px;
+      letter-spacing: 0.04em;
+    }
+    .cmd-win-title::before,
+    .cmd-win-title::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 18%;
+      height: 2px;
+      background: var(--edge);
+    }
+    .cmd-win-title::before { left: 0; }
+    .cmd-win-title::after { right: 0; }
+
+    .cmd-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 10px;
+      padding: 4px 10px 10px;
+      list-style: none;
+      margin: 0;
+    }
+    .cmd-grid li {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 0;
+      color: var(--cream);
+      white-space: nowrap;
+    }
+    .cmd-grid li.active { color: var(--gold); }
+    .cmd-grid .cur {
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 5px 0 5px 8px;
+      border-color: transparent transparent transparent var(--edge);
+      flex-shrink: 0;
+    }
+    .cmd-grid li:not(.active) .cur { visibility: hidden; }
+
+    /* A: always open BR + safe padding */
+    .dock-a {
+      position: sticky;
+      bottom: 12px;
+      float: right;
+      clear: both;
+      margin: 0 12px 12px 0;
+      width: 200px;
+      z-index: 20;
+    }
+    .viewport[data-plan="A"] .scene-inner {
+      padding-right: 12px;
+      padding-bottom: 24px;
+    }
+    .viewport[data-plan="A"] .safe-a {
+      right: 0; bottom: 0;
+      width: 220px; height: 160px;
+    }
+
+    /* B: collapsed tab → expand + scrim */
+    .dock-b-tab, .dock-b-open, .dock-d-win {
+      position: absolute;
+      z-index: 30;
+    }
+    .dock-b-tab {
+      right: 12px;
+      bottom: 12px;
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      background: var(--navy);
+      color: var(--gold);
+      border: 4px solid var(--edge);
+      box-shadow: 4px 4px 0 #000;
+      padding: 12px 10px;
+      cursor: pointer;
+      writing-mode: horizontal-tb;
+    }
+    .dock-b-open {
+      right: 12px;
+      bottom: 12px;
+      width: 200px;
+      display: none;
+    }
+    .phone[data-b-open="1"] .dock-b-open { display: block; }
+    .phone[data-b-open="1"] .dock-b-tab { display: none; }
+    .scrim {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      z-index: 25;
+    }
+    .phone[data-b-open="1"] .scrim { display: block; }
+    .phone[data-b-force-close="1"] .dock-b-open { display: none !important; }
+    .phone[data-b-force-close="1"] .dock-b-tab { display: block !important; }
+    .phone[data-b-force-close="1"] .scrim { display: none !important; }
+    .b-hint {
+      position: absolute;
+      right: 12px;
+      bottom: 64px;
+      z-index: 21;
+      font-size: 12px;
+      color: var(--cream-dim);
+      background: rgba(0,12,74,0.9);
+      border: 2px solid var(--edge);
+      padding: 6px 8px;
+      max-width: 160px;
+      display: none;
+    }
+    .phone[data-b-force-close="1"] .b-hint { display: block; }
+
+    /* C: bottom split dock */
+    .dock-c {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: 1.2fr 0.9fr;
+      gap: 0;
+      border-top: 4px solid #000;
+      background: var(--navy-deep);
+      min-height: 120px;
+    }
+    .dock-c .msg {
+      border: 4px solid var(--edge);
+      border-left: none;
+      border-bottom: none;
+      background: var(--navy);
+      padding: 10px 12px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .dock-c .msg .t {
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      color: var(--gold);
+      margin-bottom: 6px;
+    }
+    .dock-c .cmds {
+      border: 4px solid var(--edge);
+      border-right: none;
+      border-bottom: none;
+      border-left: 2px solid var(--edge);
+      background: var(--navy);
+      padding: 6px 8px 8px;
+    }
+    .viewport[data-plan="C"] .scene-inner { padding-bottom: 140px; }
+    .viewport[data-plan="C"] .battle-bottom-dupe { opacity: 0.25; }
+    .viewport[data-plan="C"] .safe-c {
+      left: 0; right: 0; bottom: 0; height: 128px;
+    }
+
+    /* D: smart — BR default, TR when near bottom or battle answer */
+    .dock-d-win {
+      width: 200px;
+      transition: top 0.25s steps(3), bottom 0.25s steps(3), right 0.25s steps(3);
+    }
+    .dock-d-win.pos-br { right: 12px; bottom: 12px; top: auto; }
+    .dock-d-win.pos-tr { right: 12px; top: 36px; bottom: auto; }
+    .dock-d-win.pos-hidden-tab {
+      right: 12px;
+      bottom: 12px;
+      width: auto;
+      padding: 10px;
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      color: var(--gold);
+    }
+    .dock-d-win.pos-hidden-tab .cmd-grid,
+    .dock-d-win.pos-hidden-tab .cmd-win-title { display: none; }
+    .d-status {
+      position: absolute;
+      left: 10px;
+      bottom: 10px;
+      z-index: 22;
+      font-family: var(--font-pixel);
+      font-size: 9px;
+      color: var(--hp);
+      background: rgba(0, 48, 24, 0.92);
+      border: 2px solid var(--hp);
+      padding: 6px 8px;
+      max-width: 55%;
+    }
+
+    .notes {
+      background: #12162e;
+      border: 3px solid #334;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--cream-dim);
+    }
+    .notes h3 {
+      margin: 0 0 8px;
+      font-family: var(--font-pixel);
+      font-size: 10px;
+      color: var(--gold);
+    }
+    .notes ul { margin: 0; padding-left: 1.1em; }
+    .notes li { margin-bottom: 6px; }
+    .notes .warn { color: #ff8a8a; }
+    .notes .ok { color: var(--hp); }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .controls-row label {
+      font-size: 12px;
+      color: var(--cream-dim);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="page">
+    <h1>ぼうけんのしょ — コマンドドック比較</h1>
+    <p class="lede">
+      トップヘッダーをやめ、DQ 風コマンド窓をどこに置くか。案A–Dを同じ「ちず／バトル」背景で切替えて被りを確認するモック。
+      色は紺＋白ふち＋金＋クリーム。参考画像からは「窓の構造・▶・タイトル埋め込み」だけ借りる。
+    </p>
+
+    <div class="rec">
+      <strong>採用: 案D（強化）— 本番実装済み</strong>
+      <p>
+        既定は右下。本文の<strong>最下部付近にスクロールしたとき右上へ退避</strong>し、バトルの回答入力中は「メニュー」タブに縮小。
+        実装: <code>src/components/living-atlas/atlas-command-dock.tsx</code>
+      </p>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="配置案">
+      <button type="button" class="tab" data-plan="A" role="tab">案A 常時</button>
+      <button type="button" class="tab" data-plan="B" role="tab">案B たたみ</button>
+      <button type="button" class="tab" data-plan="C" role="tab">案C 下段分割</button>
+      <button type="button" class="tab" data-plan="D" role="tab" aria-selected="true">案D 退避<span class="badge">推奨</span></button>
+    </div>
+
+    <table class="compare">
+      <thead>
+        <tr>
+          <th>軸</th>
+          <th>A 常時</th>
+          <th>B たたみ</th>
+          <th>C 下段分割</th>
+          <th>D 退避+</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>被りにくさ</td>
+          <td>中</td>
+          <td class="best">高</td>
+          <td class="best">高</td>
+          <td class="best">高（動的）</td>
+        </tr>
+        <tr>
+          <td>DQらしさ</td>
+          <td>中</td>
+          <td class="best">高</td>
+          <td class="best">最高</td>
+          <td>高</td>
+        </tr>
+        <tr>
+          <td>実装コスト</td>
+          <td class="best">低</td>
+          <td>低〜中</td>
+          <td>高</td>
+          <td>中</td>
+        </tr>
+        <tr class="hl">
+          <td>バトル相性</td>
+          <td>弱</td>
+          <td class="best">強</td>
+          <td class="best">強（要統合）</td>
+          <td class="best">強（自動退避）</td>
+        </tr>
+        <tr>
+          <td>最下部スクロール</td>
+          <td>余白で回避</td>
+          <td>小さいまま</td>
+          <td>ドック固定</td>
+          <td class="best">右上へ退避</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="scenes" role="tablist" aria-label="背景シーン">
+      <button type="button" class="scene-btn" data-scene="map" aria-selected="true">背景: ちず</button>
+      <button type="button" class="scene-btn" data-scene="battle">背景: バトル</button>
+    </div>
+
+    <div class="controls-row" id="extra-controls">
+      <label id="ctrl-b-answer" hidden>
+        <input type="checkbox" id="b-answer" />
+        バトル「こたえる」入力中（B: 自動でたたむ）
+      </label>
+      <label id="ctrl-d-answer" hidden>
+        <input type="checkbox" id="d-answer" />
+        バトル回答入力中（D: タブ化）
+      </label>
+      <span style="font-size:12px;color:var(--cream-dim)">電話枠をスクロールして被り／退避を確認</span>
+    </div>
+
+    <div class="stage-wrap">
+      <div class="phone" id="phone" data-plan="D">
+        <div class="phone-label" id="phone-label">案D · ちず</div>
+
+        <div class="scrim" id="scrim" aria-hidden="true"></div>
+
+        <div class="viewport" id="viewport" data-plan="D">
+          <div class="safe-zone safe-a" id="safe-a" hidden></div>
+          <div class="safe-zone safe-c" id="safe-c" hidden></div>
+
+          <div class="scene-inner" id="scene-root">
+            <!-- filled by JS -->
+          </div>
+
+          <!-- A: sticky at end of flow via sentinel -->
+          <div id="dock-a-host" hidden>
+            <div class="cmd-win dock-a" id="dock-a">
+              <div class="cmd-win-title">コマンド</div>
+              <ul class="cmd-grid">
+                <li class="active"><span class="cur"></span>ちず</li>
+                <li><span class="cur"></span>ずかん</li>
+                <li><span class="cur"></span>しれん</li>
+                <li><span class="cur"></span>どうぐ</li>
+                <li><span class="cur"></span>もくひょう</li>
+                <li><span class="cur"></span>にっき</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- B -->
+        <button type="button" class="dock-b-tab" id="dock-b-tab" hidden>コマンド</button>
+        <div class="cmd-win dock-b-open" id="dock-b-open" hidden>
+          <div class="cmd-win-title">コマンド</div>
+          <ul class="cmd-grid">
+            <li class="active"><span class="cur"></span>ちず</li>
+            <li><span class="cur"></span>ずかん</li>
+            <li><span class="cur"></span>しれん</li>
+            <li><span class="cur"></span>どうぐ</li>
+          </ul>
+          <div style="padding:0 10px 10px;font-family:var(--font-jp);font-size:12px;color:var(--cream-dim)">
+            外クリック／スクリムで閉じる
+          </div>
+        </div>
+        <div class="b-hint" id="b-hint">入力中は自動でたたんだ（被り回避）</div>
+
+        <!-- C -->
+        <div class="dock-c" id="dock-c" hidden>
+          <div class="msg">
+            <div class="t">◆ ナレーター</div>
+            <div id="dock-c-msg">ちずを見回すのじゃ。未クリアの「！」をしれんへ。</div>
+          </div>
+          <div class="cmds cmd-win" style="box-shadow:none;outline:none;border:none">
+            <div class="cmd-win-title">コマンド</div>
+            <ul class="cmd-grid">
+              <li class="active"><span class="cur"></span>ちず</li>
+              <li><span class="cur"></span>ずかん</li>
+              <li><span class="cur"></span>しれん</li>
+              <li><span class="cur"></span>どうぐ</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- D -->
+        <div class="cmd-win dock-d-win pos-br" id="dock-d" hidden>
+          <div class="cmd-win-title">コマンド</div>
+          <ul class="cmd-grid">
+            <li class="active"><span class="cur"></span>ちず</li>
+            <li><span class="cur"></span>ずかん</li>
+            <li><span class="cur"></span>しれん</li>
+            <li><span class="cur"></span>どうぐ</li>
+          </ul>
+          <div id="dock-d-tablabel" hidden style="padding:2px 4px">メニュー</div>
+        </div>
+        <div class="d-status" id="d-status" hidden>位置: 右下（既定）</div>
+      </div>
+
+      <aside class="notes" id="notes">
+        <!-- filled -->
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const NOTES = {
+      A: {
+        title: "案A — 常時展開 + セーフゾーン",
+        items: [
+          "<span class=\"ok\">長所:</span> 常に見える。操作1手。",
+          "<span class=\"warn\">被り:</span> バトル下部コマンドと右下が奪い合う（赤破線）。",
+          "対策は padding 固定。モバイルでは本文がかなり狭くなる。",
+          "黄色い破線 = 予約したセーフゾーン。",
+        ],
+      },
+      B: {
+        title: "案B — たたみ FAB → 展開",
+        items: [
+          "<span class=\"ok\">長所:</span> 被り最小。参考画像の重ね窓感。",
+          "「コマンド」タブを押すと展開 + スクリム。",
+          "バトル回答入力中チェックで<strong>自動でたたむ</strong>デモ。",
+          "<span class=\"warn\">短所:</span> ナビまで常に1クリック増。",
+        ],
+      },
+      C: {
+        title: "案C — 下段二分割ドック",
+        items: [
+          "<span class=\"ok\">長所:</span> 古典 DQ（下メッセージ＋隅コマンド）に最も近い。",
+          "本文は下ドック高さぶんオフセット。",
+          "バトルでは下の重複ナレーターを薄く表示（本番は統合して消す）。",
+          "<span class=\"warn\">短所:</span> バトル／ちずの下部構造を寄せる改修が大きい。",
+        ],
+      },
+      D: {
+        title: "案D — 文脈＋スクロール退避（強化・推奨）",
+        items: [
+          "<span class=\"ok\">既定:</span> 右下にコマンド窓。",
+          "<span class=\"ok\">最下部付近までスクロール:</span> <strong>右上へ退避</strong>（ログ帯・たたかうと被らない）。",
+          "<span class=\"ok\">バトル回答入力中:</span> 窓をたたんで「メニュー」タブ化。",
+          "上に戻す／入力を終えると右下に復帰。",
+          "覚えやすさのため、退避条件は「下端近接」と「回答入力」の2つに限定。",
+        ],
+      },
+    };
+
+    const state = { plan: "D", scene: "map", bOpen: false };
+
+    function cmdListHtml() {
+      return `
+        <div class="cmd-win-title">コマンド</div>
+        <ul class="cmd-grid">
+          <li class="active"><span class="cur"></span>ちず</li>
+          <li><span class="cur"></span>ずかん</li>
+          <li><span class="cur"></span>しれん</li>
+          <li><span class="cur"></span>どうぐ</li>
+        </ul>`;
+    }
+
+    function renderScene() {
+      const root = document.getElementById("scene-root");
+      const cMsg = document.getElementById("dock-c-msg");
+      if (state.scene === "map") {
+        cMsg.textContent = "ちずを見回すのじゃ。未クリアの「！」をしれんへ。";
+        root.innerHTML = `
+          <div class="scene-map map-bg">
+            <div class="map-band">
+              <div>
+                <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:6px">◆ つぎのしれん</div>
+                <div style="font-size:15px;line-height:1.5">未クリアの理解度ゲートが 1 件あるぞ</div>
+                <p style="margin:8px 0 0;font-size:13px;color:var(--cream-dim);line-height:1.5">
+                  プロンプトキャッシュは意味でも再利用される？ …のような長文問いがここに並ぶ。
+                </p>
+              </div>
+              <div class="fake-btn">たたかう</div>
+            </div>
+            <div class="dq-panel">
+              <h2>WORLD MAP</h2>
+              <p>みどりの領＝理解がつもった場所。！＝未クリア。下までスクロールしてドックの挙動を見よ。</p>
+            </div>
+            <div class="dq-panel"><h2>つよさ</h2><p>つまずき撃破 12　／　今週 +2　／　れんぞく 5日</p></div>
+            <div class="dq-panel"><h2>やること</h2><p>① 未クリアゲートを1つ解く<br/>② 受信箱の学びを仕分ける<br/>③ 弱ってる repo の処方を見る</p></div>
+            <div class="dq-panel">
+              <h2>◆ ゲートの案内</h2>
+              <p>ページ末尾のログ帯。ここに『たたかう』があると右下ドックと<strong>衝突しやすい</strong>ゾーンじゃ。</p>
+              <div class="fake-btn" style="margin-top:10px;display:inline-block">たたかう</div>
+              <div class="overlap-note">← 右下メニューと被りやすいホットスポット</div>
+            </div>
+            <div class="dq-panel" style="margin-bottom:80px">
+              <h2>スクロール末端</h2>
+              <p>案Dではこの付近でコマンドが<strong>右上へ退避</strong>する想定。案Aは黄色いセーフゾーンで押す。</p>
+            </div>
+          </div>`;
+      } else {
+        cMsg.textContent = "まものが口をひらいた！　右のセリフの問いにこたえよ。";
+        root.innerHTML = `
+          <div class="scene-battle battle-bg">
+            <div class="battle-stage">
+              <div class="enemy-box">
+                <div style="font-family:var(--font-pixel);font-size:11px;color:var(--gold);border:3px solid #fff;background:var(--navy);display:inline-block;padding:6px 10px">つまずき：スライム</div>
+                <div class="enemy-sprite" aria-hidden="true"></div>
+                <div style="font-family:var(--font-pixel);font-size:10px;border:3px solid #fff;background:var(--navy);padding:8px;display:inline-block">GATE HP 72</div>
+              </div>
+              <div class="speech">
+                <div style="font-family:var(--font-pixel);font-size:10px;color:var(--gold);margin-bottom:8px">◆ つまずきのセリフ</div>
+                「画面とPDFで同じ得点率なのに、0.1ポイントだけずれるのはなぜか？」
+              </div>
+            </div>
+            <div class="battle-cmds ${state.plan === "A" ? "overlap-hot" : ""}" id="battle-cmds">
+              <button type="button">こたえる</button>
+              <button type="button">ヒント</button>
+              <button type="button">ずかん</button>
+              <button type="button">にげる</button>
+            </div>
+            <div class="narrator battle-bottom-dupe">
+              ◆ ナレーター<br/>
+              じゅもんをとなえる画面。右下に常時コマンドがあると<strong>ここが最も危険</strong>じゃ。
+              <div class="overlap-note">案A: 赤破線 = 衝突ゾーン　案C: この帯は下ドックへ統合</div>
+            </div>
+            <div class="dq-panel" style="margin-top:12px">
+              <h2>回答エリア（デモ）</h2>
+              <p>テキストエリアが開くと縦に伸びる。案B/Dは入力中にメニューをたたむ／タブ化する。</p>
+              <textarea id="demo-answer" rows="4" style="width:100%;margin-top:8px;background:#000c4a;color:var(--cream);border:3px solid #fff;padding:8px;font:14px var(--font-jp)" placeholder="答えを書く…"></textarea>
+            </div>
+            <div class="dq-panel" style="margin-bottom:100px">
+              <h2>スクロール末端</h2>
+              <p>下端まで送ると案Dは右上退避。バトル下部との二重被りを避ける。</p>
+            </div>
+          </div>`;
+        const ta = document.getElementById("demo-answer");
+        if (ta) {
+          ta.addEventListener("focus", () => {
+            if (state.plan === "B") {
+              document.getElementById("b-answer").checked = true;
+              applyBAnswer(true);
+            }
+            if (state.plan === "D") {
+              document.getElementById("d-answer").checked = true;
+              applyDAnswer(true);
+            }
+          });
+        }
+      }
+      // A dock sits in document flow at end (sticky within scroll)
+      const host = document.getElementById("dock-a-host");
+      const vp = document.getElementById("viewport");
+      if (state.plan === "A") {
+        host.hidden = false;
+        root.appendChild(host);
+      } else if (host.parentElement !== vp) {
+        vp.appendChild(host);
+        host.hidden = true;
+      }
+    }
+
+    function setNotes() {
+      const n = NOTES[state.plan];
+      document.getElementById("notes").innerHTML =
+        `<h3>${n.title}</h3><ul>${n.items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+    }
+
+    function updateLabel() {
+      const scene = state.scene === "map" ? "ちず" : "バトル";
+      document.getElementById("phone-label").textContent = `案${state.plan} · ${scene}`;
+    }
+
+    function hideAllDocks() {
+      ["dock-a-host", "dock-b-tab", "dock-b-open", "dock-c", "dock-d", "d-status", "safe-a", "safe-c"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.hidden = true;
+      });
+      document.getElementById("phone").dataset.bOpen = "0";
+      document.getElementById("phone").dataset.bForceClose = "0";
+      document.getElementById("ctrl-b-answer").hidden = true;
+      document.getElementById("ctrl-d-answer").hidden = true;
+    }
+
+    function applyPlan() {
+      hideAllDocks();
+      const phone = document.getElementById("phone");
+      const vp = document.getElementById("viewport");
+      phone.dataset.plan = state.plan;
+      vp.dataset.plan = state.plan;
+
+      document.querySelectorAll(".tab").forEach((t) => {
+        t.setAttribute("aria-selected", t.dataset.plan === state.plan ? "true" : "false");
+      });
+      document.querySelectorAll(".compare tbody tr").forEach((row) => row.classList.remove("hl"));
+      // highlight battle row always interesting; keep as is
+
+      if (state.plan === "A") {
+        document.getElementById("dock-a-host").hidden = false;
+        document.getElementById("safe-a").hidden = false;
+      }
+      if (state.plan === "B") {
+        document.getElementById("dock-b-tab").hidden = false;
+        document.getElementById("dock-b-open").hidden = false;
+        document.getElementById("ctrl-b-answer").hidden = false;
+        applyBAnswer(document.getElementById("b-answer").checked);
+      }
+      if (state.plan === "C") {
+        document.getElementById("dock-c").hidden = false;
+        document.getElementById("safe-c").hidden = false;
+      }
+      if (state.plan === "D") {
+        document.getElementById("dock-d").hidden = false;
+        document.getElementById("d-status").hidden = false;
+        document.getElementById("ctrl-d-answer").hidden = false;
+        updateDockD();
+      }
+
+      renderScene();
+      setNotes();
+      updateLabel();
+      // reset scroll for fair compare
+      vp.scrollTop = 0;
+      if (state.plan === "D") updateDockD();
+    }
+
+    function applyBAnswer(on) {
+      document.getElementById("phone").dataset.bForceClose = on ? "1" : "0";
+      if (on) document.getElementById("phone").dataset.bOpen = "0";
+    }
+
+    function applyDAnswer(on) {
+      updateDockD();
+    }
+
+    function updateDockD() {
+      const dock = document.getElementById("dock-d");
+      const status = document.getElementById("d-status");
+      const vp = document.getElementById("viewport");
+      const answering = document.getElementById("d-answer").checked && state.scene === "battle";
+
+      dock.classList.remove("pos-br", "pos-tr", "pos-hidden-tab");
+
+      if (answering) {
+        dock.classList.add("pos-hidden-tab");
+        dock.querySelector(".cmd-win-title").hidden = true;
+        dock.querySelector(".cmd-grid").hidden = true;
+        document.getElementById("dock-d-tablabel").hidden = false;
+        status.textContent = "位置: 右下タブ（回答入力中）";
+        return;
+      }
+
+      document.getElementById("dock-d-tablabel").hidden = true;
+      dock.querySelector(".cmd-win-title").hidden = false;
+      dock.querySelector(".cmd-grid").hidden = false;
+
+      const nearBottom =
+        vp.scrollTop + vp.clientHeight >= vp.scrollHeight - 120;
+
+      if (nearBottom) {
+        dock.classList.add("pos-tr");
+        status.textContent = "位置: 右上（最下部付近 → 退避）";
+      } else {
+        dock.classList.add("pos-br");
+        status.textContent = "位置: 右下（既定）";
+      }
+    }
+
+    // tabs
+    document.querySelectorAll(".tab").forEach((t) => {
+      t.addEventListener("click", () => {
+        state.plan = t.dataset.plan;
+        applyPlan();
+      });
+    });
+    document.querySelectorAll(".scene-btn").forEach((b) => {
+      b.addEventListener("click", () => {
+        state.scene = b.dataset.scene;
+        document.querySelectorAll(".scene-btn").forEach((x) => {
+          x.setAttribute("aria-selected", x === b ? "true" : "false");
+        });
+        applyPlan();
+      });
+    });
+
+    document.getElementById("dock-b-tab").addEventListener("click", () => {
+      document.getElementById("phone").dataset.bOpen = "1";
+    });
+    document.getElementById("scrim").addEventListener("click", () => {
+      document.getElementById("phone").dataset.bOpen = "0";
+    });
+    document.getElementById("b-answer").addEventListener("change", (e) => {
+      applyBAnswer(e.target.checked);
+    });
+    document.getElementById("d-answer").addEventListener("change", () => {
+      updateDockD();
+    });
+    document.getElementById("viewport").addEventListener("scroll", () => {
+      if (state.plan === "D") updateDockD();
+    });
+
+    // move A host back under viewport when leaving A
+    const aHost = document.getElementById("dock-a-host");
+    document.getElementById("viewport").appendChild(aHost);
+
+    applyPlan();
+  </script>
+</body>
+</html>

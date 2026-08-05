@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter%3Awght%40100..900&family=Shippori+Mincho%3Awght%40700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      *, ::before, ::after {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      data-pencil-name="Goal Dashboard"
+      style="align-items: flex-start; background-color: #F4EEE2; box-sizing: border-box; display: flex; flex-direction: column; gap: 0px; height: 1097px; justify-content: flex-start; overflow: hidden; width: 1440px"
+    >
+      <div
+        data-pencil-name="Header"
+        style="align-items: center; background-color: #F4EEE2; border-color: #E3D9C4; border-style: solid; border-width: 0px 0px 1px 0px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: space-between; padding: 20px 64px; width: 100%"
+      >
+        <div
+          data-pencil-name="Logo"
+          style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; width: fit-content"
+        >
+          <div
+            data-pencil-name="Logo Mark"
+            style="align-items: center; background-color: #BC5B33; border-radius: 8px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: 28px; justify-content: center; width: 28px"
+          >
+            <div
+              data-pencil-name="Logo Icon"
+              style='box-sizing: border-box; color: #FBF8F0; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 15px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+            >
+              ↻
+            </div>
+          </div>
+          <div
+            data-pencil-name="Logo Text"
+            style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 19px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+          >
+            Applied Loop
+          </div>
+        </div>
+        <div
+          data-pencil-name="Nav"
+          style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 28px; height: fit-content; justify-content: flex-start; width: fit-content"
+        >
+          <div
+            data-pencil-name="Nav Dashboard"
+            style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+          >
+            ダッシュボード
+          </div>
+          <div
+            data-pencil-name="Nav Zukan"
+            style="box-sizing: border-box; color: #2E2418; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+          >
+            誤解図鑑
+          </div>
+          <div
+            data-pencil-name="Nav Inbox"
+            style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+          >
+            受信箱
+          </div>
+          <div
+            data-pencil-name="Nav Entries"
+            style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+          >
+            エントリ
+          </div>
+        </div>
+        <div
+          data-pencil-name="Streak Pill"
+          style="align-items: center; background-color: #BC5B3318; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; padding: 8px 14px; width: fit-content"
+        >
+          <svg
+            data-pencil-name="Streak Icon"
+            data-icon-name="flame"
+            data-icon-set="lucide"
+            viewBox="0 0 13.99993896484375 14"
+            preserveAspectRatio="xMidYMid meet"
+            xmlns="http://www.w3.org/2000/svg"
+            style="box-sizing: border-box; flex-shrink: 0; height: 16px; width: 16px"
+          >
+            <path
+              d="M6.84619 1.18945q-0.23926 0.07178-0.78271 0.61524-0.51953 0.5332-0.78614 1.05273-0.2666 0.51611-0.32129 1.09033-0.01367 0.21191 0.02735 0.5127 0.04102 0.30078 0.1333 0.56055 0.09229 0.25635 0.33496 0.77588 0.24609 0.51611 0.30078 0.70068 0.05811 0.18115 0.07178 0.46142 0 0.18115-0.00684 0.23926-0.00684 0.05469-0.03418 0.10938-0.12646 0.29395-0.37939 0.44092-0.25293 0.14697-0.54688 0.11962-0.29395-0.02734-0.50244-0.23925-0.12646-0.12646-0.18457-0.24952-0.05469-0.12646-0.08203-0.34179-0.02734-0.21875-0.09912-0.34522-0.06836-0.12646-0.23584-0.21191-0.05811-0.02734-0.09912-0.04102-0.04102-0.01367-0.15381-0.01367-0.11279 0-0.15381 0.01367-0.04102 0.01367-0.09912 0.04102-0.14014 0.07178-0.28027 0.2666-0.42041 0.57422-0.55713 1.30225-0.1709 0.86816 0.06152 1.81494 0.23242 0.94336 0.80322 1.69873 0.57422 0.75537 1.40137 1.23389 0.82715 0.4751 1.79102 0.58789 0.18457 0.02734 0.5332 0.02734 0.34863 0 0.51953-0.02734 1.04932-0.12647 1.92432-0.65625 0.875-0.5332 1.44922-1.40137 0.51611-0.77246 0.69043-1.69531 0.17773-0.92285-0.02051-1.80469-0.10938-0.43408-0.3418-0.88867-0.23242-0.45801-0.54004-0.86133-0.2085-0.2666-0.40674-0.45459-0.19482-0.19141-0.58789-0.54004-0.54346-0.49219-0.91601-0.96045-0.36914-0.46826-0.66309-1.05615-0.33838-0.67334-0.50586-1.34326-0.06836-0.2666-0.18115-0.3794-0.15381-0.15381-0.39307-0.16748-0.14014 0-0.18115 0.01367z m-0.05469 1.79102q0.14014 0.37939 0.33496 0.74512 0.34863 0.65625 0.76905 1.18261 0.42041 0.52295 1.03564 1.06299 0.61523 0.54004 0.95703 1.0083 0.34521 0.46826 0.49903 0.9878 0.21191 0.7417 0.0205 1.56201-0.18799 0.81689-0.72119 1.4458-0.48877 0.60156-1.17578 0.92627-0.88184 0.43408-1.86963 0.32812-0.98438-0.10596-1.78418-0.70752-0.28027-0.22559-0.55371-0.54687-0.27002-0.32129-0.46142-0.72803-0.18799-0.40674-0.27344-0.79639-0.0957-0.54688-0.05469-0.90918l0.01367-0.08545 0.1128 0.09913q0.37939 0.32129 0.86132 0.43408 0.48193 0.10938 0.95704-0.01367 0.68701-0.1709 1.11425-0.72803 0.42725-0.56055 0.42725-1.26123 0-0.50586-0.2085-1.04932-0.05811-0.15381-0.25293-0.58789-0.2666-0.54688-0.33837-0.75537-0.06836-0.21191-0.06836-0.49219 0-0.22217 0.03418-0.34179 0.0376-0.11963 0.11962-0.30079 0.08545-0.18457 0.16065-0.30078 0.07861-0.11963 0.16748-0.23242 0.09229-0.11279 0.10596-0.09912 0.01367 0.01367 0.07177 0.15381z"
+              fill="#BC5B33"
+            ></path>
+          </svg>
+          <div
+            data-pencil-name="Streak Text"
+            style='box-sizing: border-box; color: #BC5B33; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+          >
+            12日連続
+          </div>
+        </div>
+      </div>
+      <div
+        data-pencil-name="Goal Main"
+        style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 32px; height: fit-content; justify-content: flex-start; padding: 40px 64px; width: 100%"
+      >
+        <div
+          data-pencil-name="Pending Links"
+          style="align-items: flex-start; background-color: #FDFBF5; border-color: #A8832F; border-radius: 12px; border-style: solid; border-width: 0px 0px 0px 4px; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; padding: 18px 24px; width: 100%"
+        >
+          <div
+            data-pencil-name="Pending Title"
+            style="box-sizing: border-box; color: #A8832F; font-family: Inter, system-ui, sans-serif; font-size: 13px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+          >
+            紐付けの確認待ち (LLM 提案)
+          </div>
+          <div
+            data-pencil-name="Pending Row 92%"
+            style="align-items: center; background-color: #F4EEE2; border-radius: 8px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 12px; height: fit-content; justify-content: space-between; padding: 10px 12px; width: 100%"
+          >
+            <div
+              data-pencil-name="Pending Left 92%"
+              style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex: 1 1 0; gap: 3px; height: fit-content; justify-content: flex-start"
+            >
+              <div
+                data-pencil-name="Pending Item 92%"
+                style="box-sizing: border-box; color: #2E2418; font-family: Inter, system-ui, sans-serif; font-size: 13px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                「段階的進行 (wall-bounce) の主目的は…」の誤解解消
+              </div>
+              <div
+                data-pencil-name="Pending Goal 92%"
+                style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 11.5px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                → H2目標: 学習基盤の自立化 · 信頼度 92%
+              </div>
+            </div>
+            <div
+              data-pencil-name="Pending Btns 92%"
+              style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <div
+                data-pencil-name="Approve 92%"
+                style="align-items: flex-start; background-color: #4A7C59; border-radius: 8px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: flex-start; padding: 7px 14px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Approve Label 92%"
+                  style="box-sizing: border-box; color: #FBF8F0; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  承認
+                </div>
+              </div>
+              <div
+                data-pencil-name="Reject 92%"
+                style="align-items: flex-start; border-radius: 8px; border: 1px solid #E3D9C4; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: flex-start; padding: 7px 14px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Reject Label 92%"
+                  style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  却下
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="Pending Row 78%"
+            style="align-items: center; background-color: #F4EEE2; border-radius: 8px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 12px; height: fit-content; justify-content: space-between; padding: 10px 12px; width: 100%"
+          >
+            <div
+              data-pencil-name="Pending Left 78%"
+              style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex: 1 1 0; gap: 3px; height: fit-content; justify-content: flex-start"
+            >
+              <div
+                data-pencil-name="Pending Item 78%"
+                style="box-sizing: border-box; color: #2E2418; font-family: Inter, system-ui, sans-serif; font-size: 13px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                学び「mcp-handler 2.1 の引数変更」
+              </div>
+              <div
+                data-pencil-name="Pending Goal 78%"
+                style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 11.5px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                → H2目標: 学習基盤の自立化 · 信頼度 78%
+              </div>
+            </div>
+            <div
+              data-pencil-name="Pending Btns 78%"
+              style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <div
+                data-pencil-name="Approve 78%"
+                style="align-items: flex-start; background-color: #4A7C59; border-radius: 8px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: flex-start; padding: 7px 14px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Approve Label 78%"
+                  style="box-sizing: border-box; color: #FBF8F0; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  承認
+                </div>
+              </div>
+              <div
+                data-pencil-name="Reject 78%"
+                style="align-items: flex-start; border-radius: 8px; border: 1px solid #E3D9C4; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: flex-start; padding: 7px 14px; width: fit-content"
+              >
+                <div
+                  data-pencil-name="Reject Label 78%"
+                  style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+                >
+                  却下
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          data-pencil-name="Goal Card 1"
+          style="align-items: flex-start; background-color: #FBF8F0; border-radius: 12px; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 16px; height: fit-content; justify-content: flex-start; padding: 28px; width: 100%"
+        >
+          <div
+            data-pencil-name="G1 Head"
+            style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: space-between; width: 100%"
+          >
+            <div
+              data-pencil-name="G1 Title Wrap"
+              style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <div
+                data-pencil-name="G1 Title"
+                style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 20px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+              >
+                H2目標: 学習基盤の自立化
+              </div>
+              <div
+                data-pencil-name="G1 KDI"
+                style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 12.5px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                KDI: 週次 Goal OS の運用定着率 80%
+              </div>
+            </div>
+            <div
+              data-pencil-name="G1 Period"
+              style="align-items: flex-start; background-color: #4A7C5912; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: flex-start; padding: 5px 12px; width: fit-content"
+            >
+              <div
+                data-pencil-name="G1 Period Label"
+                style="box-sizing: border-box; color: #4A7C59; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                2026-H2 · active
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="G1 Stats"
+            style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 32px; height: fit-content; justify-content: flex-start; width: fit-content"
+          >
+            <div
+              data-pencil-name="G1 Stat 今週の学び"
+              style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <svg
+                data-pencil-name="G1 Stat Icon 今週の学び"
+                data-icon-name="book-open"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                style="box-sizing: border-box; flex-shrink: 0; height: 18px; width: 18px"
+              >
+                <path
+                  d="M1.46973 1.20313q-0.28027 0.05811-0.53321 0.30761-0.12305 0.12646-0.19482 0.23242-0.06836 0.10596-0.11279 0.27344l-0.04102 0.12647 0 7.96386 0.04102 0.12647q0.04443 0.15381 0.11279 0.2666 0.07178 0.11279 0.18115 0.22559 0.21191 0.2085 0.46485 0.30761l0.10937 0.04102 3.51367 0.01367q0.39307 0.01367 0.51953 0.02734 0.09912 0.01367 0.19483 0.07178l0.02734 0.01367q0.35205 0.18115 0.5332 0.51612 0.05469 0.11279 0.08204 0.20507 0.03076 0.08887 0.04443 0.28711 0.01367 0.19483 0.04785 0.28028 0.0376 0.08203 0.1333 0.17431 0.09912 0.08887 0.17432 0.12647 0.07861 0.03418 0.23242 0.03418 0.15381 0 0.229-0.03418 0.07861-0.0376 0.17432-0.12647 0.09912-0.09229 0.1333-0.17431 0.0376-0.08545 0.05127-0.28028 0.01367-0.19824 0.04102-0.28711 0.03076-0.09229 0.08545-0.1914 0.18115-0.34863 0.5332-0.52979l0.02734-0.01367q0.0957-0.05811 0.19483-0.07178 0.12646-0.01367 0.51953-0.02734l3.51367-0.01367 0.10937-0.04102q0.25293-0.09912 0.46485-0.30761 0.10938-0.11279 0.17773-0.22559 0.07178-0.11279 0.11621-0.2666l0.04102-0.12647 0-7.96386-0.04102-0.12647q-0.04443-0.16748-0.11621-0.27344-0.06836-0.10596-0.1914-0.23242-0.25293-0.24951-0.54688-0.30762-0.14014-0.04102-1.76367-0.03417-1.62354 0.00684-1.82178 0.03417-0.75537 0.11279-1.3706 0.57422-0.09912 0.07178-0.2666 0.23243-0.16748 0.16064-0.22559 0.23925-0.05469 0.0752-0.06836 0.0752-0.01367 0-0.07178-0.0752-0.05469-0.07861-0.22217-0.23925-0.16748-0.16064-0.2666-0.23243-0.48877-0.37598-1.04931-0.51611-0.25293-0.07178-0.54004-0.07861-0.28711-0.00684-1.6167-0.00684-1.65088 0-1.76367 0.02734z m3.33252 1.13476q0.65625 0.07178 1.104 0.51953 0.45117 0.44775 0.50586 1.09033 0 0.16748 0.00684 3.21973 0.00684 3.05225-0.00684 3.05225l-0.12647-0.05469q-0.23926-0.12646-0.56054-0.19824-0.0957-0.02734-0.40674-0.02735l-3.56836-0.01367 0-7.60156 1.42871 0q1.42871 0 1.62354 0.02734l0-0.01367z m7.44775 3.78027l0 3.80762-3.56836 0.01367q-0.31104 0-0.40674 0.02735-0.32129 0.07178-0.56054 0.19824l-0.12647 0.05469q-0.01367 0-0.00684-3.05225 0.00684-3.05225 0.00684-3.21973 0.05469-0.61523 0.4751-1.06298 0.21191-0.22559 0.50586-0.36573 0.29395-0.14014 0.58789-0.16748 0.16748-0.01367 1.62353-0.02734l1.46973 0 0 3.79394z"
+                  fill="#3D5A80"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="G1 Stat Num 今週の学び"
+                style='box-sizing: border-box; color: #3D5A80; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 26px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+              >
+                5
+              </div>
+              <div
+                data-pencil-name="G1 Stat Label 今週の学び"
+                style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                今週の学び
+              </div>
+            </div>
+            <div
+              data-pencil-name="G1 Stat 適用"
+              style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <svg
+                data-pencil-name="G1 Stat Icon 適用"
+                data-icon-name="zap"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                style="box-sizing: border-box; flex-shrink: 0; height: 18px; width: 18px"
+              >
+                <path
+                  d="M7.7417 0.60156q-0.16748 0.02734-0.33496 0.1128-0.09912 0.06836-2.81641 2.87109l-2.88135 2.98047q-0.35205 0.36572-0.39306 0.44775l-0.01367 0.01367q-0.09912 0.21191-0.12647 0.44776-0.04102 0.37939 0.14014 0.68701 0.18115 0.30762 0.50244 0.46143l0.04443 0.02734q0.0957 0.04443 0.19483 0.0581 0.12646 0.02734 0.51953 0.02735l3.83496 0.02734-0.57422 1.79102q-0.57422 1.79443-0.57422 1.89013-0.04102 0.25293 0.09912 0.50586 0.14014 0.25293 0.37598 0.37598 0.39307 0.18457 0.77246 0 0.12646-0.06836 0.32129-0.24951l5.59863-5.7832q0.22559-0.22559 0.30762-0.42041 0.08545-0.19482 0.08545-0.4751 0-0.32129-0.16748-0.59473-0.16748-0.27344-0.46143-0.42725l-0.04443-0.01367q-0.0957-0.05811-0.19483-0.07177-0.14014-0.02734-0.51953-0.02735l-3.84863-0.02734 0.57422-1.79102q0.57422-1.79443 0.57422-1.89013 0.04102-0.25293-0.09912-0.50586-0.14014-0.25293-0.39307-0.37598-0.24951-0.12646-0.50244-0.07178z m-0.92285 3.19239q-0.37939 1.20313-0.39307 1.32959-0.02734 0.19482 0.02051 0.3999 0.05127 0.20166 0.16064 0.36914 0.07178 0.09912 0.20508 0.21875 0.1333 0.11963 0.24268 0.17431l0.04443 0.02735q0.10938 0.05811 0.2085 0.07178 0.14014 0.01367 0.51953 0.02734l3.82129 0.01367-2.42334 2.50537q-2.41992 2.4917-2.42676 2.4917-0.00684 0 0.37598-1.20996 0.38623-1.20996 0.3999-1.33643 0.02734-0.19482-0.02393-0.39648-0.04785-0.20508-0.15722-0.35889-0.05811-0.08545-0.16407-0.19482-0.10254-0.11279-0.18798-0.15723-0.16748-0.10938-0.37598-0.16748-0.07178-0.01367-2.19775-0.02734l-2.11573 0 2.42334-2.50537q2.41992-2.4917 2.42676-2.4917 0.00684 0-0.38281 1.2168z"
+                  fill="#BC5B33"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="G1 Stat Num 適用"
+                style='box-sizing: border-box; color: #BC5B33; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 26px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+              >
+                2
+              </div>
+              <div
+                data-pencil-name="G1 Stat Label 適用"
+                style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                適用
+              </div>
+            </div>
+            <div
+              data-pencil-name="G1 Stat 誤解解消"
+              style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <svg
+                data-pencil-name="G1 Stat Icon 誤解解消"
+                data-icon-name="circle-check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                style="box-sizing: border-box; flex-shrink: 0; height: 18px; width: 18px"
+              >
+                <path
+                  d="M6.69238 0.60156q-1.16211 0.04102-2.22851 0.50586-1.06299 0.46143-1.90381 1.26807-0.8374 0.80322-1.34326 1.85254-0.48877 1.0083-0.60157 2.15674-0.02734 0.19482-0.02734 0.61523 0 0.42041 0.02734 0.61523 0.11279 1.14844 0.60157 2.15674 0.65967 1.40137 1.89697 2.33789 1.24072 0.93652 2.75146 1.20313 0.5332 0.09912 1.13477 0.09912 0.75537 0 1.43213-0.15381 0.68018-0.15381 1.35351-0.4751 1.26123-0.61865 2.16358-1.70215 0.90234-1.0835 1.25439-2.44384 0.29395-1.11768 0.18116-2.25244-0.11279-1.13477-0.60157-2.17041-0.58789-1.20313-1.62011-2.08497-1.02881-0.88184-2.31397-1.2749-1.0083-0.30762-2.15674-0.25293z m0.96729 1.18946q1.07666 0.14014 1.99267 0.68017 0.91602 0.54004 1.56201 1.4082 0.82715 1.104 1.00831 2.54639 0.01367 0.16748 0.01367 0.57422 0 0.40674-0.01367 0.57422-0.14014 1.16211-0.7212 2.12939-0.58105 0.96387-1.53466 1.62354-0.4751 0.33496-1.04932 0.56055-0.57422 0.22217-1.18945 0.30761-0.25293 0.04102-0.72803 0.04102-0.4751 0-0.72803-0.04102-1.07666-0.15381-1.95849-0.68701-0.88184-0.5332-1.52784-1.3877-0.82715-1.104-1.0083-2.54638-0.01367-0.16748-0.01367-0.57422 0-0.40674 0.01367-0.57422 0.14014-1.12109 0.66993-2.05078 0.5332-0.92969 1.43212-1.58936 0.54346-0.40674 1.20655-0.66992 0.6665-0.2666 1.32617-0.3247l0.25293-0.02735q0.0957-0.01367 0.4751 0 0.37939 0.01367 0.51953 0.02735z m0.95019 3.47265q-0.06836 0.02734-0.12646 0.05127-0.05469 0.02051-1.06299 1.02539l-0.99463 0.99463-0.40674-0.40332q-0.2666-0.2666-0.3623-0.33838-0.12646-0.11279-0.19824-0.14013-0.06836-0.02734-0.19483-0.02735-0.12646 0-0.16748 0.01367-0.04102 0.01367-0.09912 0.04102-0.18115 0.09912-0.28027 0.2666-0.04102 0.08545-0.04102 0.25293l0 0.01367q0 0.14014 0.03418 0.21192 0.0376 0.06836 0.17774 0.22216 0.0957 0.11279 0.48876 0.50586l0.04102 0.04102q0.42041 0.42041 0.55371 0.54687 0.1333 0.12305 0.20166 0.15381 0.14014 0.06836 0.29395 0.05469 0.15381-0.01367 0.28027-0.09912 0.07178-0.05469 1.28857-1.27149 0.86816-0.86816 1.04932-1.06298 0.18457-0.19824 0.21192-0.27002 0.0957-0.27686-0.05811-0.52295-0.15381-0.24609-0.44775-0.25977-0.12646-0.01367-0.18116 0z"
+                  fill="#4A7C59"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="G1 Stat Num 誤解解消"
+                style='box-sizing: border-box; color: #4A7C59; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 26px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+              >
+                1
+              </div>
+              <div
+                data-pencil-name="G1 Stat Label 誤解解消"
+                style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                誤解解消
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="G1 Timeline"
+            style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; width: 100%"
+          >
+            <div
+              data-pencil-name="G1 TL Title"
+              style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+            >
+              直近の証跡
+            </div>
+            <div
+              data-pencil-name="G1 TL 8/1"
+              style="align-items: center; border-color: #E3D9C4; border-style: solid; border-width: 0px 0px 1px 0px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; padding: 8px 0px; width: 100%"
+            >
+              <svg
+                data-pencil-name="G1 TL Icon 8/1"
+                data-icon-name="circle-check"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                style="box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+              >
+                <path
+                  d="M6.69238 0.60156q-1.16211 0.04102-2.22851 0.50586-1.06299 0.46143-1.90381 1.26807-0.8374 0.80322-1.34326 1.85254-0.48877 1.0083-0.60157 2.15674-0.02734 0.19482-0.02734 0.61523 0 0.42041 0.02734 0.61523 0.11279 1.14844 0.60157 2.15674 0.65967 1.40137 1.89697 2.33789 1.24072 0.93652 2.75146 1.20313 0.5332 0.09912 1.13477 0.09912 0.75537 0 1.43213-0.15381 0.68018-0.15381 1.35351-0.4751 1.26123-0.61865 2.16358-1.70215 0.90234-1.0835 1.25439-2.44384 0.29395-1.11768 0.18116-2.25244-0.11279-1.13477-0.60157-2.17041-0.58789-1.20313-1.62011-2.08497-1.02881-0.88184-2.31397-1.2749-1.0083-0.30762-2.15674-0.25293z m0.96729 1.18946q1.07666 0.14014 1.99267 0.68017 0.91602 0.54004 1.56201 1.4082 0.82715 1.104 1.00831 2.54639 0.01367 0.16748 0.01367 0.57422 0 0.40674-0.01367 0.57422-0.14014 1.16211-0.7212 2.12939-0.58105 0.96387-1.53466 1.62354-0.4751 0.33496-1.04932 0.56055-0.57422 0.22217-1.18945 0.30761-0.25293 0.04102-0.72803 0.04102-0.4751 0-0.72803-0.04102-1.07666-0.15381-1.95849-0.68701-0.88184-0.5332-1.52784-1.3877-0.82715-1.104-1.0083-2.54638-0.01367-0.16748-0.01367-0.57422 0-0.40674 0.01367-0.57422 0.14014-1.12109 0.66993-2.05078 0.5332-0.92969 1.43212-1.58936 0.54346-0.40674 1.20655-0.66992 0.6665-0.2666 1.32617-0.3247l0.25293-0.02735q0.0957-0.01367 0.4751 0 0.37939 0.01367 0.51953 0.02735z m0.95019 3.47265q-0.06836 0.02734-0.12646 0.05127-0.05469 0.02051-1.06299 1.02539l-0.99463 0.99463-0.40674-0.40332q-0.2666-0.2666-0.3623-0.33838-0.12646-0.11279-0.19824-0.14013-0.06836-0.02734-0.19483-0.02735-0.12646 0-0.16748 0.01367-0.04102 0.01367-0.09912 0.04102-0.18115 0.09912-0.28027 0.2666-0.04102 0.08545-0.04102 0.25293l0 0.01367q0 0.14014 0.03418 0.21192 0.0376 0.06836 0.17774 0.22216 0.0957 0.11279 0.48876 0.50586l0.04102 0.04102q0.42041 0.42041 0.55371 0.54687 0.1333 0.12305 0.20166 0.15381 0.14014 0.06836 0.29395 0.05469 0.15381-0.01367 0.28027-0.09912 0.07178-0.05469 1.28857-1.27149 0.86816-0.86816 1.04932-1.06298 0.18457-0.19824 0.21192-0.27002 0.0957-0.27686-0.05811-0.52295-0.15381-0.24609-0.44775-0.25977-0.12646-0.01367-0.18116 0z"
+                  fill="#4A7C59"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="G1 TL Text 8/1"
+                style="box-sizing: border-box; color: #2E2418; font-family: Inter, system-ui, sans-serif; font-size: 12.5px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                誤解「イベント駆動の主目的」が resolved
+              </div>
+              <div
+                data-pencil-name="G1 TL Date 8/1"
+                style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                8/1
+              </div>
+            </div>
+            <div
+              data-pencil-name="G1 TL 7/30"
+              style="align-items: center; border-color: #E3D9C4; border-style: solid; border-width: 0px 0px 1px 0px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; padding: 8px 0px; width: 100%"
+            >
+              <svg
+                data-pencil-name="G1 TL Icon 7/30"
+                data-icon-name="zap"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                style="box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+              >
+                <path
+                  d="M7.7417 0.60156q-0.16748 0.02734-0.33496 0.1128-0.09912 0.06836-2.81641 2.87109l-2.88135 2.98047q-0.35205 0.36572-0.39306 0.44775l-0.01367 0.01367q-0.09912 0.21191-0.12647 0.44776-0.04102 0.37939 0.14014 0.68701 0.18115 0.30762 0.50244 0.46143l0.04443 0.02734q0.0957 0.04443 0.19483 0.0581 0.12646 0.02734 0.51953 0.02735l3.83496 0.02734-0.57422 1.79102q-0.57422 1.79443-0.57422 1.89013-0.04102 0.25293 0.09912 0.50586 0.14014 0.25293 0.37598 0.37598 0.39307 0.18457 0.77246 0 0.12646-0.06836 0.32129-0.24951l5.59863-5.7832q0.22559-0.22559 0.30762-0.42041 0.08545-0.19482 0.08545-0.4751 0-0.32129-0.16748-0.59473-0.16748-0.27344-0.46143-0.42725l-0.04443-0.01367q-0.0957-0.05811-0.19483-0.07177-0.14014-0.02734-0.51953-0.02735l-3.84863-0.02734 0.57422-1.79102q0.57422-1.79443 0.57422-1.89013 0.04102-0.25293-0.09912-0.50586-0.14014-0.25293-0.39307-0.37598-0.24951-0.12646-0.50244-0.07178z m-0.92285 3.19239q-0.37939 1.20313-0.39307 1.32959-0.02734 0.19482 0.02051 0.3999 0.05127 0.20166 0.16064 0.36914 0.07178 0.09912 0.20508 0.21875 0.1333 0.11963 0.24268 0.17431l0.04443 0.02735q0.10938 0.05811 0.2085 0.07178 0.14014 0.01367 0.51953 0.02734l3.82129 0.01367-2.42334 2.50537q-2.41992 2.4917-2.42676 2.4917-0.00684 0 0.37598-1.20996 0.38623-1.20996 0.3999-1.33643 0.02734-0.19482-0.02393-0.39648-0.04785-0.20508-0.15722-0.35889-0.05811-0.08545-0.16407-0.19482-0.10254-0.11279-0.18798-0.15723-0.16748-0.10938-0.37598-0.16748-0.07178-0.01367-2.19775-0.02734l-2.11573 0 2.42334-2.50537q2.41992-2.4917 2.42676-2.4917 0.00684 0-0.38281 1.2168z"
+                  fill="#BC5B33"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="G1 TL Text 7/30"
+                style="box-sizing: border-box; color: #2E2418; font-family: Inter, system-ui, sans-serif; font-size: 12.5px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                「Prisma 7 driver adapter」をゲート採点で適用
+              </div>
+              <div
+                data-pencil-name="G1 TL Date 7/30"
+                style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                7/30
+              </div>
+            </div>
+            <div
+              data-pencil-name="G1 TL 7/28"
+              style="align-items: center; border-color: #E3D9C4; border-style: solid; border-width: 0px 0px 1px 0px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; padding: 8px 0px; width: 100%"
+            >
+              <svg
+                data-pencil-name="G1 TL Icon 7/28"
+                data-icon-name="book-open"
+                data-icon-set="lucide"
+                viewBox="0 0 13.99993896484375 14"
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                style="box-sizing: border-box; flex-shrink: 0; height: 15px; width: 15px"
+              >
+                <path
+                  d="M1.46973 1.20313q-0.28027 0.05811-0.53321 0.30761-0.12305 0.12646-0.19482 0.23242-0.06836 0.10596-0.11279 0.27344l-0.04102 0.12647 0 7.96386 0.04102 0.12647q0.04443 0.15381 0.11279 0.2666 0.07178 0.11279 0.18115 0.22559 0.21191 0.2085 0.46485 0.30761l0.10937 0.04102 3.51367 0.01367q0.39307 0.01367 0.51953 0.02734 0.09912 0.01367 0.19483 0.07178l0.02734 0.01367q0.35205 0.18115 0.5332 0.51612 0.05469 0.11279 0.08204 0.20507 0.03076 0.08887 0.04443 0.28711 0.01367 0.19483 0.04785 0.28028 0.0376 0.08203 0.1333 0.17431 0.09912 0.08887 0.17432 0.12647 0.07861 0.03418 0.23242 0.03418 0.15381 0 0.229-0.03418 0.07861-0.0376 0.17432-0.12647 0.09912-0.09229 0.1333-0.17431 0.0376-0.08545 0.05127-0.28028 0.01367-0.19824 0.04102-0.28711 0.03076-0.09229 0.08545-0.1914 0.18115-0.34863 0.5332-0.52979l0.02734-0.01367q0.0957-0.05811 0.19483-0.07178 0.12646-0.01367 0.51953-0.02734l3.51367-0.01367 0.10937-0.04102q0.25293-0.09912 0.46485-0.30761 0.10938-0.11279 0.17773-0.22559 0.07178-0.11279 0.11621-0.2666l0.04102-0.12647 0-7.96386-0.04102-0.12647q-0.04443-0.16748-0.11621-0.27344-0.06836-0.10596-0.1914-0.23242-0.25293-0.24951-0.54688-0.30762-0.14014-0.04102-1.76367-0.03417-1.62354 0.00684-1.82178 0.03417-0.75537 0.11279-1.3706 0.57422-0.09912 0.07178-0.2666 0.23243-0.16748 0.16064-0.22559 0.23925-0.05469 0.0752-0.06836 0.0752-0.01367 0-0.07178-0.0752-0.05469-0.07861-0.22217-0.23925-0.16748-0.16064-0.2666-0.23243-0.48877-0.37598-1.04931-0.51611-0.25293-0.07178-0.54004-0.07861-0.28711-0.00684-1.6167-0.00684-1.65088 0-1.76367 0.02734z m3.33252 1.13476q0.65625 0.07178 1.104 0.51953 0.45117 0.44775 0.50586 1.09033 0 0.16748 0.00684 3.21973 0.00684 3.05225-0.00684 3.05225l-0.12647-0.05469q-0.23926-0.12646-0.56054-0.19824-0.0957-0.02734-0.40674-0.02735l-3.56836-0.01367 0-7.60156 1.42871 0q1.42871 0 1.62354 0.02734l0-0.01367z m7.44775 3.78027l0 3.80762-3.56836 0.01367q-0.31104 0-0.40674 0.02735-0.32129 0.07178-0.56054 0.19824l-0.12647 0.05469q-0.01367 0-0.00684-3.05225 0.00684-3.05225 0.00684-3.21973 0.05469-0.61523 0.4751-1.06298 0.21191-0.22559 0.50586-0.36573 0.29395-0.14014 0.58789-0.16748 0.16748-0.01367 1.62353-0.02734l1.46973 0 0 3.79394z"
+                  fill="#3D5A80"
+                ></path>
+              </svg>
+              <div
+                data-pencil-name="G1 TL Text 7/28"
+                style="box-sizing: border-box; color: #2E2418; font-family: Inter, system-ui, sans-serif; font-size: 12.5px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                学び「wall-bounce は手戻り防止」登録
+              </div>
+              <div
+                data-pencil-name="G1 TL Date 7/28"
+                style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                7/28
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="G1 Review"
+            style="align-items: flex-start; background-color: #4A7C5912; border-radius: 10px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 10px; height: fit-content; justify-content: flex-start; padding: 14px 18px; width: 100%"
+          >
+            <svg
+              data-pencil-name="G1 Review Icon"
+              data-icon-name="sparkles"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              style="box-sizing: border-box; flex-shrink: 0; height: 16px; width: 16px"
+            >
+              <path
+                d="M6.84619 0.58789q-0.28027 0.04102-0.54687 0.22559-0.29395 0.2085-0.40674 0.57422-0.02734 0.08203-0.3418 1.75683-0.31445 1.67139-0.35889 1.76367-0.04102 0.08887-0.10937 0.16065-0.07178 0.08203-0.15381 0.11279-0.11279 0.04102-0.4751 0.12305l-1.28857 0.23926q-1.68164 0.32129-1.77734 0.34863-0.23926 0.07178-0.44434 0.27002-0.20166 0.19482-0.29395 0.44092-0.08887 0.24268-0.06152 0.50244 0.02734 0.25635 0.16748 0.4956 0.09912 0.16748 0.27344 0.30762 0.17432 0.14014 0.35889 0.19824 0.0957 0.02734 1.76367 0.34863l1.28515 0.25293q0.37939 0.06836 0.50586 0.10938 0.08203 0.04443 0.15381 0.11279 0.05469 0.08545 0.09912 0.16748 0.04102 0.12646 0.10938 0.50586l0.23926 1.24414q0.32129 1.68164 0.34863 1.76367 0.15381 0.46484 0.58789 0.67335 0.2666 0.14014 0.51953 0.14013 0.25293 0 0.51953-0.14013 0.43408-0.2085 0.58789-0.67335 0.02734-0.08203 0.3418-1.74658 0.31445-1.66797 0.3418-1.72265 0.02734-0.11279 0.12646-0.2085 0.09912-0.09912 0.21191-0.14355 0.06836-0.02734 1.73291-0.3418 1.66797-0.31445 1.75-0.3418 0.46484-0.15381 0.67335-0.58789 0.2666-0.51953 0-1.03906-0.09912-0.2085-0.28028-0.36231-0.18115-0.15381-0.39307-0.22558-0.0957-0.02734-1.77734-0.34863l-1.23047-0.23926q-0.37939-0.06836-0.50586-0.10938-0.0957-0.03076-0.15381-0.08545-0.10938-0.11279-0.1538-0.23925-0.02734-0.06836-0.3418-1.73291-0.31445-1.66797-0.3418-1.75-0.14014-0.46484-0.60498-0.68702-0.14014-0.07178-0.31445-0.09912-0.17432-0.02734-0.3418-0.01367z m4.73047 0.01367q-0.12305 0.01367-0.24268 0.09912-0.11963 0.08203-0.1914 0.19483-0.04102 0.08545-0.05469 0.20508-0.01367 0.11621-0.01367 0.35546l0 0.29395-0.36572 0q-0.26318 0.01367-0.32813 0.02051-0.06152 0.00684-0.1333 0.03418-0.2666 0.12646-0.31445 0.42041-0.04785 0.29395 0.14697 0.50586 0.08545 0.08203 0.18115 0.14013 0.08545 0.02734 0.14697 0.03418 0.06494 0.00684 0.31788 0.02051l0.34863 0 0 0.34863q0.01367 0.25293 0.02051 0.31788 0.00683 0.06152 0.03418 0.14697 0.05811 0.0957 0.14013 0.18115 0.21191 0.19482 0.50586 0.14697 0.29395-0.04785 0.42041-0.31445 0.02734-0.08545 0.03418-0.14014 0.00684-0.05811 0.02051-0.32129l0-0.36572 0.29395 0q0.32129 0 0.45458-0.03418 0.1333-0.03418 0.25293-0.15381 0.11963-0.11963 0.15381-0.31445 0.03418-0.19824-0.04785-0.35205-0.04443-0.08203-0.12305-0.15039-0.0752-0.07178-0.1538-0.10596-0.07519-0.0376-0.14014-0.04443-0.06152-0.00684-0.32813-0.02051l-0.3623 0 0-0.34863q0-0.23926-0.00684-0.30762-0.00684-0.07178-0.03418-0.12646-0.08545-0.21191-0.25293-0.30762-0.16748-0.09912-0.37939-0.05811z m-4.26904 2.7583q0.23926 1.26123 0.29394 1.55518 0.05811 0.29395 0.1128 0.42041 0.12646 0.30762 0.38281 0.56738 0.25977 0.25635 0.56738 0.38281 0.12646 0.05469 0.41358 0.1128 0.28711 0.05469 1.54833 0.29394 1.56885 0.29395 1.57569 0.30762 0.00684 0.01367-1.60303 0.31445-1.60986 0.30078-1.72266 0.32813-0.39307 0.09912-0.72119 0.40674-0.32813 0.30762-0.46826 0.70068-0.04443 0.09912-0.09912 0.43408l-0.32129 1.63721q-0.25293 1.37402-0.2666 1.37402-0.01367 0-0.30762-1.55517-0.23926-1.2749-0.29736-1.56202-0.05469-0.28711-0.10938-0.41357-0.09912-0.23584-0.30078-0.46484-0.20166-0.23242-0.41357-0.35889-0.14014-0.09912-0.2666-0.14014-0.16748-0.04102-0.57422-0.12646l-1.28516-0.25293q-1.6543-0.30762-1.64062-0.32129 0.01367-0.01367 1.60986-0.30762l1.51416-0.29394q0.25293-0.05811 0.38965-0.1128 0.29395-0.11279 0.56738-0.37597 0.27344-0.2666 0.3999-0.57422 0.05469-0.12646 0.10938-0.41358 0.05811-0.28711 0.29736-1.56201 0.29395-1.55518 0.30762-1.55517 0.01367 0 0.30762 1.55517z m-5.33203 6.59326q-0.31104 0.07178-0.57764 0.23926-0.26318 0.16748-0.46143 0.42041-0.34863 0.4751-0.34863 1.05615 0 0.58105 0.3418 1.04249 0.34521 0.46143 0.91943 0.6289 0.64258 0.18457 1.25781-0.10937 0.32471-0.15381 0.56055-0.44092 0.23926-0.28711 0.35205-0.65283 0.02734-0.11279 0.03418-0.18116 0.00684-0.06836 0.02051-0.28027 0-0.25293-0.02051-0.3623-0.02051-0.11279-0.10596-0.32471-0.15381-0.36231-0.46826-0.63574-0.31445-0.27344-0.70752-0.38623-0.15381-0.02734-0.3999-0.03418-0.24268-0.00684-0.39648 0.0205z m0.60156 1.18946q0.24951 0.11279 0.31787 0.38623 0.07178 0.27344-0.0957 0.48193-0.12646 0.15381-0.29395 0.21192-0.16748 0.05469-0.33496 0-0.25293-0.07178-0.37939-0.33497-0.04102-0.09912-0.03418-0.23242 0.00684-0.1333 0.04785-0.23242 0.09912-0.22217 0.32129-0.29736 0.22559-0.07861 0.45117 0.01709z"
+                fill="#4A7C59"
+              ></path>
+            </svg>
+            <div
+              data-pencil-name="G1 Review Text"
+              style="box-sizing: border-box; color: #2E2418; flex: 1 1 0; font-family: Inter, system-ui, sans-serif; font-size: 12.5px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: 21px; text-align: left"
+            >
+              週次評価 (W31): 誤解解消 1 件を含む 8 件の証跡。wall-bounce
+              論点の再出題合格が「運用設計の理解」に直結しており、KDI
+              の定着率に向けた良い週でした。来週は CS
+              側の証跡がないため、そちらの目標とのバランス確認を。
+            </div>
+          </div>
+        </div>
+        <div
+          data-pencil-name="Goal Card 2"
+          style="align-items: flex-start; background-color: #FBF8F0; border-radius: 12px; border: 1px solid #E3D9C4; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 16px; height: fit-content; justify-content: flex-start; padding: 28px; width: 100%"
+        >
+          <div
+            data-pencil-name="G2 Head"
+            style="align-items: center; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: space-between; width: 100%"
+          >
+            <div
+              data-pencil-name="G2 Title Wrap"
+              style="align-items: flex-start; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 4px; height: fit-content; justify-content: flex-start; width: fit-content"
+            >
+              <div
+                data-pencil-name="G2 Title"
+                style='box-sizing: border-box; color: #2E2418; font-family: "Shippori Mincho", system-ui, sans-serif; font-size: 20px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap'
+              >
+                H2目標: CS オペレーション改善
+              </div>
+              <div
+                data-pencil-name="G2 KDI"
+                style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 12.5px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                KDI: 一次回答時間 30 分以内
+              </div>
+            </div>
+            <div
+              data-pencil-name="G2 Period"
+              style="align-items: flex-start; background-color: #4A7C5912; border-radius: 999px; box-sizing: border-box; display: flex; flex-direction: row; flex-shrink: 0; gap: 0px; height: fit-content; justify-content: flex-start; padding: 5px 12px; width: fit-content"
+            >
+              <div
+                data-pencil-name="G2 Period Label"
+                style="box-sizing: border-box; color: #4A7C59; font-family: Inter, system-ui, sans-serif; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+              >
+                2026-H2 · active
+              </div>
+            </div>
+          </div>
+          <div
+            data-pencil-name="G2 Empty"
+            style="align-items: center; background-color: #F4EEE2; border-radius: 10px; box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0; gap: 8px; height: fit-content; justify-content: flex-start; padding: 24px 28px; width: 100%"
+          >
+            <svg
+              data-pencil-name="G2 Empty Icon"
+              data-icon-name="inbox"
+              data-icon-set="lucide"
+              viewBox="0 0 13.99993896484375 14"
+              preserveAspectRatio="xMidYMid meet"
+              xmlns="http://www.w3.org/2000/svg"
+              style="box-sizing: border-box; flex-shrink: 0; height: 28px; width: 28px"
+            >
+              <path
+                d="M3.9751 1.76367q-0.34863 0.05469-0.68018 0.25977-0.32813 0.20166-0.50928 0.48193-0.09912 0.14014-1.13476 2.22852-1.03564 2.08496-1.05615 2.16357-0.02051 0.0752-0.00684 1.96533l0 1.59619q0.01367 0.32129 0.02734 0.40332 0.12646 0.5332 0.50928 0.89893 0.38623 0.36231 0.91944 0.46143 0.16748 0.02734 4.95605 0.02734 4.78857 0 4.95605-0.02734 0.5332-0.09912 0.91602-0.46143 0.38623-0.36572 0.5127-0.89893 0.01367-0.08203 0.02734-0.40332l0-1.59619q0.01367-1.89014-0.00684-1.96533-0.02051-0.07861-1.05615-2.16357-1.03564-2.08838-1.12109-2.21485-0.19482-0.29395-0.53321-0.50244-0.33496-0.21191-0.68359-0.25293-0.14014-0.01367-3.0249-0.01367-2.88477 0-3.01123 0.01367z m6.00537 1.18945q0.09912 0.04443 0.18457 0.12647 0.06836 0.05811 0.19482 0.3042 0.12646 0.24268 0.71436 1.39111 0.81006 1.62354 0.81006 1.63721 0 0.01367-1.32959 0.01367l-1.16211 0q-0.19482 0-0.28028 0.0376-0.08203 0.03418-0.16064 0.10596-0.0752 0.06836-0.58105 0.8374l-0.51612 0.76904-1.70898 0-0.51612-0.76904q-0.50586-0.76904-0.58447-0.8374-0.0752-0.07178-0.16064-0.10596-0.08203-0.0376-0.27686-0.0376l-1.16211 0q-1.33301 0-1.33301-0.01367 0-0.01367 0.81348-1.63721 0.58789-1.14844 0.71436-1.39111 0.12646-0.24609 0.19482-0.3042 0.08545-0.08203 0.16065-0.10938 0.07861-0.03076 0.47168-0.04443l2.53271 0 2.53271 0q0.37939 0 0.44776 0.02735z m-5.10986 5.39014q0.50586 0.76904 0.58105 0.84082 0.07861 0.06836 0.16064 0.10596 0.08545 0.03418 0.26661 0.03418l1.12109 0 1.12109 0q0.18115 0 0.26319-0.03418 0.08545-0.0376 0.16064-0.10596 0.07861-0.07178 0.58447-0.84082l0.51612-0.76904 2.60449 0-0.01367 3.07959-0.04102 0.09912q-0.11279 0.2085-0.3247 0.29395l-0.09571 0.02734-9.5498 0-0.09571-0.02734q-0.21191-0.08545-0.3247-0.29395l-0.04102-0.09912-0.01367-3.07959 2.60449 0 0.51612 0.76904z"
+                fill="#B8AB90"
+              ></path>
+            </svg>
+            <div
+              data-pencil-name="G2 Empty Text"
+              style="box-sizing: border-box; color: #8A7C66; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-style: normal; font-weight: 700; letter-spacing: 0px; line-height: normal; text-align: left; white-space: nowrap"
+            >
+              今週はこの目標の証跡がありません
+            </div>
+            <div
+              data-pencil-name="G2 Empty Sub"
+              style="box-sizing: border-box; color: #B8AB90; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-style: normal; font-weight: 400; letter-spacing: 0px; line-height: 20px; text-align: center; width: 520px"
+            >
+              動いていないことが最も重要なシグナルです。月曜の週次 Goal OS でこの目標の扱い
+              (継続/縮小/統合) を決めましょう。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

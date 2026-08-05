@@ -1,20 +1,35 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+import { DotGothic16, Noto_Sans_JP, Press_Start_2P, Shippori_Mincho } from "next/font/google";
 import "./globals.css";
+import "./atlas-living.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const pressStart = Press_Start_2P({
+  weight: "400",
   subsets: ["latin"],
+  variable: "--font-press-start",
+  display: "swap",
+});
+const dotGothic = DotGothic16({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-dotgothic",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const notoSans = Noto_Sans_JP({
+  variable: "--font-noto",
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
+});
+
+const shippori = Shippori_Mincho({
+  variable: "--font-shippori",
+  subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Applied Loop",
+  title: "ぼうけんのしょ — Applied Loop",
   description: "学びを実務適用の証跡に変えるループ",
 };
 
@@ -26,27 +41,9 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${notoSans.variable} ${pressStart.variable} ${dotGothic.variable} ${shippori.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900">
-        <header className="border-b border-zinc-200 bg-white">
-          <nav className="mx-auto flex max-w-4xl items-center gap-6 px-4 py-3 text-sm">
-            <Link href="/" className="font-bold tracking-tight">
-              Applied Loop
-            </Link>
-            <Link href="/entries" className="text-zinc-600 hover:text-zinc-900">
-              学び
-            </Link>
-            <Link href="/entries/new" className="text-zinc-600 hover:text-zinc-900">
-              登録
-            </Link>
-            <Link href="/cards" className="text-zinc-600 hover:text-zinc-900">
-              カード
-            </Link>
-          </nav>
-        </header>
-        <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">{children}</main>
-      </body>
+      <body className="atlas-dq flex min-h-full flex-col">{children}</body>
     </html>
   );
 }

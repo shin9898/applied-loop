@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// 初期データ移行: pm-learn entries.jsonl と sr-cards.json を DB へ取り込む。
-// 冪等 (Entry は title+createdAt の一致、SrCard は id で upsert)。
+// 初期データ移行: pm-learn entries.jsonl を DB へ取り込む。
+// 冪等 (Entry は title+createdAt の一致)。
+// SR カードは ADR-0010 で廃止 (scripts/migrate-sr-to-gates.mjs 参照)。
 // 使い方: npx tsx scripts/import.ts [--dry-run]
 
 import { readFileSync } from "node:fs";
@@ -8,7 +9,6 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 const PM_LEARN_ENTRIES = `${process.env.HOME}/.my-copy/pm-learn/entries.jsonl`;
-const SR_CARDS = `${process.env.HOME}/.claude/learning/sr-cards.json`;
 const DRY_RUN = process.argv.includes("--dry-run");
 
 const adapter = new PrismaBetterSqlite3({
@@ -29,20 +29,6 @@ type PmLearnEntry = {
   source?: string;
   applied_to?: string;
   ts: string;
-};
-
-type SrCardJson = {
-  id: string;
-  topic: string;
-  question: string;
-  answer: string;
-  created: string;
-  lastReview?: string;
-  nextReview: string;
-  interval?: number;
-  easeFactor?: number;
-  repetitions?: number;
-  score?: number;
 };
 
 function parseJsonl(path: string): PmLearnEntry[] {
@@ -134,34 +120,9 @@ async function importPmLearn() {
   return stats;
 }
 
-async function importSrCards() {
-  const { cards } = JSON.parse(readFileSync(SR_CARDS, "utf8")) as { cards: SrCardJson[] };
-  let upserted = 0;
-  for (const c of cards) {
-    const data = {
-      topic: c.topic,
-      question: c.question,
-      answer: c.answer,
-      created: new Date(c.created),
-      lastReview: c.lastReview ? new Date(c.lastReview) : null,
-      nextReview: new Date(c.nextReview),
-      interval: c.interval ?? 1,
-      easeFactor: c.easeFactor ?? 2.5,
-      repetitions: c.repetitions ?? 0,
-      score: c.score ?? 0,
-    };
-    if (!DRY_RUN) {
-      await prisma.srCard.upsert({ where: { id: c.id }, create: { id: c.id, ...data }, update: data });
-    }
-    upserted++;
-  }
-  return { cardsUpserted: upserted };
-}
-
 async function main() {
   const pmStats = await importPmLearn();
-  const srStats = await importSrCards();
-  console.log(JSON.stringify({ dryRun: DRY_RUN, pmLearn: pmStats, srCards: srStats }, null, 2));
+  console.log(JSON.stringify({ dryRun: DRY_RUN, pmLearn: pmStats }, null, 2));
   await prisma.$disconnect();
 }
 

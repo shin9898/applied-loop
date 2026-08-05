@@ -1,26 +1,131 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Pencil デザイントークン (docs: .pen variables) と同期すること */
+@theme {
+  --color-bg: #f4eee2;
+  --color-surface: #fbf8f0;
+  --color-surface-raised: #fdfbf5;
+  --color-border: #e3d9c4;
+  --color-accent: #bc5b33;
+  --color-accent-soft: #bc5b3318;
+  --color-warn: #a8832f;
+  --color-warn-soft: #a8832f1a;
+  --color-ink: #2e2418;
+  --color-ink-secondary: #8a7c66;
+  --color-ink-faint: #b8ab90;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-shippori), "Hiragino Mincho ProN", serif;
+  --font-body: var(--font-noto), "Hiragino Kaku Gothic ProN", sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  position: relative;
+  isolation: isolate;
 }
+
+/* 視聴者向けアプリ: 紙の上に暖かい気配（台帳の平坦さを消す） */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 90% 55% at 8% -8%, #bc5b3328, transparent 55%),
+    radial-gradient(ellipse 70% 45% at 98% 4%, #a8832f22, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 110%, #2e241812, transparent 45%);
+  animation: ambient-drift 28s ease-in-out infinite alternate;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+@keyframes ambient-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-1.5%, 1%, 0) scale(1.04);
+  }
+}
+
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ring-draw {
+  from {
+    stroke-dashoffset: var(--ring-circumference, 200);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+.motion-enter {
+  animation: enter-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--motion-delay, 0ms);
+}
+
+.motion-ring-progress {
+  transition: stroke-dasharray 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.motion-row {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.motion-row:hover {
+  transform: translateY(-1px);
+  background-color: var(--color-surface-raised);
+  box-shadow: 0 8px 24px #2e241810;
+}
+
+.motion-pulse {
+  animation: pulse-soft 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  .motion-enter,
+  .motion-pulse,
+  .motion-ring-progress {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .motion-row:hover {
+    transform: none;
+  }
+}
+
+/* Living Atlas / ぼうけんのしょ */
+@import "./atlas-living.css";

@@ -9,21 +9,36 @@
     "lint": "eslint",
     "import:data": "tsx scripts/import.ts",
     "seed:exp1": "tsx scripts/seed-exp1.ts",
-    "digest": "node scripts/weekly-digest.mjs"
+    "digest": "node scripts/weekly-digest.mjs",
+    "dev:terminal": "node scripts/terminal-server.mjs",
+    "dev:all": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" concurrently \"npm run dev -- -p 3100\" \"npm run dev:terminal\"",
+    "regrade": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" tsx scripts/regrade-gate.ts",
+    "rewrite-gates": "node scripts/rewrite-gates.mjs",
+    "postinstall": "node scripts/fixinstall-node-pty.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@prisma/adapter-better-sqlite3": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@xterm/addon-fit": "^0.11.0",
     "better-sqlite3": "^13.0.2",
+    "lucide-react": "^1.28.0",
+    "mcp-handler": "^2.1.0",
     "next": "16.2.12",
+    "node-pty": "^1.1.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "ws": "^8.21.1",
+    "xterm": "^5.3.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/ws": "^8.18.1",
+    "concurrently": "^10.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
     "prisma": "^7.9.1",

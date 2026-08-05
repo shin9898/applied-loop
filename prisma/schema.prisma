@@ -11,16 +11,46 @@ datasource db {
 }
 
 // 学び (pm-learn の kind: material 相当)
+// kind: book / article / course / magazine / other / insight (会話由来の原子的な学び)
 model Entry {
   id        String   @id @default(cuid())
   title     String
   source    String?
-  kind      String // book / article / course / magazine / other
+  kind      String
   note      String?
+  domain    String? // 大分類 (例: "TypeScript / MCP")
   createdAt DateTime @default(now())
 
   applications Application[]
   experiments  Experiment[]
+  captures     Capture[]
+}
+
+// 受信箱 (LLM 会話からの学び候補。朝の仕分けで accepted/ignored に)
+// ignored も残すのは accept 率 (捕捉精度) を計測するため (ADR-0005)
+model Capture {
+  id              String    @id @default(cuid())
+  title           String
+  note            String?
+  status          String    @default("pending") // pending / accepted / ignored / expired
+  sourceTool      String // claude-code / cursor / codex / manual
+  sourceContext   String?
+  capturedAt      DateTime  @default(now())
+  reviewedAt      DateTime?
+  entryId         String?
+  entry           Entry?    @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  dedupeKey       String?
+  importanceScore Int? // 0-100。LLM トリアージ用 (ADR-0012)
+  triageReason    String? // LLM のスコア根拠 (ADR-0012)
+}
+
+// 当日タスク → 関連学び/誤解/ゲートのマッピング (ADR-0013 §1)
+// タスク正典は Hermes/TODO。サーバーは LLM が保存した結果だけを持つ
+model DailyTaskMap {
+  id        String   @id @default(cuid())
+  dateKey   String   @unique // "2026-08-03" (JST)
+  mappings  String // JSON: [{task, related: [{type, id, reason}]}]
+  createdAt DateTime @default(now())
 }
 
 // 適用記録 (pm-learn の kind: application 相当。格上げの核心)
@@ -69,17 +99,151 @@ model WaitlistSignup {
   createdAt DateTime @default(now())
 }
 
-// sr-cards.json からの移行モデル (SM-2 簡易版スケジュール管理のみ)
-model SrCard {
-  id          String    @id
-  topic       String
-  question    String
-  answer      String
-  created     DateTime
-  lastReview  DateTime?
-  nextReview  DateTime
-  interval    Int       @default(1)
-  easeFactor  Float     @default(2.5)
-  repetitions Int       @default(0)
-  score       Int       @default(0)
+// hook からの生イベント + 発火判定結果 (ADR-0006)
+model DevEvent {
+  id         String   @id @default(cuid())
+  kind       String // commit
+  repo       String
+  repoPath   String? // ローカルのリポジトリ絶対パス (diff 取得用。ローカルのみ)
+  ref        String
+  summary    String?
+  fired      Boolean  @default(false) // ゲート発火したか
+  skipReason String? // dedupe / throttled / daily_cap / backlog / gen_failed
+  receivedAt DateTime @default(now())
+  gates      Gate[]
+
+  @@unique([kind, repo, ref])
+}
+
+// 理解度ゲート (出題)。answer / gradeNote / rubricResult はローカルのみでクラウド同期から除外すること
+model Gate {
+  id               String         @id @default(cuid())
+  eventId          String?
+  event            DevEvent?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  misconceptionId  String?
+  misconception    Misconception? @relation(fields: [misconceptionId], references: [id], onDelete: SetNull)
+  kind             String         @default("initial") // initial / retry / sr_review / module (ADR-0016)
+  question         String
+  targetConcept    String?
+  domain           String? // 大分類 (例: "TypeScript / MCP", "PdM / 設計")
+  answer           String? // ローカルのみ。クラウド同期除外
+  status           String         @default("pending")
+  // pending / answered / grading / grading_failed / passed / failed /
+  // self_graded_pass / self_graded_fail / dismissed
+  gradeNote        String? // ローカルのみ。クラウド同期除外
+  resources        String? // JSON: [{kind, label, ref}] (ADR-0007)
+  rubricCriteria   String? // JSON: ["観点1", ...] 出題生成時 (ADR-0007)
+  rubricResult     String? // JSON: [{aspect, score, note}] 採点後。ローカルのみ (ADR-0007)
+  contextSummary   String? // 「このコミットでやったこと」2-3行要約 (ADR-0011)
+  answerMode       String? // "self" | "researched" | "in_session" | "assisted" (ADR-0007/0010/0015。NSM 判定には使わない)
+  accessedResource Boolean        @default(false) // リソースクリック記録 (ADR-0007)
+  nextReviewAt     DateTime? // retry/sr_review の出題予定
+  createdAt        DateTime       @default(now())
+  answeredAt       DateTime?
+  gradedAt         DateTime?
+}
+
+// 誤解 (コード非依存の抽象概念のみ保存。Capture 受信箱経由でユーザー accept 後に確定)
+model Misconception {
+  id           String    @id @default(cuid())
+  concept      String
+  status       String    @default("open") // open / resolved / regressed
+  rootCause    String? // knowledge / verification / premise (ADR-0011。分類不能は null)
+  firstGateId  String?
+  resolvedAt   DateTime?
+  reviewCount  Int       @default(0)
+  nextReviewAt DateTime?
+  createdAt    DateTime  @default(now())
+  gates        Gate[]
+}
+
+// 弱点パターン集計の週次キャッシュ (ADR-0011)
+model WeaknessPatternCache {
+  id          String   @id @default("default")
+  resultJson  String // JSON: WeaknessReport
+  gradedCount Int      @default(0)
+  computedAt  DateTime @default(now())
+}
+
+// 目標 (ADR-0008)。進捗率は持たず、証跡の密度と週次定性評価で可視化する
+model Goal {
+  id           String       @id @default(cuid())
+  title        String
+  period       String // "2026-H2" など自由形式
+  kdi          String? // 自由記述
+  focusDomains String? // JSON: ["TypeScript / MCP", ...] (ADR-0010)
+  status       String       @default("active") // active / archived
+  createdAt    DateTime     @default(now())
+  links        GoalLink[]
+  reviews      GoalReview[]
+}
+
+// 目標への汎用紐付け (Entry / Gate / Application / Misconception)
+model GoalLink {
+  id         String   @id @default(cuid())
+  goalId     String
+  goal       Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  targetType String // entry / gate / application / misconception
+  targetId   String
+  confidence String // manual / llm_suggested / llm_auto
+  createdAt  DateTime @default(now())
+
+  @@unique([goalId, targetType, targetId])
+}
+
+// 週次の定性評価 (進捗率は出さない)
+model GoalReview {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  weekKey   String // "2026-W31" (JST 基準)
+  comment   String
+  createdAt DateTime @default(now())
+
+  @@unique([goalId, weekKey])
+}
+
+// ハーネス観測 (ADR-0009)。1 セッション = 1 レコード。会話本文は保存しない
+model HarnessRun {
+  id          String    @id @default(cuid())
+  harness     String // claude / codex
+  sessionId   String
+  model       String?
+  repo        String?
+  tools       String? // JSON: [{name, kind, calls}]
+  tokensIn    Int       @default(0)
+  tokensOut   Int       @default(0)
+  cacheRead   Int       @default(0)
+  cacheCreate Int       @default(0)
+  thinking    Int       @default(0)
+  turns       Int       @default(0)
+  startedAt   DateTime
+  endedAt     DateTime?
+
+  @@unique([harness, sessionId])
+}
+
+// 要件 (ADR-0014)。理解確認の単位。タスク管理にはしない (正典は Hermes)
+model Requirement {
+  id           String            @id @default(cuid())
+  title        String
+  why          String? // 目的・背景
+  criteria     String? // 受入条件 (自由記述)
+  status       String            @default("active") // active / understood / done / abandoned
+  understoodAt DateTime? // status=understood になった時刻 (briefing 表示用)
+  createdAt    DateTime          @default(now())
+  links        RequirementLink[]
+}
+
+// 要件への紐付け。LLM 提案は suggested、承認後・手動は approved (ADR-0014 §3)
+model RequirementLink {
+  id            String      @id @default(cuid())
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  targetType    String // gate / entry
+  targetId      String
+  status        String      @default("suggested") // suggested / approved
+  createdAt     DateTime    @default(now())
+
+  @@unique([requirementId, targetType, targetId])
 }

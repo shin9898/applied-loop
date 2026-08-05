@@ -1,0 +1,12 @@
+---
+description: Stable prefix for prompt cache — keep this rule short and unchanged
+globs:
+alwaysApply: true
+---
+
+<!-- Applied Loop harness-pack ADR-0017. Proposal only; do not force-write. -->
+
+# Stable prefix
+
+- Keep this rule short. Prefer pointers over long pasted procedures.
+- Put dated / temporary project notes in a separate rule with narrower globs, not here.

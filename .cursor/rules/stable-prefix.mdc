@@ -1,0 +1,13 @@
+---
+description: Stable prefix for prompt cache — keep this rule short and unchanged
+globs:
+alwaysApply: true
+---
+
+<!-- Applied Loop harness-pack ADR-0017 -->
+
+# Stable prefix
+
+- Keep always-applied rules short. Prefer pointers over long pasted procedures.
+- Put dated / temporary project notes in a separate rule with narrower globs, not here.
+- Pack canon: `docs/harness-pack/README.md`

@@ -1,0 +1,27 @@
+/** Barrel — import from `@/components/living-atlas` */
+export { AtlasShell } from "./atlas-shell";
+export { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
+export type { AtlasChromeActive } from "./atlas-chrome";
+export { AtlasCommandDock } from "./atlas-command-dock";
+export { AtlasReveal } from "./atlas-reveal";
+export { AtlasWorldMap } from "./atlas-world-map";
+export { AtlasDashboard } from "./atlas-dashboard";
+export type { AtlasDashboardProps } from "./atlas-dashboard";
+export { AtlasBattle } from "./atlas-battle";
+export type { AtlasBattleProps } from "./atlas-battle";
+export { AtlasZukan } from "./atlas-zukan";
+export type { ZukanItem } from "./atlas-zukan";
+export { AtlasGatesList } from "./atlas-gates-list";
+export type { GateListItem } from "./atlas-gates-list";
+export { AtlasHarness } from "./atlas-harness";
+export type { HarnessRepo } from "./atlas-harness";
+export { AtlasPrescription } from "./atlas-prescription";
+export { AtlasGoals } from "./atlas-goals";
+export type { GoalItem } from "./atlas-goals";
+export { AtlasEntries } from "./atlas-entries";
+export type { EntryItem } from "./atlas-entries";
+export { AtlasEntryDetail } from "./atlas-entry-detail";
+export { AtlasInboxDetail } from "./atlas-inbox-detail";
+export { AtlasRequirements } from "./atlas-requirements";
+export type { RequirementItem } from "./atlas-requirements";
+export { DEFAULT_ENEMY, paintEnemyFrame } from "./atlas-enemies";
