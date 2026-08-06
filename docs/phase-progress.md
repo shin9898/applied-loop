@@ -36,7 +36,7 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | B5-2 | 採点状態4表示 | done | 受理/採点中/CLEAR・miss/保留 | 一覧＋バトル状態語 |
 | B5-3 | 採点失敗リカバリ導線 | done | 保留＋復帰手順＋CLI復帰後自動再採点 | 手動再採点＋`requeueFailedGradingIfCliReady`（ちず/じゅんび） |
 | B6-1 | setup に採点疎通診断 | done | ✓/✗ と復帰手順 | `grading_cli` check |
-| B6-2 | `npm run setup` 等で起動集約 | done | clone→/setup までコマンド2個以内 | `npm run setup` + `dev:all` |
+| B6-2 | `npm run setup` 等で起動集約 | done | clone→/setup までコマンド2個以内 | `npm run setup` + `dev:all`。`.env.example` 追跡＋`DATABASE_URL`（Fable G1） |
 | B7-1 | 初 CLEAR/miss 後ずかん導線 | done | 初回完走者がずかんを開く | 結果画面『ずかんを見る』 |
 | B7-2 | ずかん空状態 | done | データゼロでも意味が伝わる | 空＋サンプル像→しれんへ CTA |
 | B7-3 | しれん空を供給状態で出し分け | done | 3状態で次の一手が違う | `resolveGatesSupplyState` |
@@ -160,3 +160,4 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | 2026-08-06 | P2 実装: B3-3/5-5/9-3/11-2/12-1/12-2/B2-4/briefing。B10-4 は別ハーネス実施待ち |
 | 2026-08-06 | P3 実装: B1-5/12-4/12-5/12-3b/4象限・digest。指標確認・dogfood 待ち |
 | 2026-08-06 | Fableギャップ埋め（人間不要分）: B5-3自動再採点 / B7-2サンプル像 / B7-4根因1行 / B8-2内部語 / B6-5 db:reset / B3-4同期監査 |
+| 2026-08-06 | Fable再レビュー G1/G6: `.env.example` 追跡・`DATABASE_URL`・`migrate deploy`・db:reset をルート DB へ |

@@ -48,6 +48,17 @@ function ensureMcpToken(envText) {
   };
 }
 
+/** クリーン clone で migrate が落ちないよう DATABASE_URL を必ず置く */
+function ensureDatabaseUrl(envText) {
+  if (/^DATABASE_URL=/m.test(envText)) {
+    return { text: envText, created: false };
+  }
+  return {
+    text: `${envText.trimEnd()}\nDATABASE_URL="file:./dev.db"\n`,
+    created: true,
+  };
+}
+
 console.log("Applied Loop — local bootstrap");
 
 // B6-4: Node / ポート
@@ -67,7 +78,7 @@ if (!existsSync(examplePath)) {
 if (!existsSync(envPath)) {
   let text = readFileSync(examplePath, "utf8");
   const ensured = ensureMcpToken(text);
-  text = ensured.text;
+  text = ensureDatabaseUrl(ensured.text).text;
   if (!/^MCP_SURFACE=/m.test(text)) {
     text += `\n# MCP ツール面: core（既定）| full（本人用）\nMCP_SURFACE=core\n`;
   }
@@ -76,21 +87,27 @@ if (!existsSync(envPath)) {
 } else {
   let text = readFileSync(envPath, "utf8");
   const ensured = ensureMcpToken(text);
-  if (ensured.created) {
-    if (!/^MCP_SURFACE=/m.test(ensured.text)) {
-      ensured.text += `\nMCP_SURFACE=core\n`;
+  text = ensured.text;
+  const db = ensureDatabaseUrl(text);
+  text = db.text;
+  if (!/^MCP_SURFACE=/m.test(text)) {
+    text += `\nMCP_SURFACE=core\n`;
+  }
+  if (ensured.created || db.created) {
+    writeFileSync(envPath, text.endsWith("\n") ? text : `${text}\n`);
+    if (ensured.created) {
+      console.log(".env: 弱い／空の MCP_TOKEN を自動生成して書き戻した");
     }
-    writeFileSync(
-      envPath,
-      ensured.text.endsWith("\n") ? ensured.text : `${ensured.text}\n`,
-    );
-    console.log(".env: 弱い／空の MCP_TOKEN を自動生成して書き戻した");
+    if (db.created) {
+      console.log('.env: DATABASE_URL="file:./dev.db" を追加した');
+    }
   } else {
-    console.log(".env: MCP_TOKEN は十分な長さ（維持）");
+    console.log(".env: MCP_TOKEN / DATABASE_URL は揃っている（維持）");
   }
 }
 
-run("npx prisma migrate dev --name bootstrap");
+// 非対話。既存 migrations を適用（clone 向け）
+run("npx prisma migrate deploy");
 run("npm run seed:tutorial");
 
 console.log(`
