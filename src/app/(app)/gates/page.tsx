@@ -15,6 +15,11 @@ export const dynamic = "force-dynamic";
 
 export default async function GatesPage() {
   const hookBody = join(homedir(), ".applied-loop", "hooks", "post-commit");
+  // G4: しれん一覧でも再出題スケジューラを回す
+  const { scheduleDueGates } = await import("@/lib/gate");
+  await scheduleDueGates().catch((e) =>
+    console.error("[gates] scheduleDueGates failed:", e),
+  );
   const [items, streakDays, genFailures, everHadGate] = await Promise.all([
     loadGateList(),
     loadStreakDays(),

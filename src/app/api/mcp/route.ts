@@ -234,6 +234,10 @@ const handler = createMcpHandler(
         // 疎通直後に pending が空にならないようサンプルを保証（B4-3）
         const { ensureTutorialSeed } = await import("@/lib/tutorial-seed");
         await ensureTutorialSeed();
+        // G4: 再出題はホーム以外からも発火
+        await scheduleDueGates().catch((e) =>
+          console.error("[list_pending_gates] scheduleDueGates failed:", e),
+        );
         const { getWeaknessPatternsForDashboard } = await import(
           "@/lib/weakness"
         );
@@ -248,11 +252,23 @@ const handler = createMcpHandler(
           },
         });
         if (gates.length === 0) {
+          // G2/B4-3: 空でも診断付きの非空応答（サンプル提出後の aha を守る）
+          const { TUTORIAL_GATE_ID } = await import("@/lib/tutorial-constants");
+          const { buildEmptyPendingGatesMessage } = await import(
+            "@/lib/pending-gates-empty"
+          );
+          const tutorial = await prisma.gate.findUnique({
+            where: { id: TUTORIAL_GATE_ID },
+            select: { status: true, answeredAt: true },
+          });
+          const sampleSubmitted =
+            !!tutorial &&
+            (tutorial.answeredAt != null || tutorial.status !== "pending");
           return text(
-            [
-              "出題中のしれんはありません。",
-              "次の一手: 自分の repo に git hook を入れる（./scripts/setup-git-hook.sh <repo>）か、コミット後に再確認。",
-            ].join("\n"),
+            buildEmptyPendingGatesMessage({
+              tutorialGateId: TUTORIAL_GATE_ID,
+              sampleSubmitted,
+            }),
           );
         }
         // 弱い観点ラベルが問い／論点に含まれるものを前へ (ADR-0011)

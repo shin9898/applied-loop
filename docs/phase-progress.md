@@ -30,7 +30,7 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | B3-2 | ホーム単一 CTA | done | どの状態でも CTA 1個 | `resolveHomeCta` |
 | B4-1 | サンプルしれん質＋採点まで体験 | done | 3分で提出、当日判定確認可 | tutorial-seed 問い短縮（新規 seed） |
 | B4-2 | 貼る文統一＋ list_pending_gates を脚本に | done | 貼ってから初 MCP &lt;5分 | tutorialPastePrompt 先頭を list |
-| B4-3 | 疎通直後に pending 非空保証 | done | MCP 疎通時 pending≥1 or briefing 実データ | list/briefing で ensureTutorialSeed |
+| B4-3 | 疎通直後に pending 非空保証 | done | MCP 疎通時 pending≥1 or briefing 実データ | ensureTutorialSeed＋空時はサンプル判定へ誘導（G2） |
 | B4-4 | 完了画面→供給の橋（hook） | done | 完了から1クリックで次へ | request_gate 分岐は P1 |
 | B5-1 | 出題3点セット（Web/MCP） | done | context→問い→リソース | Web バトルも同順 |
 | B5-2 | 採点状態4表示 | done | 受理/採点中/CLEAR・miss/保留 | 一覧＋バトル状態語 |
@@ -84,11 +84,11 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | ID | 項目 | Status | 完了条件（要約） | メモ |
 |---|---|---|---|---|
 | B3-3 | 段階開示（初 CLEAR で証跡面） | done | 初回に露出せず解放される | `hasFirstClear`＋dock ににっき/もくひょう/どうぐ |
-| B5-5 | 再出題予告 | done | CLEAR に次回日付 | DebriefPanel＋`nextReviewLabel`（load/poll） |
+| B5-5 | 再出題予告 | done | CLEAR に次回日付 | initial 合格/不合格でも `nextReviewAt` 予約（G3） |
 | B9-3 | 供給健全性の週次化 | done | 週次3数値 | `npm run supply:health` |
 | B10-4 | 別ハーネス検証 | todo | 2ハーネス目無介入 | **人間待ち**・`docs/walkthrough-harness-2.md` |
 | B11-2 | 採点再現性スポット | done | 一致率測定 | `npm run eval:grade-spot`（LLM 要） |
-| B12-1 | 再出題スケジューラ明文化＋実発火 | done | 仲間環境で発火 | `docs/ops-logs.md`＋briefing/home 発火。実発火は dogfood |
+| B12-1 | 再出題スケジューラ明文化＋実発火 | done | 仲間環境で発火 | briefing/home/gates/`list_pending_gates`＋滞留 dismiss（G4）。実発火は dogfood |
 | B12-2 | 失敗ログ置き場一本化 | done | docs に1行 | `docs/ops-logs.md` 冒頭 |
 | B2-4 | event-queue 復帰手順 | done | 再現・復帰可 | `docs/ops-logs.md`＋README |
 | — | briefing を今日のしれん＋昨日の判定に | done | 冒頭に単一推奨 | `morning_briefing`「今日の一手」 |
@@ -162,3 +162,4 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | 2026-08-06 | Fableギャップ埋め（人間不要分）: B5-3自動再採点 / B7-2サンプル像 / B7-4根因1行 / B8-2内部語 / B6-5 db:reset / B3-4同期監査 |
 | 2026-08-06 | Fable再レビュー G1/G6: `.env.example` 追跡・`DATABASE_URL`・`migrate deploy`・db:reset をルート DB へ |
 | 2026-08-06 | クリーンclone実測: 欠落migration補完・prisma generate・postinstall-node-pty 復元 |
+| 2026-08-06 | Fable G2/G3/G4: 空list診断応答・initial再出題予約・scheduleDueGates 経路拡大 |

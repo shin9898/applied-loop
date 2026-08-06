@@ -808,6 +808,14 @@ async function onGatePassed(
         nextReviewAt: new Date(now.getTime() + nextDays * 86400000),
       },
     });
+  } else if (gate.kind === "initial") {
+    // G3/B5-5: 初回 CLEAR でも再出題を予約（予告日付が空にならない）
+    await prisma.misconception.update({
+      where: { id: m.id },
+      data: {
+        nextReviewAt: new Date(now.getTime() + RETRY_DELAY_MS),
+      },
+    });
   }
 }
 
@@ -850,8 +858,11 @@ async function onGateFailed(
     });
   }
 
-  // 再出題 (retry) に紐づく誤解が再度不合格でも nextReviewAt を延ばす
-  if (gate.kind === "retry" && gate.misconceptionId) {
+  // 再出題 (retry) / 初回 (initial) に紐づく誤解は次回復習を予約（G3）
+  if (
+    (gate.kind === "retry" || gate.kind === "initial") &&
+    gate.misconceptionId
+  ) {
     await prisma.misconception.update({
       where: { id: gate.misconceptionId },
       data: {
@@ -889,8 +900,20 @@ export async function confirmMisconception(
  * 出題予定 (nextReviewAt 経過) の誤解から retry / sr_review Gate を生成する。
  * 朝のブリーフィング時に呼ぶ (cron がないためブリーフィングを起点にする)。
  */
+const STALE_REVIEW_MS = 7 * 86400000; // 滞留 pending の再出題を解放（G4）
+
 export async function scheduleDueGates(): Promise<number> {
   const now = new Date();
+  // 未回答のまま古い retry/sr_review が残ると新規再出題が永久停止するため片付ける
+  const staleBefore = new Date(now.getTime() - STALE_REVIEW_MS);
+  await prisma.gate.updateMany({
+    where: {
+      kind: { in: ["retry", "sr_review"] },
+      status: "pending",
+      createdAt: { lte: staleBefore },
+    },
+    data: { status: "dismissed", dismissReason: "stale_review" },
+  });
   const due = await prisma.misconception.findMany({
     where: {
       nextReviewAt: { lte: now },
