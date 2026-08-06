@@ -6,7 +6,8 @@ UI は Living Atlas（ぼうけんのしょ）。操作の正典は **MCP**（�
 
 プロダクト基盤: [docs/adr/0001-product-foundation.md](docs/adr/0001-product-foundation.md)  
 **初回セットアップ正本: [docs/onboarding.md](docs/onboarding.md)**  
-MCP 詳細: [docs/mcp-setup.md](docs/mcp-setup.md)
+MCP 詳細: [docs/mcp-setup.md](docs/mcp-setup.md)  
+Cloud Agent: [docs/cloud-mcp.md](docs/cloud-mcp.md)
 
 ## クイックスタート
 
@@ -45,6 +46,7 @@ npm run dev:all        # http://localhost:3100  +  WS :3101
 
 ```bash
 npm run dev:all          # UI + じゅもん
+npm run mcp:cloud-config # Cloud Agent 向け MCP 設定片（要 APPLIED_LOOP_URL）
 ./scripts/setup-git-hook.sh ~/path/to/repo
 npm run import:data      # 既存 pm-learn 等の取込
 npm run digest           # 週次ダイジェスト投影

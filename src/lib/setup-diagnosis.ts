@@ -7,6 +7,11 @@ import { dateKeyJST, dayStartJST } from "@/lib/date";
 import { TUTORIAL_GATE_ID } from "@/lib/tutorial-constants";
 import { isTutorialGateSubmitted } from "@/lib/tutorial-seed";
 import {
+  buildMcpClientSnippets,
+  getMcpEndpointInfo,
+  type McpEndpointInfo,
+} from "@/lib/mcp-endpoint";
+import {
   mcpCountsForLlmStep,
   mcpTouchedRecently,
   readTutorialState,
@@ -22,7 +27,8 @@ export type SetupCheckId =
   | "first_learning"
   | "tutorial_sample"
   | "mcp_touch"
-  | "tutorial_done";
+  | "tutorial_done"
+  | "cloud_mcp";
 
 export type SetupCheck = {
   id: SetupCheckId;
@@ -54,6 +60,14 @@ export type SetupDiagnosis = {
   /** 初心者チュートリアル完了 */
   tutorialReady: boolean;
   tutorialGateId: string;
+  /** MCP URL（localhost or Reachable） */
+  mcpEndpoint: McpEndpointInfo;
+  /** Cloud / 外部クライアント向け設定片 */
+  mcpSnippets: {
+    cursorJson: string;
+    claudeCli: string;
+    codexToml: string;
+  };
 };
 
 function probePort(host: string, port: number, ms = 250): Promise<boolean> {
@@ -81,7 +95,12 @@ function probePort(host: string, port: number, ms = 250): Promise<boolean> {
 
 /** ホーム／道案内用のセットアップ診断 */
 export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
-  const mcpToken = Boolean(process.env.MCP_TOKEN?.trim());
+  const mcpEndpoint = getMcpEndpointInfo();
+  const mcpToken = mcpEndpoint.tokenConfigured;
+  const mcpSnippets = buildMcpClientSnippets({
+    mcpUrl: mcpEndpoint.mcpUrl,
+    token: process.env.MCP_TOKEN,
+  });
   const terminalEnv = process.env.ENABLE_TERMINAL === "true" && mcpToken;
   const terminalUp = terminalEnv
     ? await probePort("127.0.0.1", 3101)
@@ -206,6 +225,21 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
         "terminal-server がポート 3101 で待っているか。無いと『じゅもんをとなえる』が接続エラーになる。",
     },
     {
+      id: "cloud_mcp",
+      label: "Cloud から届く MCP URL",
+      ok: !mcpEndpoint.reachable || (mcpEndpoint.reachable && mcpToken),
+      required: false,
+      detail: mcpEndpoint.reachable
+        ? mcpToken
+          ? `Reachable: ${mcpEndpoint.mcpUrl}`
+          : `URL はあるが合言葉がない（${mcpEndpoint.baseUrl}）`
+        : "いまは localhost（Cloud には届かぬ）。トンネルするなら docs/cloud-mcp.md",
+      howTo:
+        "トンネル後に APPLIED_LOOP_URL=https://... と MCP_TOKEN を .env へ → `npm run mcp:cloud-config`",
+      plain:
+        "Cloud Agent 用。ダッシュボードは手元のまま、MCP だけ外から叩く薄い楔（ADR-0018）。",
+    },
+    {
       id: "git_hook",
       label: "足跡を拾う鉤（git hook）",
       ok: gitHook,
@@ -215,7 +249,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
         : "鉤がまだない。コミットからしれんの種が生えぬぞ（今は飛ばしてよい）",
       howTo: "`./scripts/setup-git-hook.sh /path/to/your-repo`",
       plain:
-        "git commit 後にイベントが送られ、理解度ゲート（しれん）候補が自動で増える。",
+        "git commit 後にイベントが送られ、理解度ゲート（しれん）候補が自動で増える。Cloud では動かぬことも多い（ベストエフォート）。",
     },
     {
       id: "first_gate",
@@ -268,5 +302,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
     mcpRecent,
     tutorialReady,
     tutorialGateId: TUTORIAL_GATE_ID,
+    mcpEndpoint,
+    mcpSnippets,
   };
 }

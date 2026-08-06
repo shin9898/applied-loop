@@ -2,7 +2,8 @@
 
 ゼロから最初の価値までの道。UI の「じゅんび」（`/setup`）・README・LP は **この文書を正本** とする。
 
-MCP の登録手順の詳細は [mcp-setup.md](./mcp-setup.md)。
+MCP の登録手順の詳細は [mcp-setup.md](./mcp-setup.md)。  
+Cloud Agent から使う場合は [cloud-mcp.md](./cloud-mcp.md)（Reachable MCP）。
 
 ---
 
@@ -16,7 +17,8 @@ LLM を入れたばかりでも、**ツール名を覚えなくてよい**。順
 | 1 | **サンプルしれんを Web で1問提出** | 『たたかう』→『提出する』→自動でじゅんびに戻る。合否は待たなくてよい |
 | 2 | 使う LLM を選ぶ（Claude / Cursor / Codex / じゅもん） | `/setup` で道を選択（この時刻より前の MCP 疎通はカウントしない） |
 | 3 | **貼るだけの文**をチャットに1回貼る | 選択後の MCP 疎通、または「できた」 |
-| 4 | （任意）git hook | 今は飛ばしてよい |
+| 4 | （任意）git hook | 今は飛ばしてよい（Cloud 作業が主なら不要に近い） |
+| — | （任意）Cloud Agent 用 URL | トンネル + `npm run mcp:cloud-config` → [cloud-mcp.md](./cloud-mcp.md) |
 
 画面: ホームのバナー → **じゅんび（`/setup`）**。ウィザードが「いまやる1手」だけを大きく出す。
 

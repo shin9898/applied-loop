@@ -1125,7 +1125,24 @@ const handler = createMcpHandler(
 );
 
 async function withAuth(request: Request): Promise<Response> {
-  const token = process.env.MCP_TOKEN;
+  const { getMcpEndpointInfo, isLocalRequestHost } = await import(
+    "@/lib/mcp-endpoint"
+  );
+  const info = getMcpEndpointInfo();
+  const host =
+    request.headers.get("x-forwarded-host") ||
+    request.headers.get("host");
+  const remoteClient = !isLocalRequestHost(host);
+  // Reachable MCP / 非ローカル Host ではトークン必須（localhost のみ従来どおり緩め）
+  const tokenRequired = info.reachable || remoteClient;
+  const token = process.env.MCP_TOKEN?.trim();
+
+  if (tokenRequired && !token) {
+    return new Response(
+      "Unauthorized: MCP_TOKEN required for non-local / reachable MCP",
+      { status: 401 },
+    );
+  }
   if (token) {
     const auth = request.headers.get("authorization");
     if (auth !== `Bearer ${token}`) {

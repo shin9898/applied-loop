@@ -191,8 +191,10 @@ export function AtlasSetupPanel({
 
   const paste = useMemo(
     () =>
-      progress.llmTrack ? tutorialPastePrompt(progress.llmTrack) : null,
-    [progress.llmTrack],
+      progress.llmTrack
+        ? tutorialPastePrompt(progress.llmTrack, diagnosis.mcpEndpoint.mcpUrl)
+        : null,
+    [progress.llmTrack, diagnosis.mcpEndpoint.mcpUrl],
   );
 
   return (
@@ -308,7 +310,10 @@ export function AtlasSetupPanel({
                 ? " —— 選択後の疎通を検知したぞ。"
                 : ""}
             </p>
-            <LlmTrackHint track={progress.llmTrack} />
+            <LlmTrackHint
+              track={progress.llmTrack}
+              mcpUrl={diagnosis.mcpEndpoint.mcpUrl}
+            />
             <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap border-[2px] border-white bg-[#000c4a] p-2.5 text-[11px] leading-relaxed text-[#f7f3d9]">
               {paste}
             </pre>
@@ -377,6 +382,39 @@ export function AtlasSetupPanel({
         ) : null}
       </div>
 
+      {/* Cloud / Reachable MCP */}
+      <details className="border-t-2 border-[#002070] pt-3">
+        <summary className="cursor-pointer font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
+          ◆ Cloud Agent 向け MCP
+          {diagnosis.mcpEndpoint.reachable ? "（Reachable）" : "（localhost）"}
+        </summary>
+        <div className="mt-2 space-y-2">
+          <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+            Cloud VM からは localhost に届かない。トンネル URL を{" "}
+            <code className="text-[#9ec0ff]">APPLIED_LOOP_URL</code> に入れ、
+            下の設定を Cloud 側 MCP に貼る。正本:{" "}
+            <code className="text-[#9ec0ff]">docs/cloud-mcp.md</code>
+          </p>
+          <p className="m-0 font-mono text-[11px] text-[#9ec0ff]">
+            {diagnosis.mcpEndpoint.mcpUrl}
+          </p>
+          {!diagnosis.mcpEndpoint.reachable ? (
+            <p className="m-0 text-[11px] leading-relaxed text-[#c9c3a0]">
+              例:{" "}
+              <code className="text-[#9ec0ff]">
+                cloudflared tunnel --url http://localhost:3100
+              </code>
+              → URL を .env に →{" "}
+              <code className="text-[#9ec0ff]">npm run mcp:cloud-config</code>
+            </p>
+          ) : null}
+          <pre className="m-0 max-h-40 overflow-auto whitespace-pre-wrap border-[2px] border-white bg-[#000c4a] p-2.5 text-[10px] leading-relaxed text-[#f7f3d9]">
+            {diagnosis.mcpSnippets.cursorJson}
+          </pre>
+          <CopyButton text={diagnosis.mcpSnippets.cursorJson} />
+        </div>
+      </details>
+
       {/* 用語 */}
       <div className="border-t-2 border-[#002070] pt-3">
         <p className="m-0 mb-2 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
@@ -413,7 +451,9 @@ export function AtlasSetupPanel({
       <p className="m-0 text-[11px] text-[#c9c3a0]">
         正本: <code className="text-[#9ec0ff]">docs/onboarding.md</code>
         {" · "}
-        MCP詳細: <code className="text-[#9ec0ff]">docs/mcp-setup.md</code>
+        MCP: <code className="text-[#9ec0ff]">docs/mcp-setup.md</code>
+        {" · "}
+        Cloud: <code className="text-[#9ec0ff]">docs/cloud-mcp.md</code>
       </p>
     </section>
   );
@@ -442,7 +482,13 @@ function StepToken({ tokenHint }: { tokenHint: string }) {
   );
 }
 
-function LlmTrackHint({ track }: { track: TutorialLlmTrack }) {
+function LlmTrackHint({
+  track,
+  mcpUrl,
+}: {
+  track: TutorialLlmTrack;
+  mcpUrl: string;
+}) {
   if (track === "jumon") {
     return (
       <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
@@ -456,24 +502,24 @@ function LlmTrackHint({ track }: { track: TutorialLlmTrack }) {
       <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
         つまり 先に{" "}
         <code>
-          claude mcp add --transport http applied-loop
-          http://localhost:3100/api/mcp --header &quot;Authorization: Bearer
-          …&quot;
+          claude mcp add --transport http applied-loop {mcpUrl} --header
+          &quot;Authorization: Bearer …&quot;
         </code>
-        。手順は docs/mcp-setup.md。
+        。Cloud なら docs/cloud-mcp.md。
       </p>
     );
   }
   if (track === "cursor") {
     return (
       <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-        つまり ~/.cursor/mcp.json に applied-loop の url と Bearer を追加してから貼る。
+        つまり mcp.json に url=<code>{mcpUrl}</code> と Bearer を追加してから貼る。
+        Cloud Agent は Reachable URL が必要（docs/cloud-mcp.md）。
       </p>
     );
   }
   return (
     <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-      つまり ~/.codex/config.toml に applied-loop を追加してから貼る。
+      つまり ~/.codex/config.toml に url=<code>{mcpUrl}</code> を追加してから貼る。
     </p>
   );
 }

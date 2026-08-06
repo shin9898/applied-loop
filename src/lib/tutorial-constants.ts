@@ -13,7 +13,10 @@ export const TUTORIAL_LLM_LABELS: Record<TutorialLlmTrack, string> = {
 };
 
 /** 貼るだけの依頼文。ツール名は文中に埋め、ユーザーはコピーだけする */
-export function tutorialPastePrompt(track: TutorialLlmTrack): string {
+export function tutorialPastePrompt(
+  track: TutorialLlmTrack,
+  mcpUrl = "http://localhost:3100/api/mcp",
+): string {
   const common = [
     "Applied Loop の MCP（applied-loop）を使ってください。",
     "まず morning_briefing を呼び、今日の受信箱と出題中のしれん（理解度チェック）を短くまとめてください。",
@@ -35,7 +38,7 @@ export function tutorialPastePrompt(track: TutorialLlmTrack): string {
       common,
       "",
       "MCP 未登録なら先に:",
-      'claude mcp add --transport http applied-loop http://localhost:3100/api/mcp --header "Authorization: Bearer <MCP_TOKEN>"',
+      `claude mcp add --transport http applied-loop ${mcpUrl} --header "Authorization: Bearer <MCP_TOKEN>"`,
     ].join("\n");
   }
   if (track === "cursor") {
@@ -43,12 +46,17 @@ export function tutorialPastePrompt(track: TutorialLlmTrack): string {
       "（Cursor の Agent チャットにこのまま貼る。先に ~/.cursor/mcp.json へ applied-loop を登録）",
       "",
       common,
+      "",
+      `MCP URL: ${mcpUrl}`,
+      "Cloud Agent なら docs/cloud-mcp.md の Reachable URL を使う。",
     ].join("\n");
   }
   return [
     "（Codex のチャットにこのまま貼る。先に ~/.codex/config.toml へ applied-loop を登録）",
     "",
     common,
+    "",
+    `MCP URL: ${mcpUrl}`,
   ].join("\n");
 }
 
