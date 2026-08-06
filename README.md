@@ -17,15 +17,15 @@ npx prisma migrate dev
 npm run dev:all        # http://localhost:3100  +  WS :3101
 ```
 
-ブラウザを開く。初回は短い世界観モーダルが出る。準備が足りないときはホームに1行バナーが出るので **`/setup`（コマンド「じゅんび」）** の診断に従う。  
-全体の手順は [docs/onboarding.md](docs/onboarding.md) の ①つなぐ → ②集める → ③進める。
+ブラウザを開く。初回は短い案内のあと、**`/setup`（コマンド「じゅんび」）** のウィザードへ進む。  
+最短は「サンプルしれんを Web で1問提出 → LLM に貼る文で1回呼ぶ」。詳細は [docs/onboarding.md](docs/onboarding.md)。
 
 ## 主な画面
 
 | パス | 役割 |
 |---|---|
 | `/` | WORLD MAP・司令塔・じゅもん（準備不足時は1行バナー） |
-| `/setup` | セットアップ診断・はじめの道案内 |
+| `/setup` | じゅんび（進行つきチュートリアル＋診断） |
 | `/gates` `/gates/[id]` | しれん一覧／バトル |
 | `/zukan` | つまずきずかん |
 | `/entries` `/inbox/[id]` | にっき・受信箱（棚。仕分けは MCP） |

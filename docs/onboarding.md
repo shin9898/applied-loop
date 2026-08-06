@@ -1,71 +1,89 @@
 # Applied Loop — はじめの道案内（正本）
 
-ゼロから最初の価値（朝の briefing → しれん 1 問）までの最短路。  
-UI の「はじめの道案内」パネル・README・LP は **この文書を正本** とする。
+ゼロから最初の価値までの道。UI の「じゅんび」（`/setup`）・README・LP は **この文書を正本** とする。
 
 MCP の登録手順の詳細は [mcp-setup.md](./mcp-setup.md)。
 
-## 所要の全体像（3 ステップ）
+---
+
+## 最短チュートリアル（初心者・まずここ）
+
+LLM を入れたばかりでも、**ツール名を覚えなくてよい**。順番だけ守る。
+
+| # | やること | 終わったサイン |
+|---|---|---|
+| 0 | アプリ起動 + `.env` に `MCP_TOKEN`（推奨: `ENABLE_TERMINAL=true`） | `/setup` で合言葉が ✓ |
+| 1 | **サンプルしれんを Web で1問提出** | 『たたかう』→『提出する』。合否は待たなくてよい |
+| 2 | 使う LLM を選ぶ（Claude / Cursor / Codex / じゅもん） | `/setup` で道を選択 |
+| 3 | **貼るだけの文**をチャットに1回貼る | 朝の要約や出題一覧が返る／「できた」を押す |
+| 4 | （任意）git hook | 今は飛ばしてよい |
+
+画面: ホームのバナー → **じゅんび（`/setup`）**。ウィザードが「いまやる1手」だけを大きく出す。
+
+```bash
+cp .env.example .env   # MCP_TOKEN と ENABLE_TERMINAL を編集
+npm install
+npx prisma migrate dev
+npm run dev:all        # http://localhost:3100  +  WS :3101
+```
+
+サンプルデータは `/setup` を開いたとき自動で入る。手動なら:
+
+```bash
+npm run seed:tutorial
+```
+
+### 用語（UI → 意味）
+
+| UI | 意味 |
+|---|---|
+| ぼうけんのしょ | Web ダッシュボード |
+| しれん | 理解度チェック（出題） |
+| じゅもん | アプリ内から LLM／MCP を開く導線 |
+| ずかん | つまずき／誤解の一覧 |
+| じゅんび | このチュートリアル画面（`/setup`） |
+| たたかう | しれんの解答画面へ |
+
+### なぜ最初は Web で解くのか
+
+操作の正典は MCP だが、初日に MCP 登録で止まると価値に届かない。  
+**最初の1勝だけ Web の提出**で体験し、同じ受理の道をあとから LLM 経由でも使う。
+
+---
+
+## 本運用（①つなぐ → ②集める → ③進める）
+
+チュートリアル後の日常ループ。
 
 | # | 名前 | やること | 終わったサイン |
 |---|---|---|---|
-| ① | **つなぐ** | アプリ起動 + `MCP_TOKEN` + LLM に MCP 登録 | ホーム診断で必須が ✓、外部 LLM からツールが見える |
+| ① | **つなぐ** | アプリ + TOKEN + LLM に MCP 登録 | 外部 LLM からツールが見える |
 | ② | **集める** | ルールスニペット + git hook | コミットでしれんが増える／学びが受信箱に入る |
-| ③ | **進める** | `morning_briefing` → たたかう／じゅもん | CLEAR または学びの証跡が 1 件残る |
+| ③ | **進める** | 朝の要約 → しれん → 適用の記録 | CLEAR または学びの証跡が残る |
 
-操作の正典は **MCP**（ADR-0010）。アプリのバトル「こたえる」も使えるが、推奨経路は外部 LLM かアプリ内じゅもん経由の MCP。
+推奨経路は外部 LLM かアプリ内じゅもん経由の MCP。バトルの『提出する』も同じ受理経路。
 
----
+### ① つなぐ（詳細）
 
-## ① つなぐ
+1. 起動（上記 `dev:all`）
+2. MCP を LLM に登録 → [mcp-setup.md](./mcp-setup.md)
+3. UI じゅもん（任意）: `ENABLE_TERMINAL=true` で各画面の『じゅもんをとなえる』
 
-### 1. 起動
+### ② 集める（詳細）
 
-```bash
-cp .env.example .env   # 無ければ手で .env を作る
-# MCP_TOKEN=<長い乱数>
-# ENABLE_TERMINAL=true   # UI じゅもんを使うなら
-npm install
-npx prisma migrate dev
-npm run dev:all          # Next :3100 + terminal WS :3101
-```
-
-ブラウザ: http://localhost:3100
-
-### 2. MCP を LLM に登録
-
-[mcp-setup.md](./mcp-setup.md) の Claude Code / Cursor / Codex 節に従う。  
-エンドポイント: `http://localhost:3100/api/mcp`（Bearer = `MCP_TOKEN`）。
-
-### 3. UI じゅもん（任意）
-
-`ENABLE_TERMINAL=true` で `dev:all` していれば、各画面の「じゅもんをとなえる」から同じ MCP 経路を開ける。
-
----
-
-## ② 集める
-
-### ルールスニペット
-
-CLAUDE.md / Cursor Rules / Codex AGENTS に [mcp-setup.md §2](./mcp-setup.md) の文を追記。  
-朝は `morning_briefing`、ふりかえりは `capture_learning_candidate`。
-
-### git hook（しれん自動生成）
+ルールスニペットは [mcp-setup.md §2](./mcp-setup.md)。  
+git hook:
 
 ```bash
 ./scripts/setup-git-hook.sh /path/to/your-repo
 ```
 
-`~/.applied-loop/hooks/post-commit` が入り、コミットを DevEvent → Gate 候補に流す。
+### ③ 進める（詳細）
 
----
-
-## ③ 進める
-
-1. LLM またはじゅもんで **`morning_briefing`**
-2. 受信箱があれば **`triage_inbox`**
-3. 任務×学びを残すなら **`save_task_mappings`**（空の朝対策）
-4. ホームの『たたかう』またはじゅもんでしれんへ → **`answer_gate`** → 合否は **`get_gate_result`**
+1. 朝: 要約（MCP の morning briefing）
+2. 受信箱があれば仕分け
+3. 任務×学びを残すならマッピング保存
+4. しれんへ回答 → 合否はあとから確認（会話中に断定しない）
 
 ---
 
@@ -73,25 +91,25 @@ CLAUDE.md / Cursor Rules / Codex AGENTS に [mcp-setup.md §2](./mcp-setup.md) �
 
 | 場所 | 内容 |
 |---|---|
-| 初回のみモーダル | 地図・じゅもん・たたかうの世界観（ページ自動遷移なし） |
-| ホーム | 必須欠けのときだけ1行バナー → `/setup` |
-| `/setup`（コマンド「じゅんび」） | 診断フル＋3ステップ。正本はこの文書 |
+| 初回モーダル | 1枚＋『じゅんびへ』 |
+| ホーム | 必須欠け／チュートリアル未完のとき1行バナー → `/setup` |
+| `/setup`（じゅんび） | 進行つきウィザード＋診断詳細＋用語表 |
 
 ## 診断項目との対応
 
-| 診断項目 | この文書の節 |
+| 診断 | この文書 |
 |---|---|
-| アプリが動いている | ①-1 |
-| MCP_TOKEN | ①-1 |
-| じゅもん有効 / WS :3101 | ①-3 |
-| git post-commit hook | ② hook |
-| しれんが1件以上 | ② hook 後のコミット、または既存データ |
-| 学びの軌跡 | ③ capture |
+| MCP_TOKEN | 最短 #0 |
+| サンプルしれん提出 | 最短 #1 |
+| MCP 疎通／できた | 最短 #3 |
+| チュートリアル完了 | 最短 #1〜4 |
+| git hook | 本運用 ②（任意） |
+| じゅもん WS | 最短でじゅもん道を選ぶ場合 |
 
 ---
 
 ## やらないこと（境界）
 
 - 会話本文・コード断片をクラウドに溜めない（ハーネスはメタデータのみ）
-- プロジェクトルールへの強制書き込みをしない（キャッシュ処方は提案のみ）
-- タスク管理の正典にならない（Hermes/TODO 側。サーバーは DailyTaskMap のみ）
+- プロジェクトルールへの強制書き込みをしない
+- タスク管理の正典にならない（Hermes/TODO 側）

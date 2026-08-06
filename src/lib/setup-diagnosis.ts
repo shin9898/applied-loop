@@ -4,6 +4,12 @@ import { join } from "node:path";
 import net from "node:net";
 import { prisma } from "@/lib/db";
 import { dateKeyJST, dayStartJST } from "@/lib/date";
+import { TUTORIAL_GATE_ID } from "@/lib/tutorial-constants";
+import { isTutorialGateSubmitted } from "@/lib/tutorial-seed";
+import {
+  mcpTouchedRecently,
+  readTutorialState,
+} from "@/lib/tutorial-state";
 
 export type SetupCheckId =
   | "app"
@@ -12,7 +18,10 @@ export type SetupCheckId =
   | "terminal_up"
   | "git_hook"
   | "first_gate"
-  | "first_learning";
+  | "first_learning"
+  | "tutorial_sample"
+  | "mcp_touch"
+  | "tutorial_done";
 
 export type SetupCheck = {
   id: SetupCheckId;
@@ -37,6 +46,13 @@ export type SetupDiagnosis = {
   nextCheckId: SetupCheckId | null;
   todayTaskMapped: boolean;
   yesterdayTaskMapped: boolean;
+  /** サンプルしれん提出済み */
+  tutorialSampleSubmitted: boolean;
+  /** 直近に MCP 疎通あり */
+  mcpRecent: boolean;
+  /** 初心者チュートリアル完了 */
+  tutorialReady: boolean;
+  tutorialGateId: string;
 };
 
 function probePort(host: string, port: number, ms = 250): Promise<boolean> {
@@ -72,6 +88,19 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
 
   const hookBody = join(homedir(), ".applied-loop", "hooks", "post-commit");
   const gitHook = existsSync(hookBody);
+  const tutorialState = readTutorialState();
+  const mcpRecent = mcpTouchedRecently();
+  const sampleSubmitted = await isTutorialGateSubmitted();
+  const llmStepDone = Boolean(tutorialState.llmStepDone) || mcpRecent;
+  const tutorialReady = Boolean(
+    mcpToken &&
+      sampleSubmitted &&
+      tutorialState.llmTrack &&
+      llmStepDone &&
+      (tutorialState.completedAt ||
+        gitHook ||
+        tutorialState.hookSkipped),
+  );
 
   const now = new Date();
   const todayKey = dateKeyJST(now);
@@ -118,6 +147,42 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
         "API・MCP・アプリ内じゅもんの共通パスワード。無いと外部 LLM もじゅもんも認証に失敗する。",
     },
     {
+      id: "tutorial_sample",
+      label: "サンプルしれんを提出した",
+      ok: sampleSubmitted,
+      required: false,
+      detail: sampleSubmitted
+        ? "最初の1勝——提出まで届いておる"
+        : "まだサンプルしれんが未提出。Web の『たたかう』で提出せよ",
+      howTo: `/setup の案内から『たたかう』→ 提出する（gate: ${TUTORIAL_GATE_ID}）`,
+      plain:
+        "MCP なしで、理解度チェックに自分の言葉を書いた体験。採点は後からでよい。",
+    },
+    {
+      id: "mcp_touch",
+      label: "MCP（またはじゅもん）が通った",
+      ok: mcpRecent || Boolean(tutorialState.llmStepDone),
+      required: false,
+      detail: mcpRecent
+        ? "最近、MCP の扉が開いた記録がある"
+        : tutorialState.llmStepDone
+          ? "コピペ手順を「できた」と記した"
+          : "まだ LLM 経由の操作記録がない",
+      howTo: "じゅんびの貼る文をチャットへ。または『できた』を押す",
+      plain: "本運用の入口。朝の要約やしれん回答が LLM から届く状態。",
+    },
+    {
+      id: "tutorial_done",
+      label: "はじめのチュートリアルを終えた",
+      ok: tutorialReady,
+      required: false,
+      detail: tutorialReady
+        ? "最短チュートリアルは完了しておる"
+        : "じゅんびのウィザードを順に進めよ",
+      howTo: "/setup（じゅんび）のいまやる1手に従う",
+      plain: "Web 1勝 → LLM を1回呼ぶ、まで。hook は任意。",
+    },
+    {
       id: "terminal_env",
       label: "じゅもんの祭壇が許されておる",
       ok: terminalEnv,
@@ -148,7 +213,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
       required: false,
       detail: gitHook
         ? "鉤は ~/.applied-loop/hooks にかかっておる"
-        : "鉤がまだない。コミットからしれんの種が生えぬぞ",
+        : "鉤がまだない。コミットからしれんの種が生えぬぞ（今は飛ばしてよい）",
       howTo: "`./scripts/setup-git-hook.sh /path/to/your-repo`",
       plain:
         "git commit 後にイベントが送られ、理解度ゲート（しれん）候補が自動で増える。",
@@ -161,8 +226,8 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
       detail:
         gateCount > 0
           ? `しれん ${gateCount} 件が待つ`
-          : "まだしれんがない。鉤をかけたあとコミットするか、じゅもんで聞け",
-      howTo: "鉤のあとコミットする。または既存データ／import を使う",
+          : "まだしれんがない。じゅんびでサンプルを用意せよ",
+      howTo: "/setup を開く（サンプル seed）または hook 後にコミット",
       plain:
         "データベースに Gate が1件以上ある。ホームの『たたかう』や /gates で解ける。",
     },
@@ -174,9 +239,8 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
       detail:
         learningCount > 0
           ? `足跡 ${learningCount} 件`
-          : "まだ学びが落ちておらぬ。じゅもんで拾わせよ",
-      howTo:
-        "じゅもんか外部 LLM で `capture_learning_candidate` を呼ぶ",
+          : "まだ学びが落ちておらぬ。サンプルまたはじゅもんで拾わせよ",
+      howTo: "/setup のサンプル seed、または capture_learning_candidate",
       plain:
         "Entry または Capture が1件以上。にっき／受信箱に学びが並び始める。",
     },
@@ -187,6 +251,9 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
   const essentialsReady = required.every((c) => c.ok);
   const next =
     checks.find((c) => c.required && !c.ok) ??
+    checks.find((c) => !c.required && !c.ok && c.id === "tutorial_sample") ??
+    checks.find((c) => !c.required && !c.ok && c.id === "mcp_touch") ??
+    checks.find((c) => !c.required && !c.ok && c.id === "tutorial_done") ??
     checks.find((c) => !c.required && !c.ok) ??
     null;
 
@@ -198,5 +265,9 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
     nextCheckId: next?.id ?? null,
     todayTaskMapped: !!todayMap,
     yesterdayTaskMapped: !!yesterdayMap,
+    tutorialSampleSubmitted: sampleSubmitted,
+    mcpRecent,
+    tutorialReady,
+    tutorialGateId: TUTORIAL_GATE_ID,
   };
 }

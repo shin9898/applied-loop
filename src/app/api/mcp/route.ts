@@ -1132,6 +1132,13 @@ async function withAuth(request: Request): Promise<Response> {
       return new Response("Unauthorized", { status: 401 });
     }
   }
+  // チュートリアル診断用: 認証成功した MCP 疎通を記録
+  try {
+    const { touchMcpActivity } = await import("@/lib/tutorial-state");
+    touchMcpActivity();
+  } catch {
+    /* ignore */
+  }
   return handler(request);
 }
 

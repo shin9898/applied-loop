@@ -10,6 +10,7 @@
     "test": "tsx --test src/lib/*.test.ts",
     "import:data": "tsx scripts/import.ts",
     "seed:exp1": "tsx scripts/seed-exp1.ts",
+    "seed:tutorial": "tsx scripts/seed-tutorial.ts",
     "digest": "node scripts/weekly-digest.mjs",
     "dev:terminal": "node scripts/terminal-server.mjs",
     "dev:all": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" concurrently \"npm run dev -- -p 3100\" \"npm run dev:terminal\"",

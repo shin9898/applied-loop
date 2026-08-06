@@ -186,6 +186,7 @@ export async function submitGateAnswer(
     revalidatePath("/");
     revalidatePath("/gates");
     revalidatePath(`/gates/${id}`);
+    revalidatePath("/setup");
     revalidatePath("/zukan");
     revalidatePath("/requirements");
     return "pending";
@@ -270,6 +271,7 @@ export async function resubmitGateAnswer(
     revalidatePath("/");
     revalidatePath("/gates");
     revalidatePath(`/gates/${id}`);
+    revalidatePath("/setup");
     return "pending";
   } catch (e) {
     console.error("[gate] resubmitGateAnswer failed:", e);
@@ -430,5 +432,55 @@ export async function rejectReqLink(formData: FormData) {
   const result = await rejectRequirementLink(linkId);
   if (!result.ok) throw new Error(result.message);
   revalidatePath("/requirements");
+  revalidatePath("/");
+}
+
+/** チュートリアル: サンプル seed を保証 */
+export async function ensureTutorialSeedAction(): Promise<{ gateId: string }> {
+  await requireAuth();
+  const { ensureTutorialSeed } = await import("@/lib/tutorial-seed");
+  const r = await ensureTutorialSeed();
+  revalidatePath("/setup");
+  revalidatePath("/");
+  revalidatePath("/gates");
+  return { gateId: r.gateId };
+}
+
+/** チュートリアル: LLM 道を選択 */
+export async function setTutorialLlmTrackAction(
+  track: "claude" | "cursor" | "codex" | "jumon",
+): Promise<void> {
+  await requireAuth();
+  const { writeTutorialState } = await import("@/lib/tutorial-state");
+  writeTutorialState({ llmTrack: track });
+  revalidatePath("/setup");
+}
+
+/** チュートリアル: コピペ呼び出しを「できた」 */
+export async function markTutorialLlmStepDoneAction(): Promise<void> {
+  await requireAuth();
+  const { writeTutorialState } = await import("@/lib/tutorial-state");
+  writeTutorialState({ llmStepDone: true });
+  revalidatePath("/setup");
+}
+
+/** チュートリアル: hook を今は飛ばす */
+export async function skipTutorialHookAction(): Promise<void> {
+  await requireAuth();
+  const { writeTutorialState } = await import("@/lib/tutorial-state");
+  writeTutorialState({
+    hookSkipped: true,
+    completedAt: new Date().toISOString(),
+  });
+  revalidatePath("/setup");
+  revalidatePath("/");
+}
+
+/** チュートリアル完了を確定 */
+export async function completeTutorialAction(): Promise<void> {
+  await requireAuth();
+  const { writeTutorialState } = await import("@/lib/tutorial-state");
+  writeTutorialState({ completedAt: new Date().toISOString() });
+  revalidatePath("/setup");
   revalidatePath("/");
 }

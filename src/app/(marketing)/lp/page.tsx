@@ -117,7 +117,7 @@ export default async function LpPage({
           いまはセルフホスト前提の dogfooding 段階。認証付きマルチユーザーはこれから。
           手元で試すならアプリの{" "}
           <code className="text-ink-secondary">/setup</code>
-          （じゅんび）か{" "}
+          （じゅんび＝サンプルしれん→貼る文）か{" "}
           <code className="text-ink-secondary">docs/onboarding.md</code>。
           紹介と設計の話は{" "}
           <code className="text-ink-secondary">
