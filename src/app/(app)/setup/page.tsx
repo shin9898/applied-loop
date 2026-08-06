@@ -9,8 +9,13 @@ import { ensureTutorialSeed } from "@/lib/tutorial-seed";
 
 export const dynamic = "force-dynamic";
 
+type Props = {
+  searchParams?: Promise<{ from?: string }>;
+};
+
 /** `/setup` — 進行つきチュートリアル＋診断 */
-export default async function SetupPage() {
+export default async function SetupPage({ searchParams }: Props) {
+  const sp = searchParams ? await searchParams : {};
   await ensureTutorialSeed();
   const [diagnosis, streakDays] = await Promise.all([
     loadSetupDiagnosis(),
@@ -21,7 +26,11 @@ export default async function SetupPage() {
     <AtlasChrome active="/setup" streakDays={streakDays}>
       <AtlasShell>
         <AtlasReveal as="section">
-          <AtlasSetupPanel diagnosis={diagnosis} progress={progress} />
+          <AtlasSetupPanel
+            diagnosis={diagnosis}
+            progress={progress}
+            fromSampleGate={sp.from === "sample_gate"}
+          />
         </AtlasReveal>
       </AtlasShell>
     </AtlasChrome>

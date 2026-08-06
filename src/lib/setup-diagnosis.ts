@@ -7,6 +7,7 @@ import { dateKeyJST, dayStartJST } from "@/lib/date";
 import { TUTORIAL_GATE_ID } from "@/lib/tutorial-constants";
 import { isTutorialGateSubmitted } from "@/lib/tutorial-seed";
 import {
+  mcpCountsForLlmStep,
   mcpTouchedRecently,
   readTutorialState,
 } from "@/lib/tutorial-state";
@@ -91,7 +92,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
   const tutorialState = readTutorialState();
   const mcpRecent = mcpTouchedRecently();
   const sampleSubmitted = await isTutorialGateSubmitted();
-  const llmStepDone = Boolean(tutorialState.llmStepDone) || mcpRecent;
+  const llmStepDone = mcpCountsForLlmStep(tutorialState);
   const tutorialReady = Boolean(
     mcpToken &&
       sampleSubmitted &&
@@ -163,13 +164,11 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
       label: "MCP（またはじゅもん）が通った",
       ok: mcpRecent || Boolean(tutorialState.llmStepDone),
       required: false,
-      detail: mcpRecent
-        ? "最近、MCP の扉が開いた記録がある"
-        : tutorialState.llmStepDone
-          ? "コピペ手順を「できた」と記した"
-          : "まだ LLM 経由の操作記録がない",
-      howTo: "じゅんびの貼る文をチャットへ。または『できた』を押す",
-      plain: "本運用の入口。朝の要約やしれん回答が LLM から届く状態。",
+      detail: llmStepDone
+        ? "貼るステップ完了（選択後の MCP、または『できた』）"
+        : "まだ（LLM 選択後の）操作がない",
+      howTo: "じゅんびで LLM を選んでから貼る文をチャットへ。または『できた』",
+      plain: "本運用の入口。選択より前の疎通だけではクリアにならない。",
     },
     {
       id: "tutorial_done",

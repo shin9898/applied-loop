@@ -26,9 +26,14 @@ const INTRO_KEY = "atlas-world-intro-seen";
 export function AtlasSetupBanner({ diagnosis }: { diagnosis: SetupDiagnosis }) {
   if (diagnosis.essentialsReady && diagnosis.tutorialReady) return null;
   const next = diagnosis.checks.find((c) => c.id === diagnosis.nextCheckId);
-  const label = !diagnosis.essentialsReady
-    ? `支度が足りぬ。まず ${next?.label ?? "じゅんび"} じゃ`
-    : "はじめのチュートリアルがまだ途中じゃ";
+  let label = "はじめのチュートリアルがまだ途中じゃ";
+  if (!diagnosis.essentialsReady) {
+    label = `支度が足りぬ。まず ${next?.label ?? "じゅんび"} じゃ`;
+  } else if (!diagnosis.tutorialSampleSubmitted) {
+    label = "まずサンプルしれんを1問提出せよ";
+  } else if (next?.id === "mcp_touch" || next?.id === "tutorial_done") {
+    label = "つぎは LLM を選んで、貼る文を1回呼ぶのじゃ";
+  }
   return (
     <div className="border-4 border-[#f0d25a] bg-[#001a8c] px-3 py-2.5 outline outline-4 outline-[#000c4a] shadow-[4px_4px_0_#000]">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -150,13 +155,23 @@ function suggestedToken(): string {
   return `al_${Date.now().toString(36)}_change_me`;
 }
 
+const STEP_CHIP: Record<string, string> = {
+  token: "合言葉",
+  sample_gate: "しれん",
+  llm_pick: "LLM",
+  llm_call: "貼る",
+  hook: "hook",
+};
+
 /** /setup: 進行つきチュートリアル */
 export function AtlasSetupPanel({
   diagnosis,
   progress,
+  fromSampleGate = false,
 }: {
   diagnosis: SetupDiagnosis;
   progress: TutorialProgress;
+  fromSampleGate?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -200,6 +215,7 @@ export function AtlasSetupPanel({
           .filter((s) => s.id !== "done")
           .map((s, i) => {
             const active = s.id === current;
+            const chip = STEP_CHIP[s.id] ?? s.id;
             return (
               <li
                 key={s.id}
@@ -211,11 +227,22 @@ export function AtlasSetupPanel({
                       : "border-[#445] text-[#9a9470]"
                 }`}
               >
-                {i + 1}.{s.optional ? "任意" : s.done ? "済" : "次"}
+                {i + 1}.{chip}
+                {s.optional ? "(任意)" : ""}
+                {s.done ? "✓" : active ? "←" : ""}
               </li>
             );
           })}
       </ol>
+
+      {fromSampleGate ? (
+        <p className="m-0 border-l-[3px] border-[#3ecf5a] bg-[#001a8c] px-3 py-2 text-[13px] text-[#f7f3d9]">
+          サンプルしれん、提出できたぞ。つぎの手へ進むのじゃ。
+          <span className="mt-1 block text-[11px] text-[#9ec0ff]">
+            つまり 合否は待たなくてよい。下の『いまやる1手』へ。
+          </span>
+        </p>
+      ) : null}
 
       {/* いまやる1手 */}
       <div className="border-[3px] border-[#f0d25a] bg-[#001a8c] p-3.5">
@@ -275,9 +302,10 @@ export function AtlasSetupPanel({
               {TUTORIAL_LLM_LABELS[progress.llmTrack]} に、この文を貼る
             </p>
             <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-              ツール名を覚えなくてよい。成功すると朝の要約やしれん一覧が返る。
-              {progress.mcpRecent
-                ? " —— MCP 疎通を検知したぞ。"
+              ツール名を覚えなくてよい。この道を選んだあとに貼って呼ぶこと。
+              以前の MCP 接続だけでは次に進まない。
+              {progress.mcpRecent && progress.steps.find((s) => s.id === "llm_call")?.done
+                ? " —— 選択後の疎通を検知したぞ。"
                 : ""}
             </p>
             <LlmTrackHint track={progress.llmTrack} />

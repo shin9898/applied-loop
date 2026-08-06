@@ -9,6 +9,7 @@ import {
   type GateBattleVerdict,
 } from "@/lib/actions";
 import type { GateDebrief } from "@/lib/grade-payload";
+import { TUTORIAL_GATE_ID } from "@/lib/tutorial-constants";
 import { AtlasBattle, type BattleVerdict } from "./atlas-battle";
 
 export function AtlasGateBattleClient({
@@ -28,6 +29,7 @@ export function AtlasGateBattleClient({
   };
 }) {
   const router = useRouter();
+  const isTutorial = gate.id === TUTORIAL_GATE_ID;
   const zukanHref = gate.relatedMisconceptionId
     ? `/zukan/${gate.relatedMisconceptionId}`
     : "/zukan";
@@ -44,9 +46,15 @@ export function AtlasGateBattleClient({
       relatedInboxId={gate.relatedInboxId ?? null}
       relatedMisconceptionId={gate.relatedMisconceptionId ?? null}
       zukanHref={zukanHref}
-      onFlee={() => router.push("/")}
+      onFlee={() => router.push(isTutorial ? "/setup" : "/")}
       onGoGates={() => router.push("/gates")}
       onGoZukan={() => router.push(zukanHref)}
+      onAccepted={
+        isTutorial
+          ? () => router.push("/setup?from=sample_gate")
+          : undefined
+      }
+      afterAcceptLabel="じゅんびにもどる（次の手へ）"
       onCastSpell={async (answer, mode) => {
         try {
           const fn = mode === "resubmit" ? resubmitGateAnswer : submitGateAnswer;

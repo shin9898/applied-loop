@@ -9,9 +9,11 @@ import type { TutorialLlmTrack } from "@/lib/tutorial-constants";
 
 export type TutorialState = {
   llmTrack?: TutorialLlmTrack | null;
+  /** LLM 道を選んだ時刻 (ISO)。これより前の MCP 疎通は「貼る」完了に使わない */
+  llmTrackAt?: string | null;
   /** 直近の MCP 認証成功時刻 (ISO) */
   mcpLastAt?: string | null;
-  /** コピペステップを「できた」と自己申告、または MCP 疎通で完了 */
+  /** コピペステップを「できた」と自己申告、または選択後の MCP 疎通で完了 */
   llmStepDone?: boolean;
   hookSkipped?: boolean;
   completedAt?: string | null;
@@ -40,12 +42,31 @@ export function writeTutorialState(patch: Partial<TutorialState>): TutorialState
   return next;
 }
 
-/** MCP 疎通を記録（認証成功時） */
-export function touchMcpActivity(): void {
-  writeTutorialState({ mcpLastAt: new Date().toISOString() });
+/** LLM 選択後に発生した MCP 疎通か（貼るステップの完了判定） */
+export function mcpCountsForLlmStep(state: TutorialState = readTutorialState()): boolean {
+  if (state.llmStepDone) return true;
+  if (!state.llmTrack || !state.llmTrackAt || !state.mcpLastAt) return false;
+  const pick = Date.parse(state.llmTrackAt);
+  const mcp = Date.parse(state.mcpLastAt);
+  if (Number.isNaN(pick) || Number.isNaN(mcp)) return false;
+  return mcp >= pick;
 }
 
-/** 直近 withinMs 以内に MCP 呼び出しがあったか */
+/** MCP 疎通を記録（認証成功時）。LLM 選択より後なら貼るステップも完了にする */
+export function touchMcpActivity(): void {
+  const now = new Date().toISOString();
+  const state = readTutorialState();
+  const patch: Partial<TutorialState> = { mcpLastAt: now };
+  if (state.llmTrack && state.llmTrackAt) {
+    const pick = Date.parse(state.llmTrackAt);
+    if (!Number.isNaN(pick) && Date.parse(now) >= pick) {
+      patch.llmStepDone = true;
+    }
+  }
+  writeTutorialState(patch);
+}
+
+/** @deprecated 選択前の疎通まで含めてしまうので、貼る完了判定には mcpCountsForLlmStep を使う */
 export function mcpTouchedRecently(withinMs = 7 * 24 * 60 * 60 * 1000): boolean {
   const at = readTutorialState().mcpLastAt;
   if (!at) return false;

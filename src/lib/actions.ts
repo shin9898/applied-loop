@@ -452,7 +452,12 @@ export async function setTutorialLlmTrackAction(
 ): Promise<void> {
   await requireAuth();
   const { writeTutorialState } = await import("@/lib/tutorial-state");
-  writeTutorialState({ llmTrack: track });
+  writeTutorialState({
+    llmTrack: track,
+    llmTrackAt: new Date().toISOString(),
+    // 道を選び直したら、貼るステップはやり直す
+    llmStepDone: false,
+  });
   revalidatePath("/setup");
 }
 

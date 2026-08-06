@@ -6,6 +6,7 @@ import type { TutorialLlmTrack } from "@/lib/tutorial-constants";
 import { TUTORIAL_GATE_ID } from "@/lib/tutorial-constants";
 import { isTutorialGateSubmitted } from "@/lib/tutorial-seed";
 import {
+  mcpCountsForLlmStep,
   mcpTouchedRecently,
   readTutorialState,
   type TutorialState,
@@ -43,7 +44,8 @@ export async function loadTutorialProgress(
   const state = readTutorialState();
   const sampleSubmitted = await isTutorialGateSubmitted();
   const mcpRecent = mcpTouchedRecently();
-  const llmStepDone = Boolean(state.llmStepDone) || mcpRecent;
+  // 貼る完了: 自己申告 or「LLM選択より後」の MCP 疎通のみ（既存疎通では飛ばさない）
+  const llmStepDone = mcpCountsForLlmStep(state);
   const tokenOk = diagnosis.checks.find((c) => c.id === "mcp_token")?.ok ?? false;
   const hookOk = diagnosis.checks.find((c) => c.id === "git_hook")?.ok ?? false;
   const llmTrack = state.llmTrack ?? null;

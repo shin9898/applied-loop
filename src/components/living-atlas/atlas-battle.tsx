@@ -45,6 +45,10 @@ export type AtlasBattleProps = {
   initialDebrief?: GateDebrief | null;
   onFlee?: () => void;
   onGoGates?: () => void;
+  /** 受理成功後に呼ぶ（チュートリアルの /setup 復帰など） */
+  onAccepted?: () => void;
+  /** 受理後に出す導線ラベル（例: じゅんびにもどる） */
+  afterAcceptLabel?: string;
   onCastSpell?: (
     answer: string,
     mode: "submit" | "resubmit",
@@ -246,6 +250,8 @@ export function AtlasBattle({
   initialDebrief = null,
   onFlee,
   onGoGates,
+  onAccepted,
+  afterAcceptLabel = "じゅんびにもどる",
   onCastSpell,
   onPollVerdict,
   onCheckMicro,
@@ -453,6 +459,17 @@ export function AtlasBattle({
 
     setVerdict(result);
     if (result === "pass" || result === "retry") {
+      if (onAccepted) {
+        setAnim("idle");
+        setPhase("waiting");
+        setNarrator(
+          "回答は受け付けた！　合否の詳細はあとで——じゅんびの次の手へ戻るぞ。",
+        );
+        window.setTimeout(() => {
+          onAccepted();
+        }, 1100);
+        return;
+      }
       // 同期で合否が返るケースは稀。デブリーフは poll 相当で取り直す
       if (onPollVerdict) {
         try {
@@ -469,6 +486,15 @@ export function AtlasBattle({
 
     setAnim("idle");
     setPhase("waiting");
+    if (onAccepted) {
+      setNarrator(
+        "回答は受け付けた！　合否はあとでよい——じゅんびの次の手へ戻るぞ。",
+      );
+      window.setTimeout(() => {
+        onAccepted();
+      }, 1100);
+      return;
+    }
     setNarrator(
       "回答は受け付けた！　いま採点の旅の途中じゃ。この画面で結果が戻るのを待て。急ぎならしれん一覧でも確認できるぞ。",
     );
@@ -727,9 +753,14 @@ export function AtlasBattle({
 
             {phase === "waiting" ? (
               <div className="mt-3 flex flex-wrap gap-2">
+                {onAccepted ? (
+                  <button type="button" className="dq-btn" onClick={onAccepted}>
+                    {afterAcceptLabel}
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  className="dq-btn"
+                  className={onAccepted ? "dq-btn dq-btn-ghost" : "dq-btn"}
                   onClick={() => {
                     void (async () => {
                       setNarrator("結果を覗きにいったぞ…");
