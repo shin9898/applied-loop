@@ -113,6 +113,8 @@ try {
   console.warn("migrate deploy に失敗。prisma db push でスキーマを同期する…");
   run("npx prisma db push");
 }
+// generated client は gitignore。seed / Next の前に必須
+run("npx prisma generate");
 run("npm run seed:tutorial");
 
 console.log(`
