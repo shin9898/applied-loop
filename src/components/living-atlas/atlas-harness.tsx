@@ -49,7 +49,7 @@ export function AtlasHarness({
               context={
                 focus
                   ? `注目 repo: ${focus.name}\nhealth: ${focus.health}\n${focus.criteria ?? ""}\n${focus.uplift ?? ""}`
-                  : "観測なし。suggest_cache_prefix_form の前に計測を溜めよ。"
+                  : "観測なし。suggest_cache_prefix_fix の前に計測を溜めよ。"
               }
               title="じゅもんで処方を進める"
               blurb="どうぐの見立てを、じゅもんで実行の段まで進めよ。"

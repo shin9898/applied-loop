@@ -15,7 +15,19 @@ P1 の [walkthrough-checklist.md](./walkthrough-checklist.md) を **別ハーネ
 3. [ ] 貼る文だけで `list_pending_gates` が自発呼び出し
 4. [ ] `morning_briefing` 冒頭に「今日のしれん」「昨日の判定」が見える
 5. [ ] `answer_gate` で1問提出（合否断定を LLM にさせない）
-6. [ ] （任意）`request_gate` で差分から1しれん
+6. [ ] ずかんを1回開く
+7. [ ] （推奨）`request_gate` で差分から1しれん → `first_supply` を発火
+8. [ ] （P2）再出題が1件以上見える／回答できる（`npm run supply:health` またはしれん一覧）
+
+## 合否計測
+
+```bash
+npm run funnel:report
+npm run supply:health
+```
+
+- [ ] `funnel:report` が PASS（正本7点欠測ゼロ）
+- [ ] 再出題または供給健全性の数値が確認できる（P2 dogfood の材料）
 
 ## 詰まり記録
 

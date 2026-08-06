@@ -309,6 +309,13 @@ export async function generateGate(eventId: string): Promise<void> {
     },
   });
 
+  try {
+    const { recordActivationOnce } = await import("@/lib/activation-funnel");
+    recordActivationOnce("first_supply", { source: "hook", gateId: gate.id });
+  } catch {
+    /* ignore */
+  }
+
   await applyRequirementSuggestions(built.reqSuggestions, {
     targetType: "gate",
     targetId: gate.id,
@@ -410,6 +417,16 @@ export async function requestGateFromDiff(input: {
       e,
     ),
   );
+
+  try {
+    const { recordActivationOnce } = await import("@/lib/activation-funnel");
+    recordActivationOnce("first_supply", {
+      source: "request_gate",
+      gateId: gate.id,
+    });
+  } catch {
+    /* ignore */
+  }
 
   return {
     ok: true,

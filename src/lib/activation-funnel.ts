@@ -1,22 +1,33 @@
 /**
- * Activation ファネル（B9-1 / B9-2）。
+ * Activation ファネル（B9-1 / B9-2 / Fable G8）。
+ * 正本7点: setup→サンプル提出→MCP疎通→初供給→初回答→初判定→ずかん閲覧
  * ~/.applied-loop/activation-events.jsonl に追記し、スクリプトで集計する。
  */
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
+/** 合否に使う正本7点（Fable B9-1） */
 export const ACTIVATION_STEPS = [
   "setup_opened",
-  "sample_started",
   "sample_submitted",
   "mcp_touched",
+  "first_supply",
+  "first_answer",
   "first_verdict",
+  "zukan_viewed",
+] as const;
+
+/** 補助イベント（集計の7点には入れないが記録はする） */
+export const ACTIVATION_EXTRA_STEPS = [
+  "sample_started",
   "hook_installed",
   "first_complete",
 ] as const;
 
-export type ActivationStep = (typeof ACTIVATION_STEPS)[number];
+export type ActivationStep =
+  | (typeof ACTIVATION_STEPS)[number]
+  | (typeof ACTIVATION_EXTRA_STEPS)[number];
 
 export type ActivationEvent = {
   step: ActivationStep;
@@ -25,6 +36,11 @@ export type ActivationEvent = {
 };
 
 const EVENTS_PATH = join(homedir(), ".applied-loop", "activation-events.jsonl");
+
+const ALL_STEPS = new Set<string>([
+  ...ACTIVATION_STEPS,
+  ...ACTIVATION_EXTRA_STEPS,
+]);
 
 export function activationEventsPath(): string {
   return EVENTS_PATH;
@@ -67,7 +83,7 @@ export function readActivationEvents(): ActivationEvent[] {
       .flatMap((line) => {
         try {
           const row = JSON.parse(line) as ActivationEvent;
-          if (!row?.step || !row?.at) return [];
+          if (!row?.step || !row?.at || !ALL_STEPS.has(row.step)) return [];
           return [row];
         } catch {
           return [];
@@ -80,13 +96,14 @@ export function readActivationEvents(): ActivationEvent[] {
 
 export type FunnelReport = {
   steps: {
-    step: ActivationStep;
+    step: (typeof ACTIVATION_STEPS)[number];
     count: number;
     firstAt: string | null;
   }[];
-  /** setup_opened → first_complete の所要（分）。欠ける場合 null */
+  /** setup_opened → first_complete（補助）または zukan_viewed の所要（分） */
   firstCompleteMinutes: number | null;
   completed: boolean;
+  missing: (typeof ACTIVATION_STEPS)[number][];
 };
 
 export function buildFunnelReport(
@@ -101,22 +118,26 @@ export function buildFunnelReport(
     };
   });
   const setup = steps.find((s) => s.step === "setup_opened")?.firstAt;
-  const done = steps.find((s) => s.step === "first_complete")?.firstAt;
+  const zukan = steps.find((s) => s.step === "zukan_viewed")?.firstAt;
+  const completeExtra = events.find((e) => e.step === "first_complete")?.at;
+  const end = zukan ?? completeExtra ?? null;
   let firstCompleteMinutes: number | null = null;
-  if (setup && done) {
-    const ms = Date.parse(done) - Date.parse(setup);
+  if (setup && end) {
+    const ms = Date.parse(end) - Date.parse(setup);
     if (!Number.isNaN(ms) && ms >= 0) {
       firstCompleteMinutes = Math.round(ms / 60000);
     }
   }
+  const missing = steps.filter((s) => s.count === 0).map((s) => s.step);
   return {
     steps,
     firstCompleteMinutes,
-    completed: Boolean(done),
+    completed: missing.length === 0,
+    missing,
   };
 }
 
-/** 初回完走: サンプル提出＋MCP疎通＋（CLEAR or miss の初判定） */
+/** 初回完走補助: サンプル提出＋MCP疎通＋初判定 */
 export function maybeRecordFirstComplete(flags: {
   sampleSubmitted: boolean;
   mcpTouched: boolean;

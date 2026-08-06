@@ -35,13 +35,13 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | B5-1 | 出題3点セット（Web/MCP） | done | context→問い→リソース | Web バトルも同順 |
 | B5-2 | 採点状態4表示 | done | 受理/採点中/CLEAR・miss/保留 | 一覧＋バトル状態語 |
 | B5-3 | 採点失敗リカバリ導線 | done | 保留＋復帰手順＋CLI復帰後自動再採点 | 手動再採点＋`requeueFailedGradingIfCliReady`（ちず/じゅんび） |
-| B6-1 | setup に採点疎通診断 | done | ✓/✗ と復帰手順 | `grading_cli` check |
+| B6-1 | setup に採点疎通診断 | done | ✓/✗ と復帰手順 | PATH＋dry-run（`probeGradingCliLive`・G7） |
 | B6-2 | `npm run setup` 等で起動集約 | done | clone→/setup までコマンド2個以内 | `npm run setup` + `dev:all`。`.env.example` 追跡＋`DATABASE_URL`（Fable G1） |
 | B7-1 | 初 CLEAR/miss 後ずかん導線 | done | 初回完走者がずかんを開く | 結果画面『ずかんを見る』 |
 | B7-2 | ずかん空状態 | done | データゼロでも意味が伝わる | 空＋サンプル像→しれんへ CTA |
 | B7-3 | しれん空を供給状態で出し分け | done | 3状態で次の一手が違う | `resolveGatesSupplyState` |
 | B8-1 | DQ語＋一般語並記 | done | 用語表なしで完走 | ナビ title/plain |
-| B9-1 | Activation ファネル記録 | done | 7点がスクリプト1本で出る | `npm run funnel:report` |
+| B9-1 | Activation ファネル記録 | done | 7点がスクリプト1本で出る | 正本7点＋欠測で exit1（G8）。`npm run funnel:report` |
 | B9-2 | 主指標=初回完走率・時間 | done | 完走定義がコード判定 | first_complete + minutes |
 | B10-1 | 仲間向け1枚（README 冒頭） | done | その1枚だけで完走 | README「仲間向け・最短」 |
 | B10-2 | 本 ADR（0019） | done | ADR 存在 | このファイルとセット |
@@ -163,3 +163,5 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | 2026-08-06 | Fable再レビュー G1/G6: `.env.example` 追跡・`DATABASE_URL`・`migrate deploy`・db:reset をルート DB へ |
 | 2026-08-06 | クリーンclone実測: 欠落migration補完・prisma generate・postinstall-node-pty 復元 |
 | 2026-08-06 | Fable G2/G3/G4: 空list診断応答・initial再出題予約・scheduleDueGates 経路拡大 |
+| 2026-08-06 | Fable G5/G7/G8/G10: P3一括定義明記・採点dry-run・ファネル正本7点・prefix_fix誤字 |
+| 2026-08-06 | Fable G5/G7/G8/G10: P3一括定義明記・採点dry-run・ファネル正本7点・prefix_fix誤字 |

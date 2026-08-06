@@ -9,6 +9,8 @@ import { getTerminalWsToken } from "@/lib/terminal-token";
 export const dynamic = "force-dynamic";
 
 export default async function ZukanPage() {
+  const { recordActivationOnce } = await import("@/lib/activation-funnel");
+  recordActivationOnce("zukan_viewed");
   const [items, streakDays, quadrant] = await Promise.all([
     loadZukanItems(),
     loadStreakDays(),

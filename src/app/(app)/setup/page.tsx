@@ -20,7 +20,7 @@ export default async function SetupPage({ searchParams }: Props) {
   const { recordActivationOnce } = await import("@/lib/activation-funnel");
   recordActivationOnce("setup_opened");
   const [diagnosis, streakDays] = await Promise.all([
-    loadSetupDiagnosis(),
+    loadSetupDiagnosis({ gradingDryRun: true }),
     loadStreakDays(),
   ]);
   // B5-3: 採点 CLI が戻っていれば保留しれんを自動再採点

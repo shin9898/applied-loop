@@ -16,7 +16,6 @@ import {
   mcpTouchedRecently,
   readTutorialState,
 } from "@/lib/tutorial-state";
-import { probeGradingCli } from "@/lib/headless-llm";
 import { recentGenFailures } from "@/lib/gate";
 
 export type SetupCheckId =
@@ -104,7 +103,10 @@ function probePort(host: string, port: number, ms = 250): Promise<boolean> {
 }
 
 /** ホーム／道案内用のセットアップ診断 */
-export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
+export async function loadSetupDiagnosis(opts?: {
+  /** /setup のみ true。採点 CLI を dry-run する（G7） */
+  gradingDryRun?: boolean;
+}): Promise<SetupDiagnosis> {
   const mcpEndpoint = getMcpEndpointInfo();
   const mcpToken = mcpEndpoint.tokenConfigured;
   const mcpSnippets = buildMcpClientSnippets({
@@ -137,7 +139,9 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
   const y = new Date(dayStartJST(now).getTime() - 24 * 60 * 60 * 1000);
   const yesterdayKey = dateKeyJST(y);
 
-  const grading = probeGradingCli();
+  const grading = opts?.gradingDryRun
+    ? await (await import("@/lib/grading-probe")).probeGradingCliLive()
+    : (await import("@/lib/grading-probe")).probeGradingPathOnly();
   const [gateCount, learningCount, todayMap, yesterdayMap, genFailures] =
     await Promise.all([
       prisma.gate.count(),
@@ -276,7 +280,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
           : grading.detail,
       howTo: grading.howTo,
       plain:
-        "提出後の採点はヘッドレス LLM（claude または codex）。無いと保留になる。CLI が戻るとじゅんび／ちずを開いたときに自動で再採点を試す。",
+        "提出後の採点はヘッドレス LLM（claude または codex）。じゅんびでは dry-run で認証まで確認する。無い／認証切れだと保留になる。CLI が戻ると自動再採点を試す。",
     },
     {
       id: "first_gate",

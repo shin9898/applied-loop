@@ -155,6 +155,10 @@ export async function acceptGateAnswer(input: {
     if (id === TUTORIAL_GATE_ID) {
       recordActivationOnce("sample_submitted", { source: input.source });
     }
+    recordActivationOnce("first_answer", {
+      source: input.source,
+      gateId: id,
+    });
   } catch {
     /* ignore */
   }
