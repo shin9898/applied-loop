@@ -161,3 +161,4 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | 2026-08-06 | P3 実装: B1-5/12-4/12-5/12-3b/4象限・digest。指標確認・dogfood 待ち |
 | 2026-08-06 | Fableギャップ埋め（人間不要分）: B5-3自動再採点 / B7-2サンプル像 / B7-4根因1行 / B8-2内部語 / B6-5 db:reset / B3-4同期監査 |
 | 2026-08-06 | Fable再レビュー G1/G6: `.env.example` 追跡・`DATABASE_URL`・`migrate deploy`・db:reset をルート DB へ |
+| 2026-08-06 | クリーンclone実測: 欠落migration補完・prisma generate・postinstall-node-pty 復元 |
