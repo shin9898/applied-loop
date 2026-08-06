@@ -50,7 +50,7 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 ### P0 完了チェック
 
 - [x] 上表の Must がすべて `done`
-- [x] クリーン環境セルフラン 30分以内成功（本人確認・ローカル確認済み）
+- [x] クリーン環境セルフラン 30分以内成功（2026-08-06 再実測: 別dir clone → `npm run setup` EXIT0 → `/setup` 200）
 - [x] `docs/phase-progress.md` の P0 Status = done
 
 ---
