@@ -106,8 +106,13 @@ if (!existsSync(envPath)) {
   }
 }
 
-// 非対話。既存 migrations を適用（clone 向け）
-run("npx prisma migrate deploy");
+// 非対話。migrations を適用。失敗時は schema を db push（履歴ドリフトの保険）
+try {
+  run("npx prisma migrate deploy");
+} catch (e) {
+  console.warn("migrate deploy に失敗。prisma db push でスキーマを同期する…");
+  run("npx prisma db push");
+}
 run("npm run seed:tutorial");
 
 console.log(`
