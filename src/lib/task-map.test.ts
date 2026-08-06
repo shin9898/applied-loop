@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { parseTaskMappings, pickTaskMapDisplay } from "./task-map";
+import { pickTaskMapDisplay } from "./task-map-display";
+import { parseTaskMappings } from "./task-map";
 
 describe("parseTaskMappings", () => {
   it("accepts valid mappings and trims fields", () => {

@@ -22,7 +22,7 @@ import {
   AtlasWorldIntroModal,
 } from "./atlas-onboarding";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
-import { pickTaskMapDisplay } from "@/lib/task-map";
+import { pickTaskMapDisplay } from "@/lib/task-map-display";
 
 export type TaskMapView = {
   dateKey: string;
