@@ -9,6 +9,7 @@ import {
   mcpCountsForLlmStep,
   mcpTouchedRecently,
   readTutorialState,
+  writeTutorialState,
   type TutorialState,
 } from "@/lib/tutorial-state";
 
@@ -90,13 +91,14 @@ export async function loadTutorialProgress(
     },
   ];
 
-  const tutorialReady =
+  let tutorialReady =
     tokenOk &&
     sampleSubmitted &&
     Boolean(llmTrack) &&
     llmStepDone &&
     (Boolean(state.completedAt) ||
-      (hookOk || Boolean(state.hookSkipped)));
+      hookOk ||
+      Boolean(state.hookSkipped));
 
   // completedAt が無くてもコアが揃えば current は done 扱いへ
   let currentStepId: TutorialStepId = "done";
@@ -118,17 +120,27 @@ export async function loadTutorialProgress(
     if (hookOk || state.hookSkipped) currentStepId = "done";
   }
 
+  // hook 既存などで完了相当なのに completedAt が無い場合は書き留める
+  let stateOut = state;
+  if (tutorialReady && !state.completedAt && currentStepId === "done") {
+    stateOut = writeTutorialState({
+      completedAt: new Date().toISOString(),
+    });
+    const doneStep = steps.find((s) => s.id === "done");
+    if (doneStep) doneStep.done = true;
+  }
+
   return {
     steps,
     currentStepId,
     tutorialReady:
       tutorialReady ||
       Boolean(
-        state.completedAt && tokenOk && sampleSubmitted && llmStepDone,
+        stateOut.completedAt && tokenOk && sampleSubmitted && llmStepDone,
       ),
     tutorialGateId: TUTORIAL_GATE_ID,
     llmTrack,
-    state,
+    state: stateOut,
     mcpRecent,
     sampleSubmitted,
   };
