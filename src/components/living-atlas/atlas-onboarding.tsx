@@ -18,6 +18,7 @@ import {
   setTutorialLlmTrackAction,
   skipTutorialHookAction,
 } from "@/lib/actions";
+import { AtlasCloudMcpWizardSection } from "./atlas-cloud-mcp-wizard";
 import { AtlasVoicePlain } from "./atlas-voice-plain";
 
 const INTRO_KEY = "atlas-world-intro-seen";
@@ -127,7 +128,13 @@ export function AtlasWorldIntroModal() {
   );
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({
+  text,
+  label = "この文をコピー",
+}: {
+  text: string;
+  label?: string;
+}) {
   const [ok, setOk] = useState(false);
   return (
     <button
@@ -143,7 +150,7 @@ function CopyButton({ text }: { text: string }) {
         }
       }}
     >
-      {ok ? "コピーした" : "この文をコピー"}
+      {ok ? "コピーした" : label}
     </button>
   );
 }
@@ -382,38 +389,8 @@ export function AtlasSetupPanel({
         ) : null}
       </div>
 
-      {/* Cloud / Reachable MCP */}
-      <details className="border-t-2 border-[#002070] pt-3">
-        <summary className="cursor-pointer font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
-          ◆ Cloud Agent 向け MCP
-          {diagnosis.mcpEndpoint.reachable ? "（Reachable）" : "（localhost）"}
-        </summary>
-        <div className="mt-2 space-y-2">
-          <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-            Cloud VM からは localhost に届かない。トンネル URL を{" "}
-            <code className="text-[#9ec0ff]">APPLIED_LOOP_URL</code> に入れ、
-            下の設定を Cloud 側 MCP に貼る。正本:{" "}
-            <code className="text-[#9ec0ff]">docs/cloud-mcp.md</code>
-          </p>
-          <p className="m-0 font-mono text-[11px] text-[#9ec0ff]">
-            {diagnosis.mcpEndpoint.mcpUrl}
-          </p>
-          {!diagnosis.mcpEndpoint.reachable ? (
-            <p className="m-0 text-[11px] leading-relaxed text-[#c9c3a0]">
-              例:{" "}
-              <code className="text-[#9ec0ff]">
-                cloudflared tunnel --url http://localhost:3100
-              </code>
-              → URL を .env に →{" "}
-              <code className="text-[#9ec0ff]">npm run mcp:cloud-config</code>
-            </p>
-          ) : null}
-          <pre className="m-0 max-h-40 overflow-auto whitespace-pre-wrap border-[2px] border-white bg-[#000c4a] p-2.5 text-[10px] leading-relaxed text-[#f7f3d9]">
-            {diagnosis.mcpSnippets.cursorJson}
-          </pre>
-          <CopyButton text={diagnosis.mcpSnippets.cursorJson} />
-        </div>
-      </details>
+      {/* Cloud / Reachable MCP（任意・1手ウィザード） */}
+      <AtlasCloudMcpWizardSection diagnosis={diagnosis} />
 
       {/* 用語 */}
       <div className="border-t-2 border-[#002070] pt-3">
@@ -505,21 +482,22 @@ function LlmTrackHint({
           claude mcp add --transport http applied-loop {mcpUrl} --header
           &quot;Authorization: Bearer …&quot;
         </code>
-        。Cloud なら docs/cloud-mcp.md。
+        。Web なら .mcp.json（type: http）。下の青いカード『Cloud の生成AIからも…』へ。
       </p>
     );
   }
   if (track === "cursor") {
     return (
       <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-        つまり mcp.json に url=<code>{mcpUrl}</code> と Bearer を追加してから貼る。
-        Cloud Agent は Reachable URL が必要（docs/cloud-mcp.md）。
+        つまり Desktop なら mcp.json に url=<code>{mcpUrl}</code> と Bearer。
+        Cloud Agent なら下の青いカードへ（Desktop 設定は効かない）。
       </p>
     );
   }
   return (
     <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-      つまり ~/.codex/config.toml に url=<code>{mcpUrl}</code> を追加してから貼る。
+      つまり同じホストなら ~/.codex/config.toml。別ホストなら .codex/config.toml
+      （trusted）+ MCP_TOKEN。下の青いカード『Cloud の生成AIからも…』へ。
     </p>
   );
 }

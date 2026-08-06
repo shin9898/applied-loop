@@ -102,14 +102,19 @@ CLAUDE.md / Cursor Rules / Codex AGENTS に追記する文（必要に応じて�
 ## 4. Cloud Agent 向け（Reachable MCP）
 
 Cloud VM からは `localhost` に届かない。トンネル等で手元の `/api/mcp` を届け、
-**同じ Bearer** で登録する。設計と手順の正本: **[cloud-mcp.md](./cloud-mcp.md)**（ADR-0018）。
+**同じ Bearer** で登録する。設計と手順の正本: **[cloud-mcp.md](./cloud-mcp.md)**（ADR-0018）。  
+UI: `/setup` の青いカード **「Cloud の生成AIからも同じループ」**（選ぶ→トンネル→登録→疎通）。
 
 ```bash
 # 例: cloudflared でトンネル → 表示 URL を .env へ
 # APPLIED_LOOP_URL=https://xxxx.trycloudflare.com
-npm run mcp:cloud-config          # Cursor / Claude / Codex 用スニペット
+npm run mcp:cloud-config          # Cursor / Claude / Codex 用スニペット + 検証文
 npm run mcp:cloud-config -- --redact
 ```
+
+**Desktop ≠ 別ホスト**: Cursor Cloud は Agents 画面で Add。Claude Web は `.mcp.json`。  
+Codex は同一ホストの `config.toml` 共有／持ち運びは `.codex/config.toml`（trusted）。  
+詳細と確度表は [cloud-mcp.md](./cloud-mcp.md)。
 
 git hook は Cloud worktree では動かないことが多い。学び・回答はセッション内 MCP が本線。
 

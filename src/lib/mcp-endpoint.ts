@@ -62,7 +62,17 @@ export function getMcpEndpointInfo(env: EnvMap = process.env): McpEndpointInfo {
 
 export type McpClientSnippets = {
   cursorJson: string;
+  /** 手元 / SSH 上の Claude Code CLI 用 */
   claudeCli: string;
+  /**
+   * Claude Code on the web が読むプロジェクト scope。
+   * `type: http` 必須。秘密は ${MCP_TOKEN}（公式の env 展開）。
+   */
+  claudeProjectJson: string;
+  /**
+   * Codex 公式の Streamable HTTP + bearer_token_env_var。
+   * 値は環境変数 MCP_TOKEN（TOML にトークン本文を置かない）。
+   */
   codexToml: string;
 };
 
@@ -86,7 +96,32 @@ export function buildMcpClientSnippets(opts: {
     null,
     2,
   );
-  const claudeCli = `claude mcp add --transport http applied-loop ${opts.mcpUrl} \\\n  --header "Authorization: Bearer ${token}"`;
-  const codexToml = `[mcp_servers.applied-loop]\nurl = "${opts.mcpUrl}"\nhttp_headers = { Authorization = "Bearer ${token}" }`;
-  return { cursorJson, claudeCli, codexToml };
+  const claudeCli = [
+    `claude mcp add --transport http applied-loop ${opts.mcpUrl} \\`,
+    `  --header "Authorization: Bearer ${token}"`,
+    `# Web 向けにリポジトリへ書くなら: --scope project（.mcp.json）。秘密は環境変数推奨`,
+  ].join("\n");
+  const claudeProjectJson = JSON.stringify(
+    {
+      mcpServers: {
+        "applied-loop": {
+          type: "http",
+          url: opts.mcpUrl,
+          headers: {
+            Authorization: "Bearer ${MCP_TOKEN}",
+          },
+        },
+      },
+    },
+    null,
+    2,
+  );
+  const codexToml = [
+    `# .codex/config.toml（project・trusted）または ~/.codex/config.toml`,
+    `# 事前に: export MCP_TOKEN=...  （同じホストの環境変数）`,
+    `[mcp_servers.applied-loop]`,
+    `url = "${opts.mcpUrl}"`,
+    `bearer_token_env_var = "MCP_TOKEN"`,
+  ].join("\n");
+  return { cursorJson, claudeCli, claudeProjectJson, codexToml };
 }

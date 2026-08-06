@@ -31,6 +31,7 @@ ADR-0005 は「接続先 URL で環境を切り替える」と既に書いてお
    Cloud 本線はセッション内 capture / answer。hook 欠落を欠陥扱いにしない。
 5. **運用手順の正本**  
    [docs/cloud-mcp.md](../cloud-mcp.md)。設定片は `npm run mcp:cloud-config`。
+   UI は `/setup` の「Cloud で使いたい場合」ウィザード（選ぶ→トンネル→登録→疎通。LLM は最後のみ）。
 
 ## 理由
 

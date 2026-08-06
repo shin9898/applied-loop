@@ -57,6 +57,8 @@ export type SetupDiagnosis = {
   tutorialSampleSubmitted: boolean;
   /** 直近に MCP 疎通あり */
   mcpRecent: boolean;
+  /** 直近の MCP 認証成功時刻 (ISO)。Cloud ウィザードの疎通検知用 */
+  mcpLastAt: string | null;
   /** 初心者チュートリアル完了 */
   tutorialReady: boolean;
   tutorialGateId: string;
@@ -66,6 +68,7 @@ export type SetupDiagnosis = {
   mcpSnippets: {
     cursorJson: string;
     claudeCli: string;
+    claudeProjectJson: string;
     codexToml: string;
   };
 };
@@ -226,18 +229,18 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
     },
     {
       id: "cloud_mcp",
-      label: "Cloud から届く MCP URL",
+      label: "Cloud の生成AIから届く MCP URL",
       ok: !mcpEndpoint.reachable || (mcpEndpoint.reachable && mcpToken),
       required: false,
       detail: mcpEndpoint.reachable
         ? mcpToken
           ? `Reachable: ${mcpEndpoint.mcpUrl}`
           : `URL はあるが合言葉がない（${mcpEndpoint.baseUrl}）`
-        : "いまは localhost（Cloud には届かぬ）。トンネルするなら docs/cloud-mcp.md",
+        : "いまは localhost（Cloud の生成AIには届かぬ）。/setup の青い任意カードへ",
       howTo:
-        "トンネル後に APPLIED_LOOP_URL=https://... と MCP_TOKEN を .env へ → `npm run mcp:cloud-config`",
+        "/setup『Cloud の生成AIからも同じループ』ウィザード（選ぶ→トンネル→登録→疎通）。または `npm run mcp:cloud-config`",
       plain:
-        "Cloud Agent 用。ダッシュボードは手元のまま、MCP だけ外から叩く薄い楔（ADR-0018）。",
+        "Cursor Cloud / Claude web / Codex など手元以外の AI 用。Desktop の MCP 設定は効かない。MCP だけトンネルで届ける（ADR-0018）。",
     },
     {
       id: "git_hook",
@@ -300,6 +303,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
     yesterdayTaskMapped: !!yesterdayMap,
     tutorialSampleSubmitted: sampleSubmitted,
     mcpRecent,
+    mcpLastAt: tutorialState.mcpLastAt ?? null,
     tutorialReady,
     tutorialGateId: TUTORIAL_GATE_ID,
     mcpEndpoint,

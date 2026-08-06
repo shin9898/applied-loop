@@ -41,6 +41,11 @@ describe("mcp-endpoint", () => {
     assert.match(s.cursorJson, /https:\/\/ex\.example\/api\/mcp/);
     assert.match(s.cursorJson, /Bearer secret/);
     assert.match(s.claudeCli, /claude mcp add/);
+    assert.match(s.claudeProjectJson, /"type": "http"/);
+    assert.match(s.claudeProjectJson, /Bearer \$\{MCP_TOKEN\}/);
+    assert.doesNotMatch(s.claudeProjectJson, /Bearer secret/);
     assert.match(s.codexToml, /mcp_servers\.applied-loop/);
+    assert.match(s.codexToml, /bearer_token_env_var = "MCP_TOKEN"/);
+    assert.doesNotMatch(s.codexToml, /Bearer secret/);
   });
 });

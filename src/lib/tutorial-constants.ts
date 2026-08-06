@@ -39,6 +39,7 @@ export function tutorialPastePrompt(
       "",
       "MCP 未登録なら先に:",
       `claude mcp add --transport http applied-loop ${mcpUrl} --header "Authorization: Bearer <MCP_TOKEN>"`,
+      "Claude Code on the web ならリポジトリ根の .mcp.json（type: http）。詳細: /setup『Cloud の生成AIからも同じループ』→ Claude Code",
     ].join("\n");
   }
   if (track === "cursor") {
@@ -48,7 +49,7 @@ export function tutorialPastePrompt(
       common,
       "",
       `MCP URL: ${mcpUrl}`,
-      "Cloud Agent なら docs/cloud-mcp.md の Reachable URL を使う。",
+      "Cloud Agent なら Desktop の mcp.json ではなく /setup『Cloud の生成AIからも同じループ』→ Cursor（cursor.com/agents で Add MCP）。",
     ].join("\n");
   }
   return [
@@ -57,6 +58,7 @@ export function tutorialPastePrompt(
     common,
     "",
     `MCP URL: ${mcpUrl}`,
+    "別ホストなら .codex/config.toml（trusted）+ export MCP_TOKEN。詳細: /setup『Cloud の生成AIからも同じループ』→ Codex",
   ].join("\n");
 }
 
