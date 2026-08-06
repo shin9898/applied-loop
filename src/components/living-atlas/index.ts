@@ -16,6 +16,8 @@ export type { GateListItem } from "./atlas-gates-list";
 export { AtlasHarness } from "./atlas-harness";
 export type { HarnessRepo } from "./atlas-harness";
 export { AtlasPrescription } from "./atlas-prescription";
+export { AtlasConceptPromptCache } from "./atlas-concept-prompt-cache";
+export { AtlasExperimentDetail } from "./atlas-experiment-detail";
 export { AtlasGoals } from "./atlas-goals";
 export type { GoalItem } from "./atlas-goals";
 export { AtlasEntries } from "./atlas-entries";
@@ -24,4 +26,12 @@ export { AtlasEntryDetail } from "./atlas-entry-detail";
 export { AtlasInboxDetail } from "./atlas-inbox-detail";
 export { AtlasRequirements } from "./atlas-requirements";
 export type { RequirementItem } from "./atlas-requirements";
-export { DEFAULT_ENEMY, paintEnemyFrame } from "./atlas-enemies";
+export {
+  ALL_ENEMIES,
+  DEFAULT_ENEMY,
+  enemyById,
+  enemyForGate,
+  enemyForSystem,
+  paintEnemyFrame,
+} from "./atlas-enemies";
+export type { EnemyDef, EnemyId } from "./atlas-enemies";

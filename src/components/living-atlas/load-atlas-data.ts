@@ -802,6 +802,7 @@ export async function loadGateById(id: string): Promise<{
   question: string;
   domain?: string | null;
   contextSummary?: string | null;
+  system: SystemKind;
   resources: { kind: string; label: string; href?: string | null }[];
   initialVerdict: "pass" | "retry" | null;
   initialDebrief: ReturnType<typeof buildGateDebrief> | null;
@@ -816,6 +817,7 @@ export async function loadGateById(id: string): Promise<{
       id: true,
       question: true,
       domain: true,
+      targetConcept: true,
       status: true,
       gradeNote: true,
       rubricResult: true,
@@ -837,16 +839,24 @@ export async function loadGateById(id: string): Promise<{
     ),
     resolveGateFollowups(gate.id),
   ]);
+  const debrief = initialVerdict
+    ? buildGateDebrief(gate.gradeNote, gate.rubricResult)
+    : null;
+  const system = classifySystem({
+    text: `${gate.question}\n${gate.contextSummary ?? ""}`,
+    domain: gate.domain,
+    targetConcept: gate.targetConcept,
+    rootCause: debrief?.rootCause ?? null,
+  });
   return {
     id: gate.id,
     question: gate.question,
     domain: gate.domain,
     contextSummary: gate.contextSummary,
+    system,
     resources,
     initialVerdict,
-    initialDebrief: initialVerdict
-      ? buildGateDebrief(gate.gradeNote, gate.rubricResult)
-      : null,
+    initialDebrief: debrief,
     relatedEntryId: followups.entryId,
     relatedInboxId: followups.inboxId,
     relatedMisconceptionId: followups.misconceptionId,

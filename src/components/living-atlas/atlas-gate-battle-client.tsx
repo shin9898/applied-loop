@@ -10,6 +10,8 @@ import {
 } from "@/lib/actions";
 import type { GateDebrief } from "@/lib/grade-payload";
 import { TUTORIAL_GATE_ID } from "@/lib/tutorial-constants";
+import type { SystemKind } from "@/lib/atlas-taxonomy";
+import { enemyForGate } from "./atlas-enemies";
 import { AtlasBattle, type BattleVerdict } from "./atlas-battle";
 
 export function AtlasGateBattleClient({
@@ -20,6 +22,7 @@ export function AtlasGateBattleClient({
     question: string;
     domain?: string | null;
     contextSummary?: string | null;
+    system?: SystemKind;
     resources?: { kind: string; label: string; href?: string | null }[];
     initialVerdict?: Extract<BattleVerdict, "pass" | "retry"> | null;
     initialDebrief?: GateDebrief | null;
@@ -33,12 +36,18 @@ export function AtlasGateBattleClient({
   const zukanHref = gate.relatedMisconceptionId
     ? `/zukan/${gate.relatedMisconceptionId}`
     : "/zukan";
+  const enemy = enemyForGate({
+    system: gate.system,
+    domain: gate.domain,
+    text: [gate.question, gate.contextSummary].filter(Boolean).join("\n"),
+  });
   return (
     <AtlasBattle
       gateId={gate.id}
       question={gate.question}
       domain={gate.domain}
       contextSummary={gate.contextSummary}
+      enemy={enemy}
       resources={gate.resources}
       initialVerdict={gate.initialVerdict ?? null}
       initialDebrief={gate.initialDebrief ?? null}

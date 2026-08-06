@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { DEFAULT_ENEMY, paintEnemyFrame } from "./atlas-enemies";
+import {
+  DEFAULT_ENEMY,
+  paintEnemyFrame,
+  type EnemyDef,
+} from "./atlas-enemies";
 import {
   rootCauseLabel,
   type GateDebrief,
@@ -37,7 +41,9 @@ export type AtlasBattleProps = {
   contextSummary?: string | null;
   resources?: BattleResource[];
   tags?: string[];
-  /** Override display name; sprite stays the single default enemy for now */
+  /** 系統別スプライト。未指定なら DEFAULT_ENEMY */
+  enemy?: EnemyDef;
+  /** Override display name only */
   enemyName?: string;
   initialHp?: number;
   /** 再訪時: すでに採点済みなら結果＋デブリーフを初期表示 */
@@ -244,6 +250,7 @@ export function AtlasBattle({
   gateId,
   contextSummary = null,
   resources = [],
+  enemy,
   enemyName,
   initialHp = 72,
   initialVerdict = null,
@@ -262,7 +269,7 @@ export function AtlasBattle({
   relatedMisconceptionId = null,
   onGoZukan,
 }: AtlasBattleProps) {
-  const def = DEFAULT_ENEMY;
+  const def = enemy ?? DEFAULT_ENEMY;
   const displayName = enemyName ?? def.name;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hp, setHp] = useState(initialVerdict === "pass" ? 0 : initialHp);
