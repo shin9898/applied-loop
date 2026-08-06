@@ -6,5 +6,17 @@
   "rubric": [
     "可変要素がキーを割ることに触れている",
     "安定プレフィックスとのトレードオフに触れている"
+  ],
+  "resources": [
+    {
+      "kind": "doc",
+      "label": "Anthropic prompt caching",
+      "ref": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"
+    },
+    {
+      "kind": "adr",
+      "label": "ADR-0017 キャッシュ処方",
+      "ref": "docs/adr/0017-prompt-cache-savings-pack.md"
+    }
   ]
 }

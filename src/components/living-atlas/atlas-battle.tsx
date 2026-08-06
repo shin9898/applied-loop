@@ -19,6 +19,7 @@ import {
   loadMicroProgress,
 } from "@/lib/micro-progress";
 import { AtlasMicroDrill, AtlasRecallDrill } from "./atlas-micro-drill";
+import { formatRubricHint } from "@/lib/gate-hint";
 
 export type BattleVerdict =
   | "pass"
@@ -80,6 +81,9 @@ export type AtlasBattleProps = {
     aspect: string;
     paraphrase: string;
   }) => Promise<MicroCheckResult>;
+  /** 採点観点（ヒント表示用。答えは含めない） */
+  rubricCriteria?: string[];
+  /** @deprecated rubricCriteria があればそちらを優先 */
   hintText?: string;
   zukanHref?: string;
   /** 根因「学びを拾う／ずかん」の深リンク */
@@ -296,7 +300,8 @@ export function AtlasBattle({
   onRetryGrading,
   onDismissBadQuestion,
   onCheckMicro,
-  hintText = "関連エントリやどうぐの処方を確認できるぞ。",
+  rubricCriteria = [],
+  hintText,
   zukanHref = "/zukan",
   relatedEntryId = null,
   relatedInboxId = null,
@@ -724,7 +729,7 @@ export function AtlasBattle({
             {(
               [
                 ["answer", "こたえる", "直接書いて提出（MCPと同じ受理）"],
-                ["hint", "ヒント", "関連エントリ／処方を見る"],
+                ["hint", "ヒント", "採点観点を見る（答えは出さない）"],
                 ["zukan", "ずかん", "同系統のつまずきを開く"],
                 ["run", "にげる", "ちずにもどる（進捗はそのまま）"],
               ] as const
@@ -765,7 +770,9 @@ export function AtlasBattle({
                     if (phase !== "waiting" && phase !== "micro" && phase !== "recall") {
                       setPhase(verdict ? "result" : "idle");
                     }
-                    setNarrator(`ヒント：${hintText}`);
+                    const body =
+                      hintText?.trim() || formatRubricHint(rubricCriteria);
+                    setNarrator(`ヒント：\n${body}`);
                     return;
                   }
                   if (k === "zukan") {
@@ -799,7 +806,9 @@ export function AtlasBattle({
             <div className="mb-2 font-[family-name:var(--font-pixel)] text-[11px] text-[#f0d25a]">
               ◆ ナレーター
             </div>
-            <p className="m-0 text-[16px] leading-relaxed">{narrator}</p>
+            <p className="m-0 whitespace-pre-wrap text-[16px] leading-relaxed">
+              {narrator}
+            </p>
 
             {phase === "result" && (verdict === "pass" || verdict === "retry") ? (
               <DebriefPanel

@@ -73,14 +73,14 @@ export async function ensureTutorialSeed(): Promise<TutorialSeedResult> {
       ]),
       resources: JSON.stringify([
         {
-          kind: "note",
-          label: "手がかり: 金曜マージ→月曜に詰まった経験を思い出す",
-          ref: "tutorial",
+          kind: "adr",
+          label: "ADR-0006: 理解度ゲート（しれん）の考え方",
+          ref: "docs/adr/0006-comprehension-gate.md",
         },
         {
-          kind: "note",
-          label: "提出後: しれん画面で CLEAR / miss / 保留（採点失敗）を確認",
-          ref: "tutorial",
+          kind: "adr",
+          label: "ADR-0007: リソース常時提示・調査力",
+          ref: "docs/adr/0007-gate-resources-rubric.md",
         },
       ]),
     },

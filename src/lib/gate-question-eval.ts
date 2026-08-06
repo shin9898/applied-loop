@@ -80,5 +80,28 @@ export function evaluateGeneratedQuestion(
     issues.push({ code: "rubric_too_many", message: "rubric は最大3" });
   }
 
+  const resources = Array.isArray(parsed.resources) ? parsed.resources : [];
+  const validResources = resources.filter((item) => {
+    if (!item || typeof item !== "object") return false;
+    const r = item as Record<string, unknown>;
+    const kind = typeof r.kind === "string" ? r.kind.trim() : "";
+    const label = typeof r.label === "string" ? r.label.trim() : "";
+    const ref = typeof r.ref === "string" ? r.ref.trim() : "";
+    return (
+      (kind === "doc" ||
+        kind === "file" ||
+        kind === "commit" ||
+        kind === "adr") &&
+      !!label &&
+      !!ref
+    );
+  });
+  if (validResources.length < 1) {
+    issues.push({
+      code: "resources_missing",
+      message: "resources が空（doc/file/commit/adr が1件以上必要）",
+    });
+  }
+
   return { ok: issues.length === 0, issues };
 }

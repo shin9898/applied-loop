@@ -802,6 +802,8 @@ export async function loadGateById(id: string): Promise<{
   contextSummary?: string | null;
   system: SystemKind;
   resources: { kind: string; label: string; href?: string | null }[];
+  /** ヒント用の採点観点 */
+  rubricCriteria: string[];
   initialVerdict: "pass" | "retry" | "grading_failed" | null;
   initialDebrief: ReturnType<typeof buildGateDebrief> | null;
   relatedEntryId: string | null;
@@ -860,6 +862,20 @@ export async function loadGateById(id: string): Promise<{
   const nextReviewLabel = nextAt
     ? nextAt.toISOString().slice(0, 10)
     : null;
+  let rubricCriteria: string[] = [];
+  if (gate.rubricCriteria) {
+    try {
+      const parsed = JSON.parse(gate.rubricCriteria) as unknown;
+      if (Array.isArray(parsed)) {
+        rubricCriteria = parsed
+          .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+          .map((x) => x.trim())
+          .slice(0, 3);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   return {
     id: gate.id,
     question: gate.question,
@@ -867,6 +883,7 @@ export async function loadGateById(id: string): Promise<{
     contextSummary: gate.contextSummary,
     system,
     resources,
+    rubricCriteria,
     initialVerdict,
     initialDebrief: debrief,
     relatedEntryId: followups.entryId,

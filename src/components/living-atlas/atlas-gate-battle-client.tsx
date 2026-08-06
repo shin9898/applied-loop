@@ -26,6 +26,7 @@ export function AtlasGateBattleClient({
     contextSummary?: string | null;
     system?: SystemKind;
     resources?: { kind: string; label: string; href?: string | null }[];
+    rubricCriteria?: string[];
     initialVerdict?: Extract<
       BattleVerdict,
       "pass" | "retry" | "grading_failed"
@@ -55,6 +56,7 @@ export function AtlasGateBattleClient({
       contextSummary={gate.contextSummary}
       enemy={enemy}
       resources={gate.resources}
+      rubricCriteria={gate.rubricCriteria ?? []}
       initialVerdict={gate.initialVerdict ?? null}
       initialDebrief={gate.initialDebrief ?? null}
       relatedEntryId={gate.relatedEntryId ?? null}

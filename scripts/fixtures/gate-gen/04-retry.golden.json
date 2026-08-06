@@ -6,5 +6,17 @@
   "rubric": [
     "冪等性または重複に触れている",
     "仕組み化の具体に触れている"
+  ],
+  "resources": [
+    {
+      "kind": "doc",
+      "label": "AWS: retries and exponential backoff",
+      "ref": "https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_mitigate_interaction_failure_graceful_degradation.html"
+    },
+    {
+      "kind": "file",
+      "label": "リトライ実装",
+      "ref": "src/lib/retry.ts"
+    }
   ]
 }

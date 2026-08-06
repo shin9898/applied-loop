@@ -182,68 +182,16 @@ type QuestionBuildFail = {
   reason: "gen_failed" | "gen_failed_auth" | "gen_failed_parse";
 };
 
-async function buildQuestionFromDiff(
-  diff: string,
-): Promise<QuestionBuildOk | QuestionBuildFail> {
-  const reqBlock = await activeRequirementsPromptBlock();
-  const reqJson = reqBlock
-    ? ',"requirement_suggestions":["requirementId",...]'
-    : "";
+/** 出題保存前: rubric と resources の両方が必須（空リソース潰し） */
+export function hasRequiredGateArtifacts(input: {
+  rubric: string[] | null;
+  resources: GateResource[] | null;
+}): boolean {
+  return !!(input.rubric?.length && input.resources?.length);
+}
 
-  const prompt = [
-    "以下の git diff (事例) から、理解度ゲートの問いを1つ生成せよ。2段階で考えよ。",
-    "",
-    "【第1段階: 原則抽出】",
-    "diff から、他の状況・プロジェクトでも転用できる一般原則を1つ抽出せよ。",
-    "原則は具体的な関数名・リポジトリ名・列名に依存せず、将来の実務で判断の指針になる粒度にすること。",
-    "悪い例: 「NotificationRepository.Save の INSERT は fallback_reason 列を含まない」",
-    "良い例: 「永続化の正しさは書き込み時点だけでなく、読み戻し・失敗時を含むライフサイクル全体で確認する」",
-    "",
-    "【第2段階: 出題】",
-    "抽出した原則を問う問題を、次の4型のいずれか1つで作れ。",
-    "  diagnosis (診断): 「この症状が出た時、どこから切り分けるか手順を説明せよ」",
-    "  transfer (転用): 「この原則を別の状況 X に適用するとどうなるか」",
-    "  judgment (判断): 「なぜこの設計判断をしたか。代替案とのトレードオフを説明せよ」",
-    "  prevention (予防): 「この失敗を次回未然に防ぐために何を仕組み化すべきか」",
-    "",
-    "【禁止】",
-    "穴埋め形式 (_____ や空欄補充) は禁止。",
-    "「この時の Lesson は?」「この変更の要点は?」のような事例固有の暗記クイズは禁止。",
-    "問題文にリポジトリ名・関数名・列名などの固有情報を並べて主役にしないこと。原則が主役。固有情報は必要最小限の文脈ヒントに留める。",
-    "",
-    "測るのは概念の本質の理解と調査力であり、記憶力ではない。",
-    "rubric は合否を分ける概念の本質の観点を最大3つ。",
-    "resources は回答時に参照できる一次情報。kind は doc(URL) / file(リポジトリ内パス) / commit(sha) / adr(docs/adr 内参照)。",
-    "resources.ref は参照のみ (ファイル本文は含めない)。存在しそうな URL/パスを推定してよい。",
-    'domain は大分類の短いラベル (例: "TypeScript / MCP", "PdM / 設計", "DB / Prisma")。',
-    "context_summary は「このコミットでやったこと」の 2-3 行要約。回答のヒントや正解を書かない。前提の思い出し用。",
-    "principle は第1段階で抽出した一般原則。target_concept にも同じ原則を入れてよい。",
-    reqBlock ?? "",
-    "出題は日本語で。JSON のみで出力:",
-    `{"principle":"...","question":"...","type":"diagnosis"|"transfer"|"judgment"|"prevention","target_concept":"...","domain":"...","context_summary":"...","rubric":["観点1","観点2"],"resources":[{"kind":"doc","label":"...","ref":"https://..."}]${reqJson}}`,
-    "",
-    "<diff>",
-    diff,
-    "</diff>",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  let parsed: GeneratedQuestion | null = null;
-  try {
-    parsed = parseLLMJson<GeneratedQuestion>(await runHeadlessLLM(prompt));
-  } catch (e) {
-    if (
-      e instanceof HeadlessLLMError &&
-      (e.kind === "auth" || e.kind === "quota")
-    ) {
-      return { ok: false, reason: "gen_failed_auth" };
-    }
-    return { ok: false, reason: "gen_failed" };
-  }
-  if (!parsed?.question?.trim()) {
-    return { ok: false, reason: "gen_failed_parse" };
-  }
+function mapParsedQuestion(parsed: GeneratedQuestion): QuestionBuildOk | null {
+  if (!parsed?.question?.trim()) return null;
 
   const targetConcept =
     (typeof parsed.principle === "string" && parsed.principle.trim()) ||
@@ -274,6 +222,101 @@ async function buildQuestionFromDiff(
     reqSuggestions:
       parsed.requirement_suggestions ?? parsed.requirementSuggestions,
   };
+}
+
+async function callQuestionLLM(
+  diff: string,
+  opts?: { repairNote?: string | null },
+): Promise<QuestionBuildOk | QuestionBuildFail> {
+  const reqBlock = await activeRequirementsPromptBlock();
+  const reqJson = reqBlock
+    ? ',"requirement_suggestions":["requirementId",...]'
+    : "";
+
+  const prompt = [
+    "以下の git diff (事例) から、理解度ゲートの問いを1つ生成せよ。2段階で考えよ。",
+    "",
+    "【第1段階: 原則抽出】",
+    "diff から、他の状況・プロジェクトでも転用できる一般原則を1つ抽出せよ。",
+    "原則は具体的な関数名・リポジトリ名・列名に依存せず、将来の実務で判断の指針になる粒度にすること。",
+    "悪い例: 「NotificationRepository.Save の INSERT は fallback_reason 列を含まない」",
+    "良い例: 「永続化の正しさは書き込み時点だけでなく、読み戻し・失敗時を含むライフサイクル全体で確認する」",
+    "",
+    "【第2段階: 出題】",
+    "抽出した原則を問う問題を、次の4型のいずれか1つで作れ。",
+    "  diagnosis (診断): 「この症状が出た時、どこから切り分けるか手順を説明せよ」",
+    "  transfer (転用): 「この原則を別の状況 X に適用するとどうなるか」",
+    "  judgment (判断): 「なぜこの設計判断をしたか。代替案とのトレードオフを説明せよ」",
+    "  prevention (予防): 「この失敗を次回未然に防ぐために何を仕組み化すべきか」",
+    "",
+    "【禁止】",
+    "穴埋め形式 (_____ や空欄補充) は禁止。",
+    "「この時の Lesson は?」「この変更の要点は?」のような事例固有の暗記クイズは禁止。",
+    "問題文にリポジトリ名・関数名・列名などの固有情報を並べて主役にしないこと。原則が主役。固有情報は必要最小限の文脈ヒントに留める。",
+    "",
+    "測るのは概念の本質の理解と調査力であり、記憶力ではない。",
+    "rubric は合否を分ける概念の本質の観点を 1〜3 つ。【必須・空配列禁止】",
+    "resources は回答時に参照できる一次情報を 1 件以上。【必須・空配列禁止】",
+    "resources.kind は doc(URL) / file(リポジトリ内パス) / commit(sha) / adr(docs/adr 内参照) のみ。",
+    "resources.ref は参照のみ (ファイル本文・正解文・解説は含めない)。存在しそうな URL/パスを推定してよい。",
+    "resources に答えやモデル解答を書くな。調査の入口だけを出せ。",
+    'domain は大分類の短いラベル (例: "TypeScript / MCP", "PdM / 設計", "DB / Prisma")。',
+    "context_summary は「このコミットでやったこと」の 2-3 行要約。回答のヒントや正解を書かない。前提の思い出し用。",
+    "principle は第1段階で抽出した一般原則。target_concept にも同じ原則を入れてよい。",
+    reqBlock ?? "",
+    opts?.repairNote?.trim() ? `\n${opts.repairNote.trim()}\n` : "",
+    "出題は日本語で。JSON のみで出力:",
+    `{"principle":"...","question":"...","type":"diagnosis"|"transfer"|"judgment"|"prevention","target_concept":"...","domain":"...","context_summary":"...","rubric":["観点1","観点2"],"resources":[{"kind":"doc","label":"...","ref":"https://..."}]${reqJson}}`,
+    "",
+    "<diff>",
+    diff,
+    "</diff>",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  let parsed: GeneratedQuestion | null = null;
+  try {
+    parsed = parseLLMJson<GeneratedQuestion>(await runHeadlessLLM(prompt));
+  } catch (e) {
+    if (
+      e instanceof HeadlessLLMError &&
+      (e.kind === "auth" || e.kind === "quota")
+    ) {
+      return { ok: false, reason: "gen_failed_auth" };
+    }
+    return { ok: false, reason: "gen_failed" };
+  }
+  const mapped = parsed ? mapParsedQuestion(parsed) : null;
+  if (!mapped) {
+    return { ok: false, reason: "gen_failed_parse" };
+  }
+  return mapped;
+}
+
+async function buildQuestionFromDiff(
+  diff: string,
+): Promise<QuestionBuildOk | QuestionBuildFail> {
+  const first = await callQuestionLLM(diff);
+  if (!first.ok) return first;
+  if (hasRequiredGateArtifacts(first)) return first;
+
+  const repairNote = [
+    "【再生成・必須】",
+    "前回の応答は rubric または resources が空で不合格。",
+    `前回 question: ${first.question}`,
+    `前回 rubric: ${JSON.stringify(first.rubric ?? [])}`,
+    `前回 resources: ${JSON.stringify(first.resources ?? [])}`,
+    "同じ原則・問いの方向性を保ちつつ、rubric を1〜3件、resources を1件以上埋めた JSON のみ返せ。",
+    "resources に正解や解説を書くな。",
+  ].join("\n");
+
+  const second = await callQuestionLLM(diff, { repairNote });
+  if (!second.ok) return second;
+  if (!hasRequiredGateArtifacts(second)) {
+    return { ok: false, reason: "gen_failed_parse" };
+  }
+  return second;
 }
 
 /** 発火したイベントから出題を生成して Gate を作成する (非同期ジョブ)。

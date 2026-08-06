@@ -6,5 +6,17 @@
   "rubric": [
     "読み戻しや失敗時に触れている",
     "成功応答だけを信じる危険に触れている"
+  ],
+  "resources": [
+    {
+      "kind": "doc",
+      "label": "Prisma: Writing data",
+      "ref": "https://www.prisma.io/docs/orm/prisma-client/queries/crud"
+    },
+    {
+      "kind": "file",
+      "label": "永続化まわりの実装",
+      "ref": "src/lib/db.ts"
+    }
   ]
 }
