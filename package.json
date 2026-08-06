@@ -29,7 +29,7 @@
     "eval:grade-spot": "tsx scripts/eval-grade-spot.ts",
     "dismiss:report": "tsx scripts/dismiss-reasons-report.ts",
     "rewrite-gates": "node scripts/rewrite-gates.mjs",
-    "postinstall": "node scripts/fixinstall-node-pty.mjs"
+    "postinstall": "node scripts/postinstall-node-pty.mjs && prisma generate"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
