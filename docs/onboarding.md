@@ -17,7 +17,7 @@ LLM を入れたばかりでも、**ツール名を覚えなくてよい**。順
 | 1 | **サンプルしれんを Web で1問提出** | 『たたかう』→『提出する』→自動でじゅんびに戻る。合否は待たなくてよい |
 | 2 | 使う LLM を選ぶ（Claude / Cursor / Codex / じゅもん） | `/setup` で道を選択（この時刻より前の MCP 疎通はカウントしない） |
 | 3 | **貼るだけの文**をチャットに1回貼る | 選択後の MCP 疎通、または「できた」 |
-| 4 | （任意）git hook | 今は飛ばしてよい（Cloud 作業が主なら不要に近い） |
+| 4 | （任意）**監視リポジトリを選んで** git hook | `/setup` で repo パスを追加→鉤をかける。未選択のままではコミットからしれんは増えない。Cloud 作業が主なら飛ばしてよい |
 | — | （任意）Cloud の生成AIからも | `/setup` 青いカード『Cloud の生成AIからも同じループ』（選ぶ→トンネル→登録→疎通）。正本 [cloud-mcp.md](./cloud-mcp.md) |
 
 画面: ホームのバナー → **じゅんび（`/setup`）**。ウィザードが「いまやる1手」だけを大きく出す。
@@ -72,11 +72,19 @@ npm run seed:tutorial
 ### ② 集める（詳細）
 
 ルールスニペットは [mcp-setup.md §2](./mcp-setup.md)。  
-git hook:
+監視リポジトリ + git hook（推奨: UI）:
+
+1. `/setup` の『監視リポジトリ』にパスを追加（例: `~/Desktop/triplethree/triple-onboarding`）
+2. 『鉤をかける』→ 診断が「監視中」になる
+3. その repo での **ローカル commit** が供給になる（GitHub 上の PR 作成だけでは溜まらない）
+
+CLI でも可:
 
 ```bash
 ./scripts/setup-git-hook.sh /path/to/your-repo
 ```
+
+登録一覧は `~/.applied-loop/watched-repos.json`。
 
 ### ③ 進める（詳細）
 
@@ -103,7 +111,7 @@ git hook:
 | サンプルしれん提出 | 最短 #1 |
 | MCP 疎通／できた | 最短 #3 |
 | チュートリアル完了 | 最短 #1〜4 |
-| git hook | 本運用 ②（任意） |
+| 監視リポジトリ / git hook | 本運用 ②（任意）。未選択＝自動蓄積なし |
 | じゅもん WS | 最短でじゅもん道を選ぶ場合 |
 
 ---

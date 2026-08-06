@@ -1039,8 +1039,34 @@ const handler = createMcpHandler(
             );
           } else {
             lines.push(
-              "- 今日のしれん: なし（コミット or request_gate で供給せよ）",
+              "- 今日のしれん: なし（監視中 repo へのコミット or request_gate で供給せよ）",
             );
+          }
+          try {
+            const {
+              probeWatchedRepos,
+              summarizeWatched,
+              repoLabel,
+            } = await import("@/lib/watched-repos");
+            const watched = probeWatchedRepos();
+            const ws = summarizeWatched(watched);
+            if (ws.total === 0) {
+              lines.push(
+                "- 監視リポジトリ: なし（watch_repos で追加しないと commit 供給は増えない）",
+              );
+            } else {
+              const names = watched
+                .map(
+                  (r) =>
+                    `${repoLabel(r)}:${r.connected ? "監視中" : "未接続"}`,
+                )
+                .join(", ");
+              lines.push(
+                `- 監視リポジトリ: ${ws.connected}/${ws.total} 監視中（${names}）`,
+              );
+            }
+          } catch {
+            /* ignore */
           }
           const yClear = yesterdayGraded.filter((g) =>
             ["passed", "self_graded_pass"].includes(g.status),
@@ -1310,6 +1336,138 @@ const handler = createMcpHandler(
         return result.ok
           ? text(result.message)
           : { ...text(result.message), isError: true };
+      },
+    );
+
+    server.registerTool(
+      "watch_repos",
+      {
+        description: [
+          "しれん供給の対象リポジトリ（git hook）を一覧・追加・外す。",
+          "GitHub の PR 作成だけでは溜まらない。ローカル commit を拾う repo を明示登録する。",
+          "ユーザーが「このリポジトリを監視して」「監視一覧」と明示したとき、またはじゅんび相当の設定を会話で行うときに呼ぶ。",
+          "action=list（既定）: 監視中/未接続を返す。",
+          "action=add: path を登録し、既定で鉤（post-commit）をかける。",
+          "action=remove: 監視リストから外し鉤も外す。",
+        ].join(" "),
+        inputSchema: {
+          action: z
+            .enum(["list", "add", "remove"])
+            .optional()
+            .describe("list（省略時）/ add / remove"),
+          path: z
+            .string()
+            .optional()
+            .describe(
+              "git リポジトリの絶対パスまたは ~/… 。add/remove で必須。例: ~/Desktop/triplethree/triple-onboarding",
+            ),
+          installHook: z
+            .boolean()
+            .optional()
+            .describe("add 時に鉤をかけるか（既定 true）"),
+        },
+      },
+      async ({ action, path, installHook }) => {
+        await requireAuth();
+        const act = action ?? "list";
+        const {
+          addWatchedRepo,
+          disconnectRepoHook,
+          installHooksForRepos,
+          probeWatchedRepos,
+          removeWatchedRepo,
+          repoLabel,
+          summarizeWatched,
+        } = await import("@/lib/watched-repos");
+
+        if (act === "list") {
+          const rows = probeWatchedRepos();
+          const s = summarizeWatched(rows);
+          if (rows.length === 0) {
+            return text(
+              [
+                "監視リポジトリ: まだ無い。",
+                "仕事 repo を watch_repos action=add path=… で登録せよ。",
+                "未登録のままではコミットからしれんは増えない（request_gate は別経路）。",
+              ].join("\n"),
+            );
+          }
+          const lines = [
+            `# 監視リポジトリ 登録 ${s.total} / 監視中 ${s.connected}`,
+            "",
+            ...rows.map((r) => {
+              const st = !r.isGit
+                ? "gitではない"
+                : r.connected
+                  ? "監視中"
+                  : "未接続";
+              return `- [${st}] ${repoLabel(r)} — ${r.path}`;
+            }),
+            "",
+            "未接続なら watch_repos action=add path=…（installHook true）で鉤をかけよ。",
+          ];
+          return text(lines.join("\n"));
+        }
+
+        const rawPath = path?.trim() ?? "";
+        if (!rawPath) {
+          return {
+            ...text("path が必要です（例: ~/Desktop/triplethree/triple-onboarding）。"),
+            isError: true,
+          };
+        }
+
+        if (act === "remove") {
+          disconnectRepoHook(rawPath);
+          const res = removeWatchedRepo(rawPath);
+          if (!res.ok) {
+            return { ...text(res.error), isError: true };
+          }
+          return text(
+            res.removed
+              ? `監視から外した: ${rawPath}`
+              : `リストに無かった（鉤だけ外していれば完了）: ${rawPath}`,
+          );
+        }
+
+        // add
+        const added = addWatchedRepo({ path: rawPath });
+        if (!added.ok) {
+          return { ...text(added.error), isError: true };
+        }
+        const doInstall = installHook !== false;
+        if (doInstall) {
+          const inst = installHooksForRepos([added.repo.path]);
+          if (!inst.ok) {
+            return {
+              ...text(
+                `リストには入れたが鉤に失敗: ${inst.error ?? inst.output}\npath=${added.repo.path}`,
+              ),
+              isError: true,
+            };
+          }
+          try {
+            const { recordActivationOnce } = await import(
+              "@/lib/activation-funnel"
+            );
+            recordActivationOnce("hook_installed", { source: "mcp_watch_repos" });
+          } catch {
+            /* ignore */
+          }
+          const rows = probeWatchedRepos();
+          const row = rows.find((r) => r.path === added.repo.path);
+          return text(
+            [
+              `監視開始: ${repoLabel(added.repo)}`,
+              `path: ${added.repo.path}`,
+              `状態: ${row?.connected ? "監視中（鉤OK）" : "未接続（鉤を確認せよ）"}`,
+              "この repo へのローカル commit がしれん供給になる。PR 作成だけでは溜まらない。",
+            ].join("\n"),
+          );
+        }
+        return text(
+          `リストに追加した（鉤は未実行）: ${added.repo.path}\n鉤をかけるなら installHook=true で再実行。`,
+        );
       },
     );
   },

@@ -597,6 +597,70 @@ export async function completeTutorialAction(): Promise<void> {
   revalidatePath("/");
 }
 
+/** 監視リポジトリを追加（まだ鉤はかけない） */
+export async function addWatchedRepoAction(
+  path: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAuth();
+  const { addWatchedRepo } = await import("@/lib/watched-repos");
+  const res = addWatchedRepo({ path });
+  if (!res.ok) return res;
+  revalidatePath("/setup");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/** 監視リストから外し、可能なら hook marker も外す */
+export async function removeWatchedRepoAction(
+  path: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAuth();
+  const { disconnectRepoHook, removeWatchedRepo } = await import(
+    "@/lib/watched-repos"
+  );
+  disconnectRepoHook(path);
+  const res = removeWatchedRepo(path);
+  if (!res.ok) return res;
+  revalidatePath("/setup");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/** 登録済み（または指定 path）に setup-git-hook を適用 */
+export async function installWatchedReposAction(opts?: {
+  paths?: string[];
+}): Promise<{ ok: true; output: string } | { ok: false; error: string }> {
+  await requireAuth();
+  const {
+    installHooksForRepos,
+    listWatchedRepos,
+    addWatchedRepo,
+  } = await import("@/lib/watched-repos");
+
+  let targets: string[] = [];
+  if (opts?.paths?.length) {
+    for (const p of opts.paths.filter(Boolean)) {
+      const added = addWatchedRepo({ path: p });
+      if (!added.ok) return { ok: false, error: added.error };
+      targets.push(added.repo.path);
+    }
+  } else {
+    targets = listWatchedRepos().map((r) => r.path);
+  }
+  if (targets.length === 0) {
+    return { ok: false, error: "先にリポジトリパスを追加せよ" };
+  }
+  const res = installHooksForRepos(targets);
+  revalidatePath("/setup");
+  revalidatePath("/");
+  if (!res.ok) {
+    return { ok: false, error: res.error ?? (res.output || "install failed") };
+  }
+  const { recordActivationOnce } = await import("@/lib/activation-funnel");
+  recordActivationOnce("hook_installed", { source: "setup_ui" });
+  return { ok: true, output: res.output };
+}
+
 /** B3-3: 初 CLEAR 後に証跡ナビを出すか */
 export async function getEvidenceNavUnlocked(): Promise<boolean> {
   try {

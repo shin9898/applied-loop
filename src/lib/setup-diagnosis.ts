@@ -1,6 +1,3 @@
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import net from "node:net";
 import { prisma } from "@/lib/db";
 import { dateKeyJST, dayStartJST } from "@/lib/date";
@@ -17,6 +14,13 @@ import {
   readTutorialState,
 } from "@/lib/tutorial-state";
 import { recentGenFailures } from "@/lib/gate";
+import {
+  hookBodyInstalled,
+  probeWatchedRepos,
+  repoLabel,
+  summarizeWatched,
+  type WatchedRepoStatus,
+} from "@/lib/watched-repos";
 
 export type SetupCheckId =
   | "app"
@@ -75,6 +79,8 @@ export type SetupDiagnosis = {
   };
   /** git hook 本体が ~/.applied-loop にあるか */
   gitHookInstalled: boolean;
+  /** 監視登録した repo と接続状態（リポジトリ粒度） */
+  watchedRepos: WatchedRepoStatus[];
   /** 直近24h のしれん生成失敗 */
   genFailures: { auth: number; other: number };
 };
@@ -118,8 +124,9 @@ export async function loadSetupDiagnosis(opts?: {
     ? await probePort("127.0.0.1", 3101)
     : false;
 
-  const hookBody = join(homedir(), ".applied-loop", "hooks", "post-commit");
-  const gitHook = existsSync(hookBody);
+  const gitHook = hookBodyInstalled();
+  const watchedRepos = probeWatchedRepos();
+  const watchedSummary = summarizeWatched(watchedRepos);
   const tutorialState = readTutorialState();
   const mcpRecent = mcpTouchedRecently();
   const sampleSubmitted = await isTutorialGateSubmitted();
@@ -130,8 +137,10 @@ export async function loadSetupDiagnosis(opts?: {
       tutorialState.llmTrack &&
       llmStepDone &&
       (tutorialState.completedAt ||
-        gitHook ||
-        tutorialState.hookSkipped),
+        watchedSummary.anyConnected ||
+        tutorialState.hookSkipped ||
+        // 移行猶予: 旧「鉤本体だけ」完了も認める
+        gitHook),
   );
 
   const now = new Date();
@@ -258,15 +267,26 @@ export async function loadSetupDiagnosis(opts?: {
     },
     {
       id: "git_hook",
-      label: "足跡を拾う鉤（git hook）",
-      ok: gitHook,
+      label: "足跡を拾う鉤（監視リポジトリ）",
+      ok: watchedSummary.anyConnected,
       required: false,
-      detail: gitHook
-        ? "鉤は ~/.applied-loop/hooks にかかっておる"
-        : "鉤がまだない。コミットからしれんの種が生えぬぞ（今は飛ばしてよい）",
-      howTo: "`./scripts/setup-git-hook.sh /path/to/your-repo`",
+      detail: (() => {
+        if (watchedSummary.total === 0) {
+          return gitHook
+            ? "鉤本体はあるが、監視リポジトリが未選択。仕事 repo を選ばないと学びは自動では溜まらぬ"
+            : "監視リポジトリ未選択。選んで鉤をかけぬ限り、コミットからしれんは増えぬ（request_gate は別経路）";
+        }
+        const lines = watchedRepos.map((r) => {
+          const name = repoLabel(r);
+          if (!r.isGit) return `${name}: 未接続（git ではない）`;
+          return r.connected ? `${name}: 監視中` : `${name}: 未接続（鉤なし）`;
+        });
+        return `登録 ${watchedSummary.total} / 監視中 ${watchedSummary.connected} — ${lines.join(" · ")}`;
+      })(),
+      howTo:
+        "/setup の『監視リポジトリ』でパスを追加し『鉤をかける』。または `./scripts/setup-git-hook.sh /path/to/repo`",
       plain:
-        "git commit 後にイベントが送られ、しれん（理解度チェック）候補が自動で増える。Cloud では動かぬことも多い（ベストエフォート）。",
+        "選んだリポジトリへの git commit だけがしれんの種になる。GitHub の PR 作成だけでは溜まらない。Cloud 作業が主なら request_gate か、今は飛ばしてもよい。",
     },
     {
       id: "grading_cli",
@@ -336,7 +356,8 @@ export async function loadSetupDiagnosis(opts?: {
     tutorialGateId: TUTORIAL_GATE_ID,
     mcpEndpoint,
     mcpSnippets,
-    gitHookInstalled: gitHook,
+    gitHookInstalled: gitHook || watchedSummary.anyConnected,
+    watchedRepos,
     genFailures,
   };
 }

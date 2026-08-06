@@ -20,6 +20,7 @@ import {
 } from "@/lib/actions";
 import { AtlasCloudMcpWizardSection } from "./atlas-cloud-mcp-wizard";
 import { AtlasVoicePlain } from "./atlas-voice-plain";
+import { AtlasWatchedReposPanel } from "./atlas-watched-repos";
 
 const INTRO_KEY = "atlas-world-intro-seen";
 
@@ -354,16 +355,13 @@ export function AtlasSetupPanel({
         {current === "hook" ? (
           <div id="git-hook" className="mt-2 space-y-2 scroll-mt-24">
             <p className="m-0 text-[15px] text-[#f7f3d9]">
-              （任意）git hook でしれんを増やす
+              （任意）監視リポジトリを選んで鉤をかける
             </p>
             <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-              毎日の自動生成用。今は飛ばして、あとからでもよい。
+              選んだ repo への commit だけがしれんの種になる。仕事していれば勝手に溜まるわけではない。Cloud 作業が主なら今は飛ばしてよい。
             </p>
-            <pre className="m-0 overflow-x-auto border-[2px] border-white bg-[#000c4a] p-2.5 text-[11px] text-[#f7f3d9]">
-              {"./scripts/setup-git-hook.sh /path/to/your-repo"}
-            </pre>
+            <AtlasWatchedReposPanel repos={diagnosis.watchedRepos} />
             <div className="flex flex-wrap gap-2">
-              <CopyButton text="./scripts/setup-git-hook.sh /path/to/your-repo" />
               <button
                 type="button"
                 disabled={pending}
@@ -374,11 +372,14 @@ export function AtlasSetupPanel({
               </button>
               <button
                 type="button"
-                disabled={pending}
+                disabled={
+                  pending ||
+                  !diagnosis.watchedRepos.some((r) => r.connected)
+                }
                 className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]"
                 onClick={() => run(() => completeTutorialAction())}
               >
-                hook 済みとして完了
+                監視中として完了
               </button>
             </div>
           </div>
@@ -392,12 +393,12 @@ export function AtlasSetupPanel({
             </p>
             <div className="grid gap-2 border-[2px] border-[#002070] bg-[#000c4a] p-2.5">
               <p className="m-0 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
-                A. git hook（毎日の自動）
+                A. 監視リポジトリ + git hook（毎日の自動）
               </p>
-              <pre className="m-0 overflow-x-auto text-[11px] text-[#f7f3d9]">
-                {"./scripts/setup-git-hook.sh /path/to/your-repo"}
-              </pre>
-              <CopyButton text="./scripts/setup-git-hook.sh /path/to/your-repo" />
+              <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+                下の『監視リポジトリ』でパスを追加し鉤をかける。未登録 repo
+                の PR 作業は溜まらない。
+              </p>
             </div>
             <div className="grid gap-2 border-[2px] border-[#002070] bg-[#000c4a] p-2.5">
               <p className="m-0 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
@@ -432,6 +433,11 @@ export function AtlasSetupPanel({
           </div>
         ) : null}
       </div>
+
+      {/* 監視リポジトリ（チュートリアル後も常時。hook ステップ内でも出す） */}
+      {current !== "hook" ? (
+        <AtlasWatchedReposPanel repos={diagnosis.watchedRepos} />
+      ) : null}
 
       {/* Cloud / Reachable MCP（任意・1手ウィザード。既定たたみ） */}
       <AtlasCloudMcpWizardSection diagnosis={diagnosis} />

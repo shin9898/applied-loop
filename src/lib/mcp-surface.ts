@@ -5,13 +5,14 @@
 
 export type McpSurface = "core" | "full";
 
-/** core 面（≤6）。P1 で request_gate を追加 */
+/** core 面（≤7）。供給対象 repo の確認・登録を含む */
 export const MCP_CORE_TOOLS = [
   "morning_briefing",
   "list_pending_gates",
   "request_gate",
   "answer_gate",
   "get_gate_result",
+  "watch_repos",
 ] as const;
 
 export type McpCoreTool = (typeof MCP_CORE_TOOLS)[number];

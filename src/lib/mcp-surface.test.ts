@@ -17,9 +17,10 @@ describe("mcp-surface", () => {
     assert.equal(resolveMcpSurface({ MCP_SURFACE: "full" }), "full");
   });
 
-  it("core allows briefing/list/request/answer/get_result only", () => {
-    assert.equal(MCP_CORE_TOOLS.length <= 6, true);
+  it("core allows briefing/list/request/answer/get_result/watch_repos", () => {
+    assert.equal(MCP_CORE_TOOLS.length <= 7, true);
     assert.ok(MCP_CORE_TOOLS.includes("request_gate"));
+    assert.ok(MCP_CORE_TOOLS.includes("watch_repos"));
     for (const t of MCP_CORE_TOOLS) {
       assert.equal(mcpToolAllowedOnSurface(t, "core"), true);
     }

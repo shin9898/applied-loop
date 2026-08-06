@@ -33,6 +33,7 @@ v3 までの「アプリで回答・登録・承認」は使われない体験�
 | `register_goals` | Goal OS から読んだ目標を登録 (goals: [{title, period, kdi, focusDomains}])。LLM が Goal OS ドキュメントを読み、構造化提案したものをユーザー承認後に呼ぶ。既存 active Goal との重複は title 近似で検出して警告 |
 | `suggest_cache_prefix_fix` | repo の cache 再利用率から安定プレフィックス向け advisory 処方を返す（ADR-0017）。強制書き込みしない。適用後は `record_application` で appliedTo に repo |
 | `find_related_learnings` | タスク起点ビュー用。クエリ (タスク名・キーワード) に関連する Entry / open Misconception / pending Gate を LLM 検索 (別呼び出し) で返す |
+| `watch_repos` | しれん供給対象リポジトリの一覧 / 追加（鉤かけ） / 外す。core 面にも含む |
 
 - 既存 `capture_learning_candidate` / `record_application` / `morning_briefing` は維持
 - 全ツール Bearer 認証 (既存と共通)
