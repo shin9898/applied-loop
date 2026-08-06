@@ -12,16 +12,18 @@ export const TUTORIAL_LLM_LABELS: Record<TutorialLlmTrack, string> = {
   jumon: "じゅもん（アプリ内）",
 };
 
-/** 貼るだけの依頼文。ツール名は文中に埋め、ユーザーはコピーだけする */
+/** 貼るだけの依頼文。ツール名は文中に埋め、ユーザーはコピーだけする（ADR-0019 P0 B4-2） */
 export function tutorialPastePrompt(
   track: TutorialLlmTrack,
   mcpUrl = "http://localhost:3100/api/mcp",
 ): string {
   const common = [
     "Applied Loop の MCP（applied-loop）を使ってください。",
-    "まず morning_briefing を呼び、今日の受信箱と出題中のしれん（理解度チェック）を短くまとめてください。",
-    "出題があれば list_pending_gates で詳細を確認し、どれを解くか提案してください。",
+    "【最初にやること】まず list_pending_gates を呼び、出題中のしれん（理解度チェック）を一覧してください。",
+    "一覧が出たら、どれを解くか短く提案してください。",
+    "続けて morning_briefing で今日の要点を1段落にまとめてください。",
     "合否は会話中に断定せず、回答はユーザーが提出を明示したあと answer_gate で送ってください。",
+    "結果確認は get_gate_result か Web のしれん画面です。",
   ].join("\n");
 
   if (track === "jumon") {
@@ -37,28 +39,26 @@ export function tutorialPastePrompt(
       "",
       common,
       "",
-      "MCP 未登録なら先に:",
+      "MCP 未登録なら先に（その環境で）:",
       `claude mcp add --transport http applied-loop ${mcpUrl} --header "Authorization: Bearer <MCP_TOKEN>"`,
-      "Claude Code on the web ならリポジトリ根の .mcp.json（type: http）。詳細: /setup『Cloud の生成AIからも同じループ』→ Claude Code",
     ].join("\n");
   }
   if (track === "cursor") {
     return [
-      "（Cursor の Agent チャットにこのまま貼る。先に ~/.cursor/mcp.json へ applied-loop を登録）",
+      "（Cursor の Agent チャットにこのまま貼る。先に MCP へ applied-loop を登録）",
       "",
       common,
       "",
       `MCP URL: ${mcpUrl}`,
-      "Cloud Agent なら Desktop の mcp.json ではなく /setup『Cloud の生成AIからも同じループ』→ Cursor（cursor.com/agents で Add MCP）。",
+      "Cloud Agent なら Desktop の mcp.json ではなく /setup の Cloud カード（任意・後回しで可）。",
     ].join("\n");
   }
   return [
-    "（Codex のチャットにこのまま貼る。先に ~/.codex/config.toml へ applied-loop を登録）",
+    "（Codex のチャットにこのまま貼る。先に config へ applied-loop を登録）",
     "",
     common,
     "",
     `MCP URL: ${mcpUrl}`,
-    "別ホストなら .codex/config.toml（trusted）+ export MCP_TOKEN。詳細: /setup『Cloud の生成AIからも同じループ』→ Codex",
   ].join("\n");
 }
 

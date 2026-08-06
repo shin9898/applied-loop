@@ -6,11 +6,15 @@ import {
 } from "./tutorial-constants";
 
 describe("tutorialPastePrompt", () => {
-  it("embeds morning briefing instruction for all tracks", () => {
+  it("leads with list_pending_gates then morning_briefing", () => {
     for (const track of ["claude", "cursor", "codex", "jumon"] as const) {
       const p = tutorialPastePrompt(track);
+      assert.match(p, /list_pending_gates/);
       assert.match(p, /morning_briefing/);
-      assert.match(p, /list_pending_gates|出題/);
+      assert.ok(
+        p.indexOf("list_pending_gates") < p.indexOf("morning_briefing"),
+        "list_pending_gates should come before morning_briefing",
+      );
     }
   });
 

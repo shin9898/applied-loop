@@ -21,6 +21,10 @@ import {
 } from "@/lib/requirement";
 import { parseGradePayload } from "@/lib/grade-payload";
 import { enrichMissingGateDomains } from "@/lib/place-enrich";
+import {
+  mcpToolAllowedOnSurface,
+  resolveMcpSurface,
+} from "@/lib/mcp-surface";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +65,15 @@ function parseJsonArray(raw: string | null): unknown[] {
 
 const handler = createMcpHandler(
   (server) => {
+    // ADR-0019 P0: 既定 core。本人は MCP_SURFACE=full
+    const surface = resolveMcpSurface();
+    const registerTool = server.registerTool.bind(server);
+    server.registerTool = ((name: string, ...rest: unknown[]) => {
+      if (!mcpToolAllowedOnSurface(name, surface)) return undefined;
+      // mcp-handler の型は可変。面フィルタだけ差し込む
+      return (registerTool as (...args: unknown[]) => unknown)(name, ...rest);
+    }) as typeof server.registerTool;
+
     server.registerTool(
       "capture_learning_candidate",
       {
@@ -208,8 +221,11 @@ const handler = createMcpHandler(
     server.registerTool(
       "list_pending_gates",
       {
-        description:
-          "出題中の理解度ゲートを返す。セッション内で回答する入口。各ゲートの question / contextSummary / resources / rubric / gateId / repo を含む。",
+        description: [
+          "出題中のしれん（理解度チェック）を一覧する。MCP 接続直後やユーザーが「出題を見て」と言ったら先に呼ぶ。",
+          "返す順は contextSummary（文脈）→ question（問い）→ resources（手がかり）。",
+          "呼んだあと: どれを解くか提案し、ユーザーが提出を明示したら answer_gate。合否は会話中に断定しない。",
+        ].join(" "),
         inputSchema: {},
       },
       async () => {
@@ -229,7 +245,12 @@ const handler = createMcpHandler(
           },
         });
         if (gates.length === 0) {
-          return text("出題中のゲートはありません。");
+          return text(
+            [
+              "出題中のしれんはありません。",
+              "次の一手: 自分の repo に git hook を入れる（./scripts/setup-git-hook.sh <repo>）か、コミット後に再確認。",
+            ].join("\n"),
+          );
         }
         // 弱い観点ラベルが問い／論点に含まれるものを前へ (ADR-0011)
         const scored = gates.map((g) => {
@@ -255,21 +276,21 @@ const handler = createMcpHandler(
             (g.targetConcept ? `論点: ${g.targetConcept}` : null) ||
             "(文脈なし)";
           lines.push(`## gateId: ${g.id}`);
-          lines.push(`- question: ${g.question}`);
           lines.push(`- contextSummary: ${contextSummary}`);
+          lines.push(`- question: ${g.question}`);
+          lines.push(
+            `- resources: ${resources.length > 0 ? JSON.stringify(resources) : "[]"}`,
+          );
           lines.push(`- repo: ${g.event?.repo ?? "(なし)"}`);
           lines.push(`- kind: ${g.kind}`);
           if (g.domain) lines.push(`- domain: ${g.domain}`);
           lines.push(
-            `- rubric: ${rubric.length > 0 ? JSON.stringify(rubric) : "[]"}`
-          );
-          lines.push(
-            `- resources: ${resources.length > 0 ? JSON.stringify(resources) : "[]"}`
+            `- rubric: ${rubric.length > 0 ? JSON.stringify(rubric) : "[]"}`,
           );
           lines.push("");
         }
         lines.push(
-          "回答は answer_gate(gateId, answer) で送信してください。採点結果は即時には返りません。"
+          "ユーザーが提出を明示したら answer_gate(gateId, answer)。採点は非同期。合否は get_gate_result か Web のしれん画面で確認（会話中に断定しない）。",
         );
         return text(lines.join("\n"));
       }
@@ -278,8 +299,12 @@ const handler = createMcpHandler(
     server.registerTool(
       "answer_gate",
       {
-        description:
-          "理解度ゲートへの回答を受理する。採点は非同期で行われ、合否は返さない。結果は get_gate_result かダッシュボードで確認する。アプリ内ターミナル経由の場合は source: \"terminal\" を付ける (ADR-0015)。",
+        description: [
+          "しれん（理解度チェック）への回答を受理する。ユーザーが「提出する／送って」と明示したときだけ呼ぶ。",
+          "採点は非同期。合否・点数は絶対に返さない（会話中の迎合を防ぐ）。",
+          "呼んだあと: ユーザーに get_gate_result か Web のしれん画面で後で確認するよう伝える。",
+          'アプリ内じゅもん経由なら source: "terminal"。',
+        ].join(" "),
         inputSchema: {
           gateId: z.string().describe("ゲート ID (list_pending_gates で取得)"),
           answer: z.string().describe("自分の言葉での説明"),
@@ -287,7 +312,7 @@ const handler = createMcpHandler(
             .enum(["mcp", "terminal"])
             .optional()
             .describe(
-              '回答経路。terminal=アプリ内ターミナル (answerMode=assisted)。省略時は mcp 相当 (in_session)'
+              '回答経路。terminal=アプリ内ターミナル (answerMode=assisted)。省略時は mcp 相当 (in_session)',
             ),
         },
       },
@@ -303,7 +328,11 @@ const handler = createMcpHandler(
           return { ...text(result.message), isError: true };
         }
         return text(
-          "回答を受け付けました。採点は非同期で行われます。結果は get_gate_result かダッシュボードで確認してください。"
+          [
+            "回答を受理しました。採点は非同期です。合否はこの応答には含めません。",
+            `結果確認: get_gate_result(gateId: "${gateId}") または http://localhost:3100/gates/${gateId}`,
+            "つまずきが記録されたらずかん（http://localhost:3100/zukan）も見てください。",
+          ].join("\n"),
         );
       }
     );
@@ -311,8 +340,11 @@ const handler = createMcpHandler(
     server.registerTool(
       "get_gate_result",
       {
-        description:
-          "ゲートの採点結果 (verdict / feedback / rubric / answerMode) を返す。未採点なら状態を返す。",
+        description: [
+          "しれんの採点結果を返す（verdict / feedback / rubric / answerMode）。",
+          "answer_gate のあと、ユーザーが結果を聞いたとき、または採点待ちの確認で呼ぶ。",
+          "未採点なら grading / pending 状態を返す。合否を推測で埋めない。",
+        ].join(" "),
         inputSchema: {
           gateId: z.string().describe("ゲート ID"),
         },
@@ -811,8 +843,11 @@ const handler = createMcpHandler(
     server.registerTool(
       "morning_briefing",
       {
-        description:
-          "その日最初のセッションで必ず呼ぶ。出題中ゲート・受信箱件数・未解消誤解・今週の目標証跡・アクティブ実験の状態を返す。アクションは list_pending_gates / triage_inbox 等の MCP ツールでセッション内完結する。",
+        description: [
+          "その日最初のセッションで呼ぶ朝の要約。出題中のしれん・未解消のつまずき・今日の一手の手がかりを返す。",
+          "呼んだあと: 出題があれば list_pending_gates で詳細を見て、どれを解くか提案する。",
+          "合否の断定や answer_gate はユーザーが提出を明示するまで行わない。",
+        ].join(" "),
         inputSchema: {},
       },
       async () => {

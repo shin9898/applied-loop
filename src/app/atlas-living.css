@@ -264,6 +264,20 @@ body.atlas-dq::after {
   user-select: none;
 }
 
+.atlas-cmd-dock__plain {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  font-weight: normal;
+  letter-spacing: 0;
+  color: #9a9470;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.atlas-cmd-dock__grid a.is-active .atlas-cmd-dock__plain {
+  color: #c9c3a0;
+}
+
 .atlas-cmd-dock__grid a.is-active {
   color: var(--atlas-gold);
 }

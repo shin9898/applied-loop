@@ -10,14 +10,12 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+/** ADR-0019 P0: コア4面のみ。他は直 URL / MCP_SURFACE=full */
 const NAV = [
-  { href: "/", label: "ちず" },
-  { href: "/zukan", label: "ずかん" },
-  { href: "/gates", label: "しれん" },
-  { href: "/goals", label: "もくひょう" },
-  { href: "/harness", label: "どうぐ" },
-  { href: "/entries", label: "にっき" },
-  { href: "/setup", label: "じゅんび" },
+  { href: "/", label: "ちず", plain: "ホーム" },
+  { href: "/gates", label: "しれん", plain: "理解チェック" },
+  { href: "/zukan", label: "ずかん", plain: "つまずき" },
+  { href: "/setup", label: "じゅんび", plain: "セットアップ" },
 ] as const;
 
 const STORAGE_KEY = "atlas-cmd-dock-v1";
@@ -243,9 +241,14 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
           const active = pathActive(pathname, n.href);
           return (
             <li key={n.href}>
-              <Link href={n.href} className={active ? "is-active" : undefined}>
+              <Link
+                href={n.href}
+                className={active ? "is-active" : undefined}
+                title={`${n.label}（${n.plain}）`}
+              >
                 <span className="atlas-cmd-dock__cur" aria-hidden />
                 {n.label}
+                <span className="atlas-cmd-dock__plain"> {n.plain}</span>
               </Link>
             </li>
           );

@@ -573,16 +573,15 @@ export function AtlasCloudMcpWizardSection({
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    // ADR-0019 P0 B12-3: 初回視界から外す。明示オープン時のみ開く
     try {
       const saved = localStorage.getItem(CLOUD_WIZARD_OPEN_KEY);
-      if (saved === "1") setOpen(true);
-      else if (saved === "0") setOpen(false);
-      else setOpen(diagnosis.mcpEndpoint.reachable);
+      setOpen(saved === "1");
     } catch {
-      setOpen(diagnosis.mcpEndpoint.reachable);
+      setOpen(false);
     }
     setHydrated(true);
-  }, [diagnosis.mcpEndpoint.reachable]);
+  }, []);
 
   const toggle = (next: boolean) => {
     setOpen(next);

@@ -1,39 +1,53 @@
 # Applied Loop
 
-LLM 作業中の学びと、vibe coding の理解ギャップを、**証跡が残るループ**に変える。
+AI に書かせたコードについて、**自分の理解を試す出題（しれん）**が届き、答えるとつまずきが**ずかん**に貯まるローカルツール。
 
-UI は Living Atlas（ぼうけんのしょ）。操作の正典は **MCP**（アプリは地図・診断・じゅもんの入口）。
+UI は Living Atlas。操作の正典は **MCP**（Web は地図・診断・提出入口）。
 
-プロダクト基盤: [docs/adr/0001-product-foundation.md](docs/adr/0001-product-foundation.md)  
-**初回セットアップ正本: [docs/onboarding.md](docs/onboarding.md)**  
-MCP 詳細: [docs/mcp-setup.md](docs/mcp-setup.md)  
-Cloud Agent: [docs/cloud-mcp.md](docs/cloud-mcp.md)
+**進捗正本（Phase）:** [docs/phase-progress.md](docs/phase-progress.md) · [ADR-0019](docs/adr/0019-core-loop-phases.md)  
+初回セットアップ詳細: [docs/onboarding.md](docs/onboarding.md)
 
-## クイックスタート
+---
+
+## 仲間向け・最短（これだけ）
+
+1. 起動（2コマンド）
 
 ```bash
-cp .env.example .env   # MCP_TOKEN と ENABLE_TERMINAL を編集
-npm install
-npx prisma migrate dev
-npm run dev:all        # http://localhost:3100  +  WS :3101
+npm run setup          # install / .env生成 / migrate / sample seed
+npm run dev:all        # http://localhost:3100
 ```
 
-ブラウザを開く。初回は短い案内のあと、**`/setup`（コマンド「じゅんび」）** のウィザードへ進む。  
-最短は「サンプルしれんを Web で1問提出 → LLM に貼る文で1回呼ぶ」。詳細は [docs/onboarding.md](docs/onboarding.md)。
+2. ブラウザで **[じゅんび](http://localhost:3100/setup)** → サンプルしれんを1問提出（合否は待たなくてよい）
+3. LLM を選び、画面の**貼る文**をチャットへ → 先に `list_pending_gates` が走る
+4. 本運用の供給: `./scripts/setup-git-hook.sh /path/to/your-repo` → コミットでしれんが増える
 
-## 主な画面
+つまずきやすい3点:
+- **採点が出ない** → headless の Claude/Codex CLI にログイン済みか。`npm run regrade -- <gateId>`
+- **ポート** → 3100（Web）/ 3101（じゅもん任意）
+- **hook** → アプリ停止中は queue 退避。`dev:all` 復帰後に届く
+
+---
+
+## クイックスタート（手動）
+
+```bash
+cp .env.example .env   # MCP_TOKEN / MCP_SURFACE=core
+npm install
+npx prisma migrate dev
+npm run dev:all
+```
+
+## 主な画面（コア）
 
 | パス | 役割 |
 |---|---|
-| `/` | WORLD MAP・司令塔・じゅもん（準備不足時は1行バナー） |
-| `/setup` | じゅんび（進行つきチュートリアル＋診断） |
-| `/gates` `/gates/[id]` | しれん一覧／バトル |
-| `/zukan` | つまずきずかん |
-| `/entries` `/inbox/[id]` | にっき・受信箱（棚。仕分けは MCP） |
-| `/goals` | もくひょう（証跡密度） |
-| `/harness` | どうぐ・キャッシュ処方 |
-| `/requirements` | メテオフォール（要件↔理解） |
-| `/lp` | ランディング（waitlist） |
+| `/` | ちず（ホーム） |
+| `/setup` | じゅんび（チュートリアル＋診断） |
+| `/gates` | しれん（理解度チェック） |
+| `/zukan` | ずかん（つまずき） |
+
+本人用の周辺（goals / harness / requirements / Cloud など）は Phase 進行で段階復帰。直 URL と `MCP_SURFACE=full` でも到達可。
 
 ## 構成
 

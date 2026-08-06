@@ -16,6 +16,21 @@ CALL_LINE="sh \"$HOOK_BODY\" || true $MARKER"
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
+if [ $# -eq 0 ]; then
+  echo "使い方: ./scripts/setup-git-hook.sh /path/to/your-repo"
+  echo ""
+  echo "例: ./scripts/setup-git-hook.sh \"$HOME/code/my-app\""
+  echo ""
+  echo "つまずきやすい点:"
+  echo "  - 引数は git リポジトリのルート（.git がある場所）"
+  echo "  - applied-loop の .env に MCP_TOKEN があること（無いと警告のみで進む）"
+  echo "  - アプリが止まっていると hook は queue に退避する → npm run dev:all 後に届く"
+  echo "  - URL を変えるときは ~/.applied-loop/env に APPLIED_LOOP_URL を書く"
+  echo ""
+  echo "次の一手: 上の例どおり repo を渡して再実行"
+  exit 1
+fi
+
 # 認証情報を ~/.applied-loop/env に書き出す (.env の MCP_TOKEN を転記)
 ENV_FILE="$HOME/.applied-loop/env"
 MCP_TOKEN=$(grep "^MCP_TOKEN=" "$SCRIPT_DIR/../.env" 2>/dev/null | cut -d= -f2)

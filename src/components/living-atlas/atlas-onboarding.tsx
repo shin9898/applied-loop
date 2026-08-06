@@ -380,11 +380,26 @@ export function AtlasSetupPanel({
           <div className="mt-2 space-y-2">
             <p className="m-0 text-[15px] text-[#3ecf5a]">チュートリアル完了</p>
             <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-              本運用: 朝に要約 → しれん → 学びの記録。詳細は docs/onboarding.md。
+              つぎは供給（しれんが増える道）。自分の repo に git hook を入れるか、しれん画面で状態を見る。
             </p>
-            <Link href="/" className="dq-btn inline-block !px-3 !py-2 text-[8px]">
-              ちずへもどる
-            </Link>
+            <pre className="m-0 overflow-x-auto border-[2px] border-white bg-[#000c4a] p-2.5 text-[11px] text-[#f7f3d9]">
+              {"./scripts/setup-git-hook.sh /path/to/your-repo"}
+            </pre>
+            <div className="flex flex-wrap gap-2">
+              <CopyButton text="./scripts/setup-git-hook.sh /path/to/your-repo" />
+              <Link
+                href="/gates"
+                className="dq-btn inline-block !px-3 !py-2 text-[8px]"
+              >
+                しれん一覧へ
+              </Link>
+              <Link
+                href="/"
+                className="dq-btn dq-btn-ghost inline-block !px-3 !py-2 text-[8px]"
+              >
+                ちずへもどる
+              </Link>
+            </div>
           </div>
         ) : null}
       </div>

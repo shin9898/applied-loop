@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test src/lib/*.test.ts",
+    "setup": "node scripts/bootstrap-local.mjs",
     "mcp:cloud-config": "node scripts/print-cloud-mcp-config.mjs",
     "import:data": "tsx scripts/import.ts",
     "seed:exp1": "tsx scripts/seed-exp1.ts",

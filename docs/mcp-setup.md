@@ -99,6 +99,11 @@ CLAUDE.md / Cursor Rules / Codex AGENTS に追記する文（必要に応じて�
 }
 ```
 
+## 3.5 ツール面（core / full）
+
+既定は仲間向け **`MCP_SURFACE=core`**（`morning_briefing` / `list_pending_gates` / `answer_gate` / `get_gate_result` のみ）。  
+本人の全ツールは `.env` に `MCP_SURFACE=full`。ADR-0019。
+
 ## 4. Cloud Agent 向け（Reachable MCP）
 
 Cloud VM からは `localhost` に届かない。トンネル等で手元の `/api/mcp` を届け、
