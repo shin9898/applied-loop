@@ -145,10 +145,6 @@ export async function acceptGateAnswer(input: {
     },
   });
 
-  after(() => {
-    gradeGate(id).catch((e) => console.error("[gate] grade failed:", e));
-  });
-
   try {
     const { recordActivationOnce } = await import("@/lib/activation-funnel");
     const { TUTORIAL_GATE_ID } = await import("@/lib/tutorial-constants");
@@ -161,6 +157,15 @@ export async function acceptGateAnswer(input: {
     });
   } catch {
     /* ignore */
+  }
+
+  // Web/MCP request 内は after。CLI・セルフラン等の request 外は直接起動。
+  try {
+    after(() => {
+      gradeGate(id).catch((e) => console.error("[gate] grade failed:", e));
+    });
+  } catch {
+    void gradeGate(id).catch((e) => console.error("[gate] grade failed:", e));
   }
 
   return { ok: true, status: "accepted" };
