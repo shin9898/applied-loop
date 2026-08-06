@@ -1,50 +1,58 @@
 # Applied Loop
 
-読んだ本を、実務の意思決定に変える。
-学び → 実務適用 → 証跡のループで「使った」が残る学習ツール。
+LLM 作業中の学びと、vibe coding の理解ギャップを、**証跡が残るループ**に変える。
 
-プロダクト基盤（Core/Why/What/How）は [docs/adr/0001-product-foundation.md](docs/adr/0001-product-foundation.md) を参照。
+UI は Living Atlas（ぼうけんのしょ）。操作の正典は **MCP**（アプリは地図・診断・じゅもんの入口）。
 
-## セットアップ
+プロダクト基盤: [docs/adr/0001-product-foundation.md](docs/adr/0001-product-foundation.md)  
+**初回セットアップ正本: [docs/onboarding.md](docs/onboarding.md)**  
+MCP 詳細: [docs/mcp-setup.md](docs/mcp-setup.md)
+
+## クイックスタート
 
 ```bash
+cp .env.example .env   # MCP_TOKEN と ENABLE_TERMINAL を編集
 npm install
-npx prisma migrate dev   # dev.db 作成 (プロジェクトルート)
-npx prisma generate      # Prisma Client 生成
-npm run dev              # http://localhost:3000
+npx prisma migrate dev
+npm run dev:all        # http://localhost:3100  +  WS :3101
 ```
 
-## 初期データ移行
+ブラウザを開く。初回は短い世界観モーダルが出る。準備が足りないときはホームに1行バナーが出るので **`/setup`（コマンド「じゅんび」）** の診断に従う。  
+全体の手順は [docs/onboarding.md](docs/onboarding.md) の ①つなぐ → ②集める → ③進める。
 
-pm-learn (`~/.my-copy/pm-learn/entries.jsonl`) と
-SR カード (`~/.claude/learning/sr-cards.json`) を取り込む。冪等なので再実行可。
+## 主な画面
 
-```bash
-npm run import:data      # dry-run は npx tsx scripts/import.ts --dry-run
-npm run seed:exp1        # 実験#1 (メタ dogfooding) の seed
-```
-
-## 週次ダイジェスト
-
-git log と新規 ADR を koki-central へ投影 (my-copy obsidian_capture 経由・read-only 投影)。
-
-```bash
-npm run digest           # dry-run は node scripts/weekly-digest.mjs --dry-run
-```
+| パス | 役割 |
+|---|---|
+| `/` | WORLD MAP・司令塔・じゅもん（準備不足時は1行バナー） |
+| `/setup` | セットアップ診断・はじめの道案内 |
+| `/gates` `/gates/[id]` | しれん一覧／バトル |
+| `/zukan` | つまずきずかん |
+| `/entries` `/inbox/[id]` | にっき・受信箱（棚。仕分けは MCP） |
+| `/goals` | もくひょう（証跡密度） |
+| `/harness` | どうぐ・キャッシュ処方 |
+| `/requirements` | メテオフォール（要件↔理解） |
+| `/lp` | ランディング（waitlist） |
 
 ## 構成
 
-- Next.js 16 (App Router, Turbopack) + TypeScript + Tailwind CSS 4
-- Prisma 7 + SQLite (better-sqlite3 driver adapter)
-  - 公開時は Supabase (Postgres) へ adapter ごと移行予定
-- `/` ダッシュボード (チェックイン・未適用リマインド・期限切れカード)
-- `/entries` 学びの登録と適用記録 (イベント型ループの中核)
-- `/experiments/[id]` オプションの30日実験
-- `/cards` SR カード (SM-2 簡易版)
-- `/lp` ランディングページ (waitlist 登録)
+- Next.js (App Router) + TypeScript + Tailwind
+- Prisma + SQLite（公開時は Postgres 移行予定）
+- MCP: `POST /api/mcp`（Streamable HTTP）
+- アプリ内じゅもん: `scripts/terminal-server.mjs`（`ENABLE_TERMINAL=true`）
+
+## よく使うスクリプト
+
+```bash
+npm run dev:all          # UI + じゅもん
+./scripts/setup-git-hook.sh ~/path/to/repo
+npm run import:data      # 既存 pm-learn 等の取込
+npm run digest           # 週次ダイジェスト投影
+```
 
 ## 運用メモ
 
-- appetite: 8週間 (2026-07-31 起算。業務 KDI 枠外・業務外時間)
-- 意思決定は docs/adr/ に ADR として記録する (テンプレ: 0000-template.md)
-- 週次ふりかえりで digest を投影し、埋もれ対策とする
+- 意思決定は `docs/adr/` に ADR として記録する
+- 書き込みの正本は MCP。しれん提出は `acceptGateAnswer` 一本（バトル直接提出も同経路）。`/entries/new` フォームは廃止（ADR-0010）
+- ハーネスは会話本文を読まない（メタデータのみ, ADR-0009）
+- 発信用ドラフト（Zenn 想定・紹介→設計判断）: [docs/blog/2026-08-why-mcp-async-grade-metadata.md](docs/blog/2026-08-why-mcp-async-grade-metadata.md)

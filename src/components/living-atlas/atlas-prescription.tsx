@@ -3,6 +3,7 @@ import type { CachePrefixPrescription } from "@/lib/cache-prefix-prescription";
 import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
+import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 
 function severityLabel(sev: CachePrefixPrescription["severity"]): string {
   if (sev === "act") return "要対応";
@@ -20,9 +21,11 @@ function severityTone(sev: CachePrefixPrescription["severity"]): string {
 export function AtlasPrescription({
   prescription,
   streakDays,
+  wsToken = null,
 }: {
   prescription: CachePrefixPrescription;
   streakDays?: number;
+  wsToken?: string | null;
 }) {
   const label = severityLabel(prescription.severity);
   const tone = severityTone(prescription.severity);
@@ -37,7 +40,7 @@ export function AtlasPrescription({
   return (
     <AtlasChrome active="/harness" streakDays={streakDays}>
       <AtlasShell>
-        <AtlasReveal as="section" className="dq-win p-3.5">
+        <AtlasReveal as="section">
           <div className="mb-3">
             <Link
               href="/harness"
@@ -45,6 +48,24 @@ export function AtlasPrescription({
             >
               ← どうぐにもどる
             </Link>
+          </div>
+          {wsToken ? (
+            <AtlasAssist
+              wsToken={wsToken}
+              intent="harness"
+              context={`repo: ${prescription.repo}\nseverity: ${prescription.severity}\n${prescription.summary}`}
+              title="じゅもんでこの処方を進める"
+              blurb="この処方を、じゅもんで確かめ、足跡に残せ。"
+            />
+          ) : (
+            <AtlasAssistUnavailable />
+          )}
+        </AtlasReveal>
+        <AtlasReveal as="section" className="dq-win p-3.5">
+          <div className="mb-3">
+            <span className="font-[family-name:var(--font-pixel)] text-[10px] text-[#c9c3a0]">
+              見立ての詳細
+            </span>
           </div>
           <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
             <h1 className="dq-win-title mb-0">しょほう</h1>
@@ -61,6 +82,15 @@ export function AtlasPrescription({
           <p className="mt-2 mb-0 text-[12px] leading-relaxed text-[#c9c3a0]">
             提案のみじゃ。プロジェクトルールへの強制書き込みはせん（ADR-0017）。
           </p>
+          <div className="mt-3 border-l-[3px] border-[#9ec0ff] pl-2.5">
+            <p className="m-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
+              ◆ 判定の閾値
+            </p>
+            <p className="mt-1 mb-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+              危: 前週比悪化≥15%（一覧の危は≥25% or cache&lt;15%）／注: ≥5%／良好: それ未満。
+              良好でも「維持」であり上限ではない。チェックリストで 80% 超を狙えるぞ。
+            </p>
+          </div>
         </AtlasReveal>
 
         {obs ? (

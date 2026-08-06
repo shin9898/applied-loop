@@ -293,41 +293,15 @@ const handler = createMcpHandler(
       },
       async ({ gateId, answer, source }) => {
         await requireAuth();
-        const id = gateId.trim();
-        const ans = answer.trim();
-        if (!id || !ans) {
-          return { ...text("gateId と answer は必須です。"), isError: true };
-        }
-        const gate = await prisma.gate.findUnique({ where: { id } });
-        if (!gate) {
-          return { ...text(`ゲートが見つかりません (id: ${id})。`), isError: true };
-        }
-        if (gate.status !== "pending") {
-          return {
-            ...text(`このゲートは回答を受け付けていません (status: ${gate.status})。`),
-            isError: true,
-          };
-        }
-        if (gate.nextReviewAt && gate.nextReviewAt > new Date()) {
-          return {
-            ...text("このゲートはまだ出題予定前です。"),
-            isError: true,
-          };
-        }
-        // ADR-0015: terminal → assisted。accessedResource がある場合は採点時に researched 優先
-        const answerMode = source === "terminal" ? "assisted" : "in_session";
-        await prisma.gate.update({
-          where: { id },
-          data: {
-            answer: ans,
-            status: "answered",
-            answeredAt: new Date(),
-            answerMode,
-          },
+        const { acceptGateAnswer } = await import("@/lib/gate-answer");
+        const result = await acceptGateAnswer({
+          gateId,
+          answer,
+          source: source === "terminal" ? "terminal" : "mcp",
         });
-        after(() => {
-          gradeGate(id).catch((e) => console.error("[gate] grade failed:", e));
-        });
+        if (!result.ok) {
+          return { ...text(result.message), isError: true };
+        }
         return text(
           "回答を受け付けました。採点は非同期で行われます。結果は get_gate_result かダッシュボードで確認してください。"
         );

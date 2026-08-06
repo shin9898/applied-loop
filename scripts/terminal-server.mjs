@@ -207,10 +207,11 @@ function handleAuth(ws, text, done) {
     return;
   }
 
-  if (msg?.type !== "auth" || typeof msg.token !== "string" || typeof msg.gateId !== "string") {
+  if (msg?.type !== "auth" || typeof msg.token !== "string") {
     sendJson(ws, {
       type: "error",
-      message: '初回メッセージは {type:"auth", token, gateId} である必要があります',
+      message:
+        '初回メッセージは {type:"auth", token, gateId?} または {type:"auth", token, session:"atlas", intent?, context?} である必要があります',
     });
     done(false);
     return;
@@ -222,11 +223,30 @@ function handleAuth(ws, text, done) {
     return;
   }
 
-  const gate = loadGate(msg.gateId.trim());
-  if (!gate) {
+  /** @type {Record<string, unknown> | null} */
+  let gate = null;
+  if (msg.session === "atlas") {
+    gate = {
+      id: "__atlas__",
+      _atlas: true,
+      intent: typeof msg.intent === "string" ? msg.intent.trim() : "general",
+      context: typeof msg.context === "string" ? msg.context.trim() : "",
+      question: typeof msg.context === "string" ? msg.context.trim() : "",
+    };
+  } else if (typeof msg.gateId === "string" && msg.gateId.trim()) {
+    gate = loadGate(msg.gateId.trim());
+    if (!gate) {
+      sendJson(ws, {
+        type: "error",
+        message: `ゲートが見つかりません (id: ${msg.gateId})`,
+      });
+      done(false);
+      return;
+    }
+  } else {
     sendJson(ws, {
       type: "error",
-      message: `ゲートが見つかりません (id: ${msg.gateId})`,
+      message: "gateId か session:\"atlas\" のどちらかが必要です",
     });
     done(false);
     return;
@@ -277,7 +297,11 @@ function spawnPty(ws, gate, shellCmd, opts) {
   // ため、pty 出力が落ち着いたタイミングで送る。最長 10 秒で強制注入。
   // bash 直起動時は注入しても害は少ないが、対話シェルでは邪魔なのでスキップ。
   const skipBootstrap = cmdName === "bash" || cmdName === "zsh" || cmdName === "sh";
-  const bootstrap = skipBootstrap ? null : buildBootstrapPrompt(gate);
+  const bootstrap = skipBootstrap
+    ? null
+    : gate._atlas
+      ? buildAtlasBootstrapPrompt(gate)
+      : buildBootstrapPrompt(gate);
   let injected = skipBootstrap;
   let injectTimer = null;
   let forceTimer = null;
@@ -336,6 +360,73 @@ function buildChildEnv() {
   return env;
 }
 
+function buildAtlasBootstrapPrompt(gate) {
+  const intent = typeof gate.intent === "string" ? gate.intent : "general";
+  const context =
+    (typeof gate.context === "string" && gate.context.trim()) || "(追加コンテキストなし)";
+
+  const intentGuide = {
+    "goal-evidence": [
+      "目的: もくひょうの証跡を残す／確認する。",
+      "- 学び捕捉: capture_learning_candidate",
+      "- 仕分け: triage_inbox",
+      "- 適用記録: record_application（appliedTo に repo/案件）",
+      "- Goal 紐付け提案の承認: approve_goal_link",
+    ].join("\n"),
+    triage: [
+      "目的: 受信箱（にっきの未仕分け）を片付ける。",
+      "- triage_inbox(captureId, action: accept|skip)",
+      "- 必要なら capture_learning_candidate で追加捕捉",
+    ].join("\n"),
+    harness: [
+      "目的: どうぐ／処方を実行する。",
+      "- suggest_cache_prefix_fix(repo)",
+      "- 適用したら record_application（appliedTo に repo）",
+      "- enrich_gate_places で霧を減らしてもよい",
+    ].join("\n"),
+    requirements: [
+      "目的: メテオフォール（要件↔理解）を進める。",
+      "- list_requirements / register_requirement / link_requirement",
+      "- approve_requirement_link / reject_requirement_link",
+    ].join("\n"),
+    gates: [
+      "目的: 出題中のしれんに答える。",
+      "- list_pending_gates → 対話で回答を練る → answer_gate",
+      "- 合否は get_gate_result（会話中に合否を断定するな）",
+    ].join("\n"),
+    general: [
+      "目的: Living Atlas / Applied Loop の操作を MCP で完結させる。",
+      "- morning_briefing / list_pending_gates / answer_gate / get_gate_result",
+      "- capture_learning_candidate / triage_inbox / record_application",
+      "- approve_goal_link / register_goals / find_related_learnings / save_task_mappings",
+      "- suggest_cache_prefix_fix / enrich_gate_places",
+      "- list_requirements / approve_requirement_link",
+    ].join("\n"),
+  };
+
+  const guide = intentGuide[intent] ?? intentGuide.general;
+
+  return [
+    "※これは LLM への指示書です。ユーザーは編集せずこのまま Enter で送信する想定です。",
+    "",
+    "Applied Loop MCP（applied-loop）を使い、アプリ UI と同じ操作をセッション内で完結させてほしい。",
+    "フォームの代わりに MCP ツールを呼べ。ユーザーの明示承認なしに破壊的操作をするな。",
+    "",
+    "【いまの意図】",
+    guide,
+    "",
+    "【ページ／画面のコンテキスト】",
+    context,
+    "",
+    "まず morning_briefing か、意図に合う list_* ツールで現状を把握してから提案せよ。",
+    "",
+    "──── ここから下が見えている人へ ────",
+    "この投稿（プロンプト）は編集せず、そのまま Enter で投げてください。",
+    "上の指示書全体が LLM への依頼です。あなたが追記する必要はありません。",
+    "",
+  ].join("\n");
+}
+
 function buildBootstrapPrompt(gate) {
   const resources = parseJsonArray(gate.resources);
   const rubric = parseJsonArray(gate.rubricCriteria);
@@ -389,6 +480,10 @@ function buildBootstrapPrompt(gate) {
     "",
     'ユーザーが明示的に提出を指示したら、MCP ツール answer_gate(gateId, answer, source: "terminal") で提出して。',
     "採点は非同期の独立ヘッドレス LLM が行う。合否は get_gate_result かアプリのゲート詳細で確認する。",
+    "",
+    "──── ここから下が見えている人へ ────",
+    "この投稿（プロンプト）は編集せず、そのまま Enter で投げてください。",
+    "答えはこの場に書かず、送信後の対話で練ります。",
     "",
   ].join("\n");
 }

@@ -115,6 +115,39 @@
   }
 }
 
+/* じゅもん詠唱中の軽い演出（LLM 作業との連動は雰囲気だけ） */
+@keyframes atlas-cast-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.atlas-assist-casting {
+  box-shadow: 0 0 0 2px rgba(240, 210, 90, 0.35), 6px 6px 0 #000;
+}
+
+.atlas-assist-aura {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% 0%,
+      rgba(240, 210, 90, 0.18),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 40% 30% at 90% 80%,
+      rgba(158, 192, 255, 0.12),
+      transparent 70%
+    );
+  animation: atlas-cast-pulse 2.8s ease-in-out infinite;
+}
+
 .dq-enemy-idle {
   animation: dq-bob 1.2s steps(2) infinite;
 }

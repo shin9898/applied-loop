@@ -24,6 +24,29 @@ const DEFAULT_MARKERS: MapMarker[] = [
   { id: "clear-3", kind: "clear", label: "CLEAR", left: "80%", top: "24%" },
 ];
 
+/** キャンバス上の地形ブロブと対応する領名（ステータスの系統と揃える） */
+const REGION_LABELS: {
+  id: string;
+  name: string;
+  left: string;
+  top: string;
+  tone: string;
+}[] = [
+  { id: "knowledge", name: "知識", left: "20%", top: "34%", tone: "#9dffb0" },
+  { id: "harness", name: "ハーネス", left: "50%", top: "32%", tone: "#7dff9a" },
+  { id: "cache", name: "キャッシュ", left: "80%", top: "34%", tone: "#ffe08a" },
+  { id: "design", name: "設計", left: "22%", top: "78%", tone: "#d0d4dc" },
+  { id: "fog", name: "霧帯", left: "62%", top: "78%", tone: "#9ec0ff" },
+];
+
+export const REGION_LEGEND = [
+  { name: "知識", swatch: "#3caa4a" },
+  { name: "ハーネス", swatch: "#1f6b32" },
+  { name: "キャッシュ", swatch: "#d2b15a" },
+  { name: "設計", swatch: "#8b8f9a" },
+  { name: "霧帯", swatch: "#2a3a5a" },
+] as const;
+
 /** ドットタイルのワールドマップ（知識密度＝まち／き） */
 export function AtlasWorldMap({
   markers = DEFAULT_MARKERS,
@@ -217,6 +240,16 @@ export function AtlasWorldMap({
         style={{ imageRendering: "pixelated" }}
         aria-hidden
       />
+      {/* 領名はピンより薄く、地形の上に常時表示 */}
+      {REGION_LABELS.map((r) => (
+        <span
+          key={r.id}
+          className="pointer-events-none absolute z-[5] -translate-x-1/2 -translate-y-1/2 border border-[#ffffff55] bg-[#000c4ae6] px-2 py-1 font-[family-name:var(--font-pixel)] text-[13px] leading-none tracking-wide drop-shadow-[2px_2px_0_#000]"
+          style={{ left: r.left, top: r.top, color: r.tone }}
+        >
+          {r.name}
+        </span>
+      ))}
       {markers.map((m) => (
         <button
           key={m.id}

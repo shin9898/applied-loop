@@ -4,6 +4,7 @@ import { systemLabel } from "@/lib/atlas-taxonomy";
 import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
+import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 
 export type EntryItem = {
   id: string;
@@ -49,9 +50,17 @@ function groupByDay(items: EntryItem[]): { key: string; label: string; items: En
 export function AtlasEntries({
   items,
   streakDays,
+  evidenceHint,
+  mcpRegisterHint = false,
+  wsToken = null,
 }: {
   items: EntryItem[];
   streakDays?: number;
+  /** もくひょうから来たときの誤解防止バナー */
+  evidenceHint?: { goalId: string; goalTitle?: string } | null;
+  /** /entries/new 旧フォームからのリダイレクト */
+  mcpRegisterHint?: boolean;
+  wsToken?: string | null;
 }) {
   const pending = items.filter((i) => i.pending).length;
   const groups = groupByDay(items);
@@ -59,13 +68,58 @@ export function AtlasEntries({
   return (
     <AtlasChrome active="/entries" streakDays={streakDays}>
       <AtlasShell>
+        {mcpRegisterHint ? (
+          <AtlasReveal as="section" className="dq-win border-[3px] border-[#f0d25a] p-3.5">
+            <h2 className="dq-win-title mb-2">登録フォームは閉じた</h2>
+            <p className="m-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+              学びの登録はじゅもんの道へ移したのじゃ。
+            </p>
+            <p className="mt-1.5 mb-0 border-l-[3px] border-[#9ec0ff] pl-2 text-[12px] leading-relaxed text-[#f7f3d9]">
+              <span className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
+                つまり{" "}
+              </span>
+              下の『じゅもんをとなえる』か外部 MCP で capture_learning_candidate。この一覧は結果の棚。
+            </p>
+          </AtlasReveal>
+        ) : null}
+        {evidenceHint ? (
+          <AtlasReveal as="section" className="dq-win border-[3px] border-[#f0d25a] p-3.5">
+            <h2 className="dq-win-title mb-2">証跡は棚ではなくじゅもんで</h2>
+            <p className="m-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+              下のじゅもんか、もくひょう詳細から残せ。
+            </p>
+            <Link
+              href={`/goals/${evidenceHint.goalId}`}
+              className="dq-btn mt-3 !px-3 !py-2 text-[8px]"
+            >
+              もくひょう詳細へ
+            </Link>
+          </AtlasReveal>
+        ) : null}
+        <AtlasReveal as="section">
+          {wsToken ? (
+            <AtlasAssist
+              wsToken={wsToken}
+              intent={evidenceHint ? "goal-evidence" : "triage"}
+              context={
+                evidenceHint
+                  ? `goalId: ${evidenceHint.goalId}\n${evidenceHint.goalTitle ?? ""}`
+                  : `未仕分け capture: ${pending} 件。triage_inbox で片付けよ。`
+              }
+              title="じゅもんでにっきを動かす"
+              blurb="にっきは棚。仕分けや記録の願いは、じゅもんの道で叶えよ。"
+            />
+          ) : (
+            <AtlasAssistUnavailable />
+          )}
+        </AtlasReveal>
         <AtlasReveal as="section" className="dq-win p-3.5">
           <AtlasPageTitle
             title="にっき"
             sub={pending ? `未仕分け ${pending} 件` : "仕分けはひと段落のようじゃ"}
           />
           <p className="mb-3 text-[12px] leading-relaxed text-[#c9c3a0]">
-            日付で区切る。本文はひらく先で。仕分けの実行は MCP じゃ。
+            日付で区切る。本文はひらく先で。仕分け・適用記録の実行は MCP じゃ（フォームはない）。
           </p>
           {groups.length === 0 ? (
             <p className="text-[14px] text-[#c9c3a0]">まだ記録がないぞ。</p>

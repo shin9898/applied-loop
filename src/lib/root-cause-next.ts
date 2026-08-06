@@ -11,9 +11,28 @@ export type RootCauseNext = {
   actions: { label: string; href: string; reason: string }[];
 };
 
+export type RootCauseDeepLinks = {
+  /** 関連にっき詳細。無ければ一覧 */
+  entryId?: string | null;
+  /** Entry 未確定時の受信箱 */
+  inboxId?: string | null;
+  /** 関連ずかん（誤解）詳細。無ければ一覧 */
+  misconceptionId?: string | null;
+};
+
 export function rootCauseNextSteps(
   cause: GradePayload["rootCause"] | null | undefined,
+  deep?: RootCauseDeepLinks | null,
 ): RootCauseNext | null {
+  const entryHref = deep?.entryId
+    ? `/entries/${deep.entryId}`
+    : deep?.inboxId
+      ? `/inbox/${deep.inboxId}`
+      : "/entries";
+  const zukanHref = deep?.misconceptionId
+    ? `/zukan/${deep.misconceptionId}`
+    : "/zukan";
+
   if (cause === "knowledge") {
     return {
       cause,
@@ -22,13 +41,19 @@ export function rootCauseNextSteps(
       actions: [
         {
           label: "にっきで学びを拾う",
-          href: "/entries",
-          reason: "足りない知識を Entry として残す",
+          href: entryHref,
+          reason: deep?.entryId
+            ? "関連 Entry の詳細を開く"
+            : deep?.inboxId
+              ? "このしれん由来の受信箱候補を開く"
+              : "足りない知識を Entry として残す（関連が見つからず一覧へ）",
         },
         {
           label: "ずかんで同系統を見る",
-          href: "/zukan",
-          reason: "似たつまずきの解消パターンを見る",
+          href: zukanHref,
+          reason: deep?.misconceptionId
+            ? "このしれんに紐づくつまずき詳細"
+            : "似たつまずきの解消パターンを見る",
         },
       ],
     };
@@ -76,8 +101,9 @@ export function rootCauseNextSteps(
 
 export function formatRootCauseNextMarkdown(
   cause: GradePayload["rootCause"] | null | undefined,
+  deep?: RootCauseDeepLinks | null,
 ): string | null {
-  const n = rootCauseNextSteps(cause);
+  const n = rootCauseNextSteps(cause, deep);
   if (!n) return null;
   return [
     `## 根因: ${n.label}`,

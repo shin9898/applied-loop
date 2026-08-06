@@ -8,6 +8,7 @@ import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasGroupedList } from "./atlas-list-groups";
+import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 
 export type GateListItem = {
   id: string;
@@ -25,23 +26,45 @@ export type GateListItem = {
 export function AtlasGatesList({
   items,
   streakDays,
+  wsToken = null,
 }: {
   items: GateListItem[];
   streakDays?: number;
+  wsToken?: string | null;
 }) {
   const pending = items.filter((i) => i.status === "pending" || i.status === "failed").length;
   const unknown = items.filter((i) => {
     const p = placeFrom(i.repo, i.domain);
     return isUnknownPlace(p);
   }).length;
+  const firstPending = items.find(
+    (i) => i.status === "pending" || i.status === "failed",
+  );
 
   return (
     <AtlasChrome active="/gates" streakDays={streakDays}>
       <AtlasShell>
+        <AtlasReveal as="section">
+          {wsToken ? (
+            <AtlasAssist
+              wsToken={wsToken}
+              intent="gates"
+              context={`挑めるしれん ${pending} 件。霧 ${unknown} 件。\n${
+                firstPending
+                  ? `先頭候補: ${firstPending.id} ${firstPending.title}`
+                  : "未クリアなし"
+              }`}
+              title="じゅもんでしれんを片付ける"
+              blurb="並んだしれんを、じゅもんでまとめて切り開け。ひと問に沈むなら『たたかう』じゃ。"
+            />
+          ) : (
+            <AtlasAssistUnavailable />
+          )}
+        </AtlasReveal>
         <AtlasReveal as="section" className="dq-win p-3.5">
           <AtlasPageTitle title="しれん" sub={`いま挑めるもの ${pending} 件`} />
           <p className="mb-3 text-[12px] leading-relaxed text-[#c9c3a0]">
-            一覧は見出しだけ。全文はたたかう画面で。
+            一覧は見出しだけ。全文はたたかう画面か上のじゅもんで。
             {unknown > 0
               ? ` 未特定（霧）が ${unknown} 件あるぞ。`
               : ""}

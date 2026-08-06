@@ -56,6 +56,11 @@ export type AtlasBattleProps = {
   }) => Promise<MicroCheckResult>;
   hintText?: string;
   zukanHref?: string;
+  /** 根因「学びを拾う／ずかん」の深リンク */
+  relatedEntryId?: string | null;
+  relatedInboxId?: string | null;
+  relatedMisconceptionId?: string | null;
+  onGoZukan?: () => void;
 };
 
 type Phase =
@@ -75,9 +80,15 @@ function normalizePoll(raw: PollResult | BattleVerdict): PollResult {
 function DebriefPanel({
   verdict,
   debrief,
+  relatedEntryId = null,
+  relatedInboxId = null,
+  relatedMisconceptionId = null,
 }: {
   verdict: Extract<BattleVerdict, "pass" | "retry">;
   debrief: GateDebrief | null;
+  relatedEntryId?: string | null;
+  relatedInboxId?: string | null;
+  relatedMisconceptionId?: string | null;
 }) {
   if (verdict === "pass") {
     const leftover = debrief?.weakAspects ?? [];
@@ -118,7 +129,11 @@ function DebriefPanel({
   }
 
   const cause = rootCauseLabel(debrief?.rootCause ?? null);
-  const next = rootCauseNextSteps(debrief?.rootCause ?? null);
+  const next = rootCauseNextSteps(debrief?.rootCause ?? null, {
+    entryId: relatedEntryId,
+    inboxId: relatedInboxId,
+    misconceptionId: relatedMisconceptionId,
+  });
   const hasBody =
     debrief?.gap ||
     debrief?.correctModel ||
@@ -236,6 +251,10 @@ export function AtlasBattle({
   onCheckMicro,
   hintText = "関連エントリやどうぐの処方を確認できるぞ。",
   zukanHref = "/zukan",
+  relatedEntryId = null,
+  relatedInboxId = null,
+  relatedMisconceptionId = null,
+  onGoZukan,
 }: AtlasBattleProps) {
   const def = DEFAULT_ENEMY;
   const displayName = enemyName ?? def.name;
@@ -250,7 +269,7 @@ export function AtlasBattle({
     if (initialVerdict === "retry") {
       return "しかし！　まだあかりが足りぬ。デブリーフを読んだら、いきなり全文ではなく『まず1観点を言い直す』のじゃ。";
     }
-    return "まものが口をひらいた！　右のセリフの問いにこたえよ。『こたえる』でじゅもん（LLM）をとなえるのじゃ。";
+    return "まものが口をひらいた！　右のセリフの問いにこたえよ。対話で練るなら下のじゅもん、すぐ書くなら『こたえる』（どちらも同じ受理の道じゃ）。";
   });
   const [answer, setAnswer] = useState("");
   const [anim, setAnim] = useState<"appear" | "idle" | "hit" | "defeat">(
@@ -396,7 +415,7 @@ export function AtlasBattle({
     }
 
     setPhase("casting");
-    setNarrator("じゅもんをとなえた！　LLM が採点中じゃ…");
+    setNarrator("答えを受け付けた！　裁きは別の座で進む——しばらく待て。");
     setAnim("hit");
     setCanResubmit(false);
     setDebrief(null);
@@ -589,7 +608,7 @@ export function AtlasBattle({
           <div className="dq-win grid grid-cols-2 gap-2 p-3">
             {(
               [
-                ["answer", "こたえる", "右のセリフ（問い）に答える"],
+                ["answer", "こたえる", "直接書いて提出（MCPと同じ受理）"],
                 ["hint", "ヒント", "関連エントリ／処方を見る"],
                 ["zukan", "ずかん", "同系統のつまずきを開く"],
                 ["run", "にげる", "ちずにもどる（進捗はそのまま）"],
@@ -634,10 +653,23 @@ export function AtlasBattle({
                     setNarrator(`ヒント：${hintText}`);
                     return;
                   }
+                  if (k === "zukan") {
+                    setNarrator(
+                      relatedMisconceptionId
+                        ? "関連のずかん詳細へ飛ぶぞ…"
+                        : `ずかん（${zukanHref}）で同タグのつまずきを見られるぞ。`,
+                    );
+                    setTimeout(() => {
+                      if (onGoZukan) onGoZukan();
+                      else if (typeof window !== "undefined") {
+                        window.location.href = zukanHref;
+                      }
+                    }, 280);
+                    return;
+                  }
                   if (phase !== "waiting" && phase !== "micro" && phase !== "recall") {
                     setPhase(verdict ? "result" : "idle");
                   }
-                  setNarrator(`ずかん（${zukanHref}）で同タグのつまずきを見られるぞ。`);
                 }}
               >
                 {label}
@@ -655,7 +687,13 @@ export function AtlasBattle({
             <p className="m-0 text-[16px] leading-relaxed">{narrator}</p>
 
             {phase === "result" && (verdict === "pass" || verdict === "retry") ? (
-              <DebriefPanel verdict={verdict} debrief={debrief} />
+              <DebriefPanel
+                verdict={verdict}
+                debrief={debrief}
+                relatedEntryId={relatedEntryId}
+                relatedInboxId={relatedInboxId}
+                relatedMisconceptionId={relatedMisconceptionId}
+              />
             ) : null}
 
             {phase === "micro" && debrief && onCheckMicro ? (
@@ -792,6 +830,10 @@ export function AtlasBattle({
                     ? " ／ ミニで通した文が下書きに入っておる"
                     : ""}
                 </p>
+                <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
+                  つまり 下に書いた文を提出する。受理・採点は MCP answer_gate
+                  と同じ経路。対話で練るならページ下の『じゅもんをとなえる』。
+                </p>
                 <textarea
                   className="min-h-[96px] w-full resize-y border-[3px] border-white bg-[#000c4a] p-2.5 font-[family-name:var(--font-jp)] text-[15px] text-[#f7f3d9]"
                   placeholder="まものの問いに対する答えを、自分の言葉で書く…"
@@ -800,14 +842,14 @@ export function AtlasBattle({
                 />
                 <div className="flex flex-wrap gap-2">
                   <button type="button" className="dq-btn" onClick={() => void cast()}>
-                    じゅもんをとなえる
+                    提出する
                   </button>
                   <button
                     type="button"
                     className="dq-btn dq-btn-ghost"
                     onClick={() => {
                       setPhase(verdict === "retry" ? "result" : "idle");
-                      setNarrator("じゅもんをやめた。コマンドを選びなおすのじゃ。");
+                      setNarrator("提出をやめた。コマンドを選びなおすのじゃ。");
                     }}
                   >
                     やめる

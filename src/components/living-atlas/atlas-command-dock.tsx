@@ -17,6 +17,7 @@ const NAV = [
   { href: "/goals", label: "もくひょう" },
   { href: "/harness", label: "どうぐ" },
   { href: "/entries", label: "にっき" },
+  { href: "/setup", label: "じゅんび" },
 ] as const;
 
 const STORAGE_KEY = "atlas-cmd-dock-v1";

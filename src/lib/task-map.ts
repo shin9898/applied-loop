@@ -25,6 +25,24 @@ function isRelatedType(v: unknown): v is TaskRelatedType {
   return v === "entry" || v === "misconception" || v === "gate";
 }
 
+export type TaskMapDisplaySource = "today" | "yesterday" | "none";
+
+/**
+ * ホーム司令塔「任務」タブ用。今日が空なら昨日を控えとして使う。
+ */
+export function pickTaskMapDisplay<T extends { tasks: readonly unknown[] }>(
+  today: T | null | undefined,
+  yesterday: T | null | undefined,
+): { map: T | null; source: TaskMapDisplaySource } {
+  if (today && today.tasks.length > 0) {
+    return { map: today, source: "today" };
+  }
+  if (yesterday && yesterday.tasks.length > 0) {
+    return { map: yesterday, source: "yesterday" };
+  }
+  return { map: null, source: "none" };
+}
+
 /** mappings JSON を寛容にパース。不正要素は落とす。 */
 export function parseTaskMappings(raw: unknown): {
   mappings: TaskMapping[];
@@ -238,7 +256,7 @@ export async function resolveTaskMapForDisplay(dateKey: string): Promise<{
       case "entry":
         return `/entries/${id}`;
       case "misconception":
-        return "/zukan";
+        return `/zukan/${id}`;
       case "gate":
         return `/gates/${id}`;
     }

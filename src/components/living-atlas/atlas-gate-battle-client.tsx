@@ -22,9 +22,15 @@ export function AtlasGateBattleClient({
     resources?: { kind: string; label: string; href?: string | null }[];
     initialVerdict?: Extract<BattleVerdict, "pass" | "retry"> | null;
     initialDebrief?: GateDebrief | null;
+    relatedEntryId?: string | null;
+    relatedInboxId?: string | null;
+    relatedMisconceptionId?: string | null;
   };
 }) {
   const router = useRouter();
+  const zukanHref = gate.relatedMisconceptionId
+    ? `/zukan/${gate.relatedMisconceptionId}`
+    : "/zukan";
   return (
     <AtlasBattle
       gateId={gate.id}
@@ -34,8 +40,13 @@ export function AtlasGateBattleClient({
       resources={gate.resources}
       initialVerdict={gate.initialVerdict ?? null}
       initialDebrief={gate.initialDebrief ?? null}
+      relatedEntryId={gate.relatedEntryId ?? null}
+      relatedInboxId={gate.relatedInboxId ?? null}
+      relatedMisconceptionId={gate.relatedMisconceptionId ?? null}
+      zukanHref={zukanHref}
       onFlee={() => router.push("/")}
       onGoGates={() => router.push("/gates")}
+      onGoZukan={() => router.push(zukanHref)}
       onCastSpell={async (answer, mode) => {
         try {
           const fn = mode === "resubmit" ? resubmitGateAnswer : submitGateAnswer;

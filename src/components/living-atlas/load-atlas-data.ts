@@ -151,6 +151,7 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     weakRepos,
     systemStars,
     taskMap,
+    yesterdayTaskMap,
     weaknesses,
   ] = await Promise.all([
     resolvedGrowthStats(now),
@@ -172,6 +173,9 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     repoCacheReadRates(now, { take: 1 }),
     loadSystemStars(),
     resolveTaskMapForDisplay(dateKeyJST(now)),
+    resolveTaskMapForDisplay(
+      dateKeyJST(new Date(dayStartJST(now).getTime() - 24 * 60 * 60 * 1000)),
+    ),
     getWeaknessPatternsForDashboard(),
   ]);
 
@@ -231,6 +235,8 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     adventurer,
     systemStars,
     taskMap,
+    yesterdayTaskMap:
+      taskMap && taskMap.tasks.length > 0 ? null : yesterdayTaskMap,
     weaknesses,
     pendingGate: pendingGate
       ? {
@@ -249,6 +255,59 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
         }
       : null,
     todos,
+  };
+}
+
+export async function loadZukanDetail(id: string): Promise<{
+  id: string;
+  concept: string;
+  status: "clear" | "open" | "fog";
+  rootCause: string | null;
+  system: SystemKind;
+  repo: string | null;
+  domain: string | null;
+  gateId: string | null;
+  gateQuestion: string | null;
+  createdAt: Date;
+} | null> {
+  if (!id) return null;
+  const m = await prisma.misconception.findUnique({
+    where: { id },
+    include: {
+      gates: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          domain: true,
+          question: true,
+          targetConcept: true,
+          event: { select: { repo: true } },
+        },
+      },
+    },
+  });
+  if (!m) return null;
+  const gate = m.gates[0];
+  const status =
+    m.status === "resolved" ? ("clear" as const) : m.status === "regressed" ? ("fog" as const) : ("open" as const);
+  const system = classifySystem({
+    text: m.concept,
+    domain: gate?.domain,
+    rootCause: m.rootCause,
+    targetConcept: gate?.targetConcept,
+  });
+  return {
+    id: m.id,
+    concept: m.concept,
+    status,
+    rootCause: m.rootCause,
+    system,
+    repo: gate?.event?.repo ?? null,
+    domain: gate?.domain ?? null,
+    gateId: gate?.id ?? null,
+    gateQuestion: gate?.question ?? null,
+    createdAt: m.createdAt,
   };
 }
 
@@ -359,6 +418,42 @@ export async function loadGateList(): Promise<GateListItem[]> {
     });
 }
 
+function harnessCriteria(
+  health: HarnessRepo["health"],
+  r: {
+    thisWeekRate: number;
+    lastWeekRate: number;
+    declineRatio: number;
+    insufficientThisWeek: boolean;
+  },
+): { criteria: string; uplift: string } {
+  const pct = Math.round(r.thisWeekRate * 100);
+  const last = Math.round(r.lastWeekRate * 100);
+  if (r.insufficientThisWeek) {
+    return {
+      criteria: `判定: 安（暫定）。今週の有効観測が薄いため悪化扱いしない。先週 cache ${last}%。`,
+      uplift: "同じ repo で継続セッションを回し、観測を溜めたうえで処方チェックリストを1つやれ。",
+    };
+  }
+  if (health === "bad") {
+    return {
+      criteria: `判定: 危。前週比悪化≥25% または cache<15%（今週 ${pct}% / 先週 ${last}%）。`,
+      uplift: "処方のチェックリストから安定プレフィックスを直せ。",
+    };
+  }
+  if (health === "warn") {
+    return {
+      criteria: `判定: 注。前週比悪化≥10% または cache<35%（今週 ${pct}% / 先週 ${last}%）。`,
+      uplift: "可変メモが先頭に混ざっていないか処方で確認し、1項目直せ。",
+    };
+  }
+  return {
+    criteria: `判定: 安。前週比悪化<10% かつ cache≥35%（今週 ${pct}% / 先週 ${last}%）。`,
+    uplift:
+      "問題なし＝維持ライン。80%超を狙うなら先頭のバイト安定と可変節の分離を処方で点検せよ。",
+  };
+}
+
 function harnessNextAction(
   health: HarnessRepo["health"],
   repo: string,
@@ -370,7 +465,8 @@ function harnessNextAction(
   if (health === "warn") {
     return { label: "処方を確認", href: prescriptionHref };
   }
-  return { label: "様子見（しれんへ）", href: "/gates" };
+  // 良好でも「なぜ安か／どう上げるか」は処方詳細で見せる
+  return { label: "見立てを見る", href: prescriptionHref };
 }
 
 export async function loadHarnessRepos(): Promise<HarnessRepo[]> {
@@ -394,6 +490,8 @@ export async function loadHarnessRepos(): Promise<HarnessRepo[]> {
         name,
         health: "ok",
         note: "観測は少ないが、いまのところ元気じゃ。",
+        criteria: "判定: 安（暫定）。有効な週次レートがまだ足りない。",
+        uplift: "観測を溜めたら処方のチェックリストで先頭を点検せよ。",
         prescriptionHref: `/harness/prescriptions/${encodeURIComponent(name)}`,
         nextAction: next,
       });
@@ -409,19 +507,22 @@ export async function loadHarnessRepos(): Promise<HarnessRepo[]> {
       r.insufficientThisWeek,
     );
     const pct = Math.round(r.thisWeekRate * 100);
+    const { criteria, uplift } = harnessCriteria(health, r);
     const note = r.insufficientThisWeek
       ? `今週の観測はまだ薄い。先週 cache ${Math.round(r.lastWeekRate * 100)}%。`
       : health === "bad"
         ? `cache ${pct}%・低下ぎみ。処方を確認せよ。`
         : health === "warn"
           ? `cache ${pct}%。様子を見つつ処方を覗け。`
-          : `cache ${pct}%。いまのところ元気じゃ。`;
+          : `cache ${pct}%。維持ラインはクリア。より良くする余地を処方で見よ。`;
     const next = harnessNextAction(health, r.repo);
     return {
       id: r.repo,
       name: r.repo,
       health,
       note,
+      criteria,
+      uplift,
       prescriptionHref: `/harness/prescriptions/${encodeURIComponent(r.repo)}`,
       nextAction: next,
     };
@@ -451,18 +552,20 @@ function goalNextAction(input: {
   evidenceTarget: number;
   focusDomains: string[];
 }): { label: string; href: string; reason: string } {
+  // 証跡の「登録」はアプリUIではなく MCP。詳細ページに手順を置く（誤解防止）
   if (input.thin || input.evidenceCount === 0) {
     return {
-      label: "にっきで証跡を残す",
-      href: "/entries",
-      reason: "今週まだ証跡がない。学びの適用か capture 仕分けから始めよ。",
+      label: "証跡の残し方を見る",
+      href: `/goals/${input.id}`,
+      reason:
+        "今週まだ証跡がない。登録は MCP（record_application 等）。にっきは棚であってフォームではないぞ。",
     };
   }
   if (input.evidenceCount < input.evidenceTarget) {
     return {
       label: "しれんでCLEARを積む",
       href: "/gates",
-      reason: `証跡 ${input.evidenceCount}/${input.evidenceTarget}。理解度ゲートのCLEARが近い道じゃ。`,
+      reason: `証跡 ${input.evidenceCount}/${input.evidenceTarget}。CLEAR も証跡になる。手順は詳細でも確認できる。`,
     };
   }
   if (input.focusDomains.length > 0) {
@@ -702,6 +805,9 @@ export async function loadGateById(id: string): Promise<{
   resources: { kind: string; label: string; href?: string | null }[];
   initialVerdict: "pass" | "retry" | null;
   initialDebrief: ReturnType<typeof buildGateDebrief> | null;
+  relatedEntryId: string | null;
+  relatedInboxId: string | null;
+  relatedMisconceptionId: string | null;
 } | null> {
   if (!id) return null;
   const gate = await prisma.gate.findUnique({
@@ -723,10 +829,14 @@ export async function loadGateById(id: string): Promise<{
   const { parseGateResources, resolveResourceItems } = await import(
     "@/lib/gate-resources"
   );
-  const resources = await resolveResourceItems(
-    parseGateResources(gate.resources),
-    gate.event?.repoPath,
-  );
+  const { resolveGateFollowups } = await import("@/lib/gate-followups");
+  const [resources, followups] = await Promise.all([
+    resolveResourceItems(
+      parseGateResources(gate.resources),
+      gate.event?.repoPath,
+    ),
+    resolveGateFollowups(gate.id),
+  ]);
   return {
     id: gate.id,
     question: gate.question,
@@ -737,6 +847,9 @@ export async function loadGateById(id: string): Promise<{
     initialDebrief: initialVerdict
       ? buildGateDebrief(gate.gradeNote, gate.rubricResult)
       : null,
+    relatedEntryId: followups.entryId,
+    relatedInboxId: followups.inboxId,
+    relatedMisconceptionId: followups.misconceptionId,
   };
 }
 

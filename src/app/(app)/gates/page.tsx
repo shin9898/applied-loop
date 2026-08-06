@@ -3,6 +3,7 @@ import {
   loadGateList,
   loadStreakDays,
 } from "@/components/living-atlas/load-atlas-data";
+import { getTerminalWsToken } from "@/lib/terminal-token";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,10 @@ export default async function GatesPage() {
     loadStreakDays(),
   ]);
   return (
-    <AtlasGatesList items={items} streakDays={streakDays} />
+    <AtlasGatesList
+      items={items}
+      streakDays={streakDays}
+      wsToken={getTerminalWsToken()}
+    />
   );
 }

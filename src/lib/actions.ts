@@ -145,8 +145,7 @@ function verdictFromStatus(status: string): GateBattleVerdict {
 }
 
 /**
- * ぼうけんのしょ バトル UI 用。MCP answer_gate と同ロジックで回答を受理し、
- * 採点は非同期。失敗しても throw せず pending を返す。
+ * バトル UI 用。受理は acceptGateAnswer（MCP と同じ経路）。
  * empty = 空欄 / busy = まだ未提出で再入力可
  */
 export async function submitGateAnswer(
@@ -156,36 +155,33 @@ export async function submitGateAnswer(
   try {
     await requireAuth();
     const id = gateId.trim();
-    const ans = answer.trim();
     if (!id) return "pending";
-    if (!ans) return "empty";
+    if (!answer.trim()) return "empty";
 
-    const gate = await prisma.gate.findUnique({ where: { id } });
+    const gate = await prisma.gate.findUnique({
+      where: { id },
+      select: { status: true },
+    });
     if (!gate) return "pending";
 
     const already = verdictFromStatus(gate.status);
     if (already === "pass" || already === "retry" || already === "pending") {
-      // pending = 採点中。pass/retry = 既に決着
       return already;
     }
 
-    if (gate.status !== "pending") return "pending";
-    if (gate.nextReviewAt && gate.nextReviewAt > new Date()) return "pending";
-
-    await prisma.gate.update({
-      where: { id },
-      data: {
-        answer: ans,
-        status: "answered",
-        answeredAt: new Date(),
-        answerMode: "in_session",
-      },
+    const { acceptGateAnswer } = await import("@/lib/gate-answer");
+    const result = await acceptGateAnswer({
+      gateId: id,
+      answer,
+      source: "battle",
     });
-
-    // MCP answer_gate と同じく after で非同期採点（合否は待たない）
-    after(() => {
-      gradeGate(id).catch((e) => console.error("[gate] grade failed:", e));
-    });
+    if (!result.ok) {
+      if (result.code === "empty") return "empty";
+      if (result.code === "not_accepting" && gate.status === "pending") {
+        return "busy";
+      }
+      return "pending";
+    }
 
     revalidatePath("/");
     revalidatePath("/gates");
@@ -233,8 +229,7 @@ export async function pollGateVerdict(
 }
 
 /**
- * 不合格／採点失敗後に、同じゲートへ答え直す。
- * status を pending に戻してから answer を受け付ける。
+ * 不合格／採点失敗後の答え直し。受理は acceptGateAnswer（MCP と同じ経路）。
  */
 export async function resubmitGateAnswer(
   gateId: string,
@@ -243,11 +238,13 @@ export async function resubmitGateAnswer(
   try {
     await requireAuth();
     const id = gateId.trim();
-    const ans = answer.trim();
     if (!id) return "pending";
-    if (!ans) return "empty";
+    if (!answer.trim()) return "empty";
 
-    const gate = await prisma.gate.findUnique({ where: { id } });
+    const gate = await prisma.gate.findUnique({
+      where: { id },
+      select: { status: true },
+    });
     if (!gate) return "pending";
 
     if (gate.status === "passed" || gate.status === "self_graded_pass") {
@@ -257,30 +254,18 @@ export async function resubmitGateAnswer(
       return "pending";
     }
 
-    const reanswerable = [
-      "failed",
-      "self_graded_fail",
-      "grading_failed",
-      "pending",
-    ];
-    if (!reanswerable.includes(gate.status)) return "pending";
-
-    await prisma.gate.update({
-      where: { id },
-      data: {
-        answer: ans,
-        status: "answered",
-        answeredAt: new Date(),
-        answerMode: "in_session",
-        gradeNote: null,
-        rubricResult: null,
-        gradedAt: null,
-      },
+    const { acceptGateAnswer } = await import("@/lib/gate-answer");
+    const result = await acceptGateAnswer({
+      gateId: id,
+      answer,
+      source: "battle",
+      resubmit: true,
     });
-
-    after(() => {
-      gradeGate(id).catch((e) => console.error("[gate] grade failed:", e));
-    });
+    if (!result.ok) {
+      if (result.code === "empty") return "empty";
+      if (result.code === "already_pass") return "pass";
+      return "pending";
+    }
 
     revalidatePath("/");
     revalidatePath("/gates");

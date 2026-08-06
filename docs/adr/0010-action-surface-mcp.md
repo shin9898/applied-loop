@@ -113,3 +113,14 @@ QuestionCard の「今日は見送る」(localStorage のみ)。
 - **Obsidian プラグイン化**: EngramQuest の領土。MD 生成に留める
 - **SrCard のデータを残したまま併存**: 哲学の矛盾が継続する。
   ゲートへ移行して一括廃止
+
+## 追記 (2026-08-05) — 受理経路の実装寄せ
+
+バトル『こたえる』の直接提出は UX 上残すが、**受理実装は
+`src/lib/gate-answer.ts` の `acceptGateAnswer` に一本化**した。
+MCP `answer_gate` / じゅもん(source=terminal) / バトル(source=battle)
+は同じ関数を通る。採点は従来どおり非同期・合否非即時。
+
+- `/entries/new` の登録フォームは廃止し `/entries?hint=mcp` へリダイレクト
+- waitlist (`joinWaitlist`) と実験 UI は本 ADR の対象外（マーケ／オプション面）
+- 推奨 UX: 対話で練る → じゅもん／外部 MCP。すぐ書く → バトル提出（同じ受理）

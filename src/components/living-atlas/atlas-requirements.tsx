@@ -3,6 +3,7 @@ import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasGroupedList } from "./atlas-list-groups";
+import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 
 export type RequirementItem = {
   id: string;
@@ -15,15 +16,33 @@ export type RequirementItem = {
 export function AtlasRequirements({
   items,
   streakDays,
+  wsToken = null,
 }: {
   items: RequirementItem[];
   streakDays?: number;
+  wsToken?: string | null;
 }) {
   const next = items.filter((i) => i.kind === "next");
   const understood = items.filter((i) => i.kind === "understood");
   return (
     <AtlasChrome active="/requirements" streakDays={streakDays}>
       <AtlasShell>
+        <AtlasReveal as="section">
+          {wsToken ? (
+            <AtlasAssist
+              wsToken={wsToken}
+              intent="requirements"
+              context={`つぎのしれん ${next.length} / 理解確認ずみ ${understood.length}\n候補: ${next
+                .slice(0, 5)
+                .map((i) => `${i.id} ${i.title}`)
+                .join("\n")}`}
+              title="じゅもんでメテオフォールを進める"
+              blurb="要件と理解の結びを、じゅもんで進めよ。"
+            />
+          ) : (
+            <AtlasAssistUnavailable />
+          )}
+        </AtlasReveal>
         <div className="grid gap-3 md:grid-cols-2">
           <AtlasReveal as="section" className="dq-win p-3.5">
             <AtlasPageTitle title="つぎのしれん" sub={`${next.length} 件`} />

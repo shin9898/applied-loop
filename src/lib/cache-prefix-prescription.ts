@@ -73,12 +73,21 @@ export function buildCachePrefixPrescription(
     },
   ];
 
-  const nextSteps = [
-    "原理: /harness/concepts/prompt-cache",
-    "共有パック: docs/harness-pack/README.md",
-    "適用後は record_application で appliedTo にこの repo を含める",
-    "翌週 /harness で当該 repo の再利用率を確認する",
-  ];
+  const nextSteps =
+    sev === "ok" && row && !row.insufficientThisWeek
+      ? [
+          "維持ラインはクリア。より良くするならチェックリストを1項目でも実行",
+          "目標の目安: cache read 80%超（今週の数値と比較）",
+          "原理: /harness/concepts/prompt-cache",
+          "適用後は record_application で appliedTo にこの repo を含める",
+          "翌週 /harness で再利用率を確認する",
+        ]
+      : [
+          "原理: /harness/concepts/prompt-cache",
+          "共有パック: docs/harness-pack/README.md",
+          "適用後は record_application で appliedTo にこの repo を含める",
+          "翌週 /harness で当該 repo の再利用率を確認する",
+        ];
 
   return {
     repo,

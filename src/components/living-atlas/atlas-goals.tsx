@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
+import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 
 export type GoalNextAction = {
   label: string;
@@ -26,9 +27,11 @@ export type GoalItem = {
 export function AtlasGoals({
   goals,
   streakDays,
+  wsToken = null,
 }: {
   goals: GoalItem[];
   streakDays?: number;
+  wsToken?: string | null;
 }) {
   const thin = goals.filter(
     (g) => g.thin || (g.evidenceTarget != null && g.evidenceCount < g.evidenceTarget),
@@ -36,6 +39,26 @@ export function AtlasGoals({
   return (
     <AtlasChrome active="/goals" streakDays={streakDays}>
       <AtlasShell>
+        <AtlasReveal as="section">
+          {wsToken ? (
+            <AtlasAssist
+              wsToken={wsToken}
+              intent="goal-evidence"
+              context={
+                thin.length
+                  ? `証跡うすい: ${thin
+                      .slice(0, 5)
+                      .map((g) => `${g.id} ${g.title} (${g.evidenceCount}/${g.evidenceTarget ?? 3})`)
+                      .join("\n")}`
+                  : `目標 ${goals.length} 件。証跡はおおむね充足。`
+              }
+              title="じゅもんで証跡を残す"
+              blurb="もくひょうの証跡は、じゅもんの道で残せ。一覧は見取りじゃ。"
+            />
+          ) : (
+            <AtlasAssistUnavailable />
+          )}
+        </AtlasReveal>
         <AtlasReveal as="section" className="dq-win p-3.5">
           <AtlasPageTitle
             title="もくひょう"
@@ -46,7 +69,7 @@ export function AtlasGoals({
             }
           />
           <p className="mb-3 text-[12px] leading-relaxed text-[#c9c3a0]">
-            H2 の KDI を見て、ネクストからしれん／にっき／ずかんへ進め。
+            H2 の KDI を見てネクストへ。証跡は上のじゅもん（または詳細）から MCP で。にっきは棚じゃ。
           </p>
           <ul className="m-0 list-none p-0">
             {goals.map((g, i) => {

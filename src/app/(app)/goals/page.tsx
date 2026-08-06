@@ -3,6 +3,7 @@ import {
   loadGoals,
   loadStreakDays,
 } from "@/components/living-atlas/load-atlas-data";
+import { getTerminalWsToken } from "@/lib/terminal-token";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,10 @@ export default async function GoalsPage() {
     loadStreakDays(),
   ]);
   return (
-    <AtlasGoals goals={goals} streakDays={streakDays} />
+    <AtlasGoals
+      goals={goals}
+      streakDays={streakDays}
+      wsToken={getTerminalWsToken()}
+    />
   );
 }

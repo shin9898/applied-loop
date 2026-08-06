@@ -1,23 +1,20 @@
 # MCP セットアップ — LLM ワークフローへの埋め込み
 
+初回の全体像は **[onboarding.md](./onboarding.md)（正本）** を先に読む。
+
 Applied Loop の配布物は 3 点セット (ADR-0005):
 
 1. **MCP エンドポイント** (`/api/mcp`)
-2. **ルールスニペット** (CLAUDE.md / Cursor Rules への追記)
-3. **hook 設定** (SessionEnd での捕捉誘導 / SessionStart での briefing)
+2. **ルールスニペット** (CLAUDE.md / Cursor Rules / AGENTS.md への追記)
+3. **hook** (SessionStart で briefing 誘導 / git post-commit でしれん生成)
 
 ## 1. MCP エンドポイントの登録
 
-前提: `npm run dev` でアプリが起動していること
-（自分用は `http://localhost:3100/api/mcp`）。
+前提: `npm run dev:all`（または `npm run dev -- -p 3100`）でアプリが起動していること。  
+自分用の既定: `http://localhost:3100/api/mcp`。  
+`.env` の `MCP_TOKEN` を Bearer に使う。
 
 ### Claude Code
-
-```bash
-claude mcp add --transport http applied-loop http://localhost:3100/api/mcp
-```
-
-`MCP_TOKEN` を `.env` に設定した場合はヘッダー付きで:
 
 ```bash
 claude mcp add --transport http applied-loop http://localhost:3100/api/mcp \
@@ -32,7 +29,10 @@ claude mcp add --transport http applied-loop http://localhost:3100/api/mcp \
 {
   "mcpServers": {
     "applied-loop": {
-      "url": "http://localhost:3100/api/mcp"
+      "url": "http://localhost:3100/api/mcp",
+      "headers": {
+        "Authorization": "Bearer <token>"
+      }
     }
   }
 }
@@ -40,12 +40,12 @@ claude mcp add --transport http applied-loop http://localhost:3100/api/mcp \
 
 ### Codex
 
-この環境の Codex は HTTP MCP を url 直指定できる (2026-08-01 検証済み)。
 `~/.codex/config.toml` に追加:
 
 ```toml
 [mcp_servers.applied-loop]
 url = "http://localhost:3100/api/mcp"
+http_headers = { Authorization = "Bearer <token>" }
 ```
 
 ※ url 直指定をサポートしない古い Codex では
@@ -53,28 +53,33 @@ url = "http://localhost:3100/api/mcp"
 
 ## 2. ルールスニペット
 
-CLAUDE.md（プロジェクト or グローバル）/ Cursor Rules に追記する文:
+CLAUDE.md / Cursor Rules / Codex AGENTS に追記する文（必要に応じて短縮可）:
 
 ```markdown
-## Applied Loop (学びの記録)
+## Applied Loop
 
-- この環境には MCP サーバー `applied-loop` がある。
-- セッションのふりかえり時、またはユーザーが「学びを記録して」と
-  明示した時に、そのセッションで判明した非自明な知見
-  （デバッグの発見・設計判断の根拠）を
-  `capture_learning_candidate` で受信箱に登録する。
-  一般常識や作業ログは登録しない。
-- ユーザーが「この学びを使った」と言った時は
-  `record_application` で適用記録を残す。
+- MCP サーバー `applied-loop` がある。
+- その日最初のチャットでは `morning_briefing` を呼び、受信箱と今日の問いを簡潔に提示する。
+- セッションのふりかえり時、または「学びを記録して」と言われた時は、
+  非自明な知見だけ `capture_learning_candidate` で受信箱へ（一般常識・作業ログは不要）。
+- 「この学びを使った」と言われた時は `record_application`。
+- 理解度ゲートは `list_pending_gates` → 対話 → ユーザーが提出を明示したら `answer_gate`。
+  合否は会話中に断定せず `get_gate_result` で確認する。
 ```
 
-## 3. hook 設定（Claude Code）
+## 3. hook
 
-### SessionStart — 朝の briefing
+### git post-commit（しれん生成）
 
-その日最初のセッションで受信箱・問いかけを表示させる。
-`~/.claude/settings.json` の hooks に追加（my-copy 既存 hook と併存可、
-責務は別）:
+```bash
+./scripts/setup-git-hook.sh /path/to/your-repo
+```
+
+詳細はスクリプト先頭コメント。認証は `~/.applied-loop/env`（`.env` の `MCP_TOKEN` を転記）。
+
+### Claude Code SessionStart（朝の briefing 誘導）
+
+`~/.claude/settings.json` の hooks に追加（既存 hook と併存可）:
 
 ```json
 {
@@ -85,7 +90,7 @@ CLAUDE.md（プロジェクト or グローバル）/ Cursor Rules に追記す�
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"今日最初のセッションです。applied-loop MCP の morning_briefing ツールを呼んで、受信箱と今日の問いかけをユーザーに提示してください。\"}}'"
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"今日最初のセッションです。applied-loop MCP の morning_briefing を呼んでください。\"}}'"
           }
         ]
       }
@@ -94,38 +99,29 @@ CLAUDE.md（プロジェクト or グローバル）/ Cursor Rules に追記す�
 }
 ```
 
-### SessionEnd — セッション区切りでの捕捉
+## 4. アプリ内じゅもん（任意）
 
-```json
-{
-  "hooks": {
-    "SessionEnd": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo 'セッション終了前に: このセッションで判明した非自明な知見があれば applied-loop MCP の capture_learning_candidate で受信箱に登録してください（なければ何もしない）。' >> ~/.applied-loop/session-end.log"
-          }
-        ]
-      }
-    ]
-  }
-}
+`.env`:
+
+```
+ENABLE_TERMINAL=true
+MCP_TOKEN=...
 ```
 
-※ SessionEnd hook は LLM に指示を返せないため、捕捉の誘導は
-実際にはルールスニペット側で担保する。hook 側は記録用。
-Claude Code の Stop hook（additionalContext 対応）で誘導する構成に
-変えてもよい。運用しながら調整する。
+`npm run dev:all` で WS `127.0.0.1:3101` が立つ。  
+Living Atlas 各画面の「じゅもんをとなえる」から Claude/Codex を起動し、同じ MCP で操作できる（ADR-0015）。
 
-## ツール一覧（MVP は 3 つのみ）
+## ツール一覧（applied-loop 0.2.0）
 
-| ツール | 用途 |
+| 領域 | ツール |
 |---|---|
-| `capture_learning_candidate` | 学び候補を受信箱へ（正典には直接書かない） |
-| `record_application` | 適用記録（証跡）を残す |
-| `morning_briefing` | 朝の受信箱・問いかけ・期限カードの提示 |
+| 朝・把握 | `morning_briefing`, `list_pending_gates`, `get_gate_result` |
+| しれん | `answer_gate`, `enrich_gate_places` |
+| 学び | `capture_learning_candidate`, `triage_inbox`, `record_application`, `find_related_learnings` |
+| 目標 | `register_goals`, `update_goal`, `approve_goal_link`, `reject_goal_link` |
+| 任務×学び | `save_task_mappings` |
+| どうぐ | `suggest_cache_prefix_fix` |
+| 要件 | `register_requirement`, `list_requirements`, `link_requirement`, `approve_requirement_link`, `reject_requirement_link` |
 
 ## accept 率の計測
 

@@ -29,10 +29,20 @@ export function TerminalPanel({
   gateId,
   wsToken,
   cmd: initialCmd = "codex",
+  session,
+  intent,
+  context,
+  noticeMode = "gate",
 }: {
-  gateId: string;
+  /** ゲート専用セッション時に必須。atlas セッション時は省略可 */
+  gateId?: string;
   wsToken: string;
   cmd?: TerminalCmd;
+  session?: "atlas";
+  intent?: string;
+  context?: string;
+  /** 下部の操作案内。atlas=画面じゅもん / gate=しれん回答 */
+  noticeMode?: "atlas" | "gate";
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [connState, setConnState] = useState<ConnState>("connecting");
@@ -110,14 +120,19 @@ export function TerminalPanel({
       setConnState("connecting");
 
       ws.onopen = () => {
-        ws?.send(
-          JSON.stringify({
-            type: "auth",
-            token: wsToken,
-            gateId,
-            cmd: initialCmd,
-          })
-        );
+        const auth: Record<string, string> = {
+          type: "auth",
+          token: wsToken,
+          cmd: initialCmd,
+        };
+        if (session === "atlas") {
+          auth.session = "atlas";
+          if (intent) auth.intent = intent;
+          if (context) auth.context = context;
+        } else if (gateId) {
+          auth.gateId = gateId;
+        }
+        ws?.send(JSON.stringify(auth));
       };
 
       ws.onmessage = (ev) => {
@@ -245,7 +260,7 @@ export function TerminalPanel({
     };
     // initialCmd はマウント時のみ使う。終了後の切替は restart UI 側。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gateId, wsToken]);
+  }, [gateId, wsToken, session, intent, context]);
 
   const handleRestart = () => {
     restartRef.current(restartCmd);
@@ -327,7 +342,9 @@ export function TerminalPanel({
       </div>
       {!isFullscreen && (
         <p className="text-[11px] leading-5 text-ink-faint">
-          回答が固まったら「この内容で提出して」と伝えてください。採点完了後はこのページを再読み込みするか、採点中表示の自動更新を待ってください。
+          {noticeMode === "atlas"
+            ? "※ いちばん下に見えている文も含め、指示書はそのまま Enter で送ってください。編集は不要です。"
+            : "指示書はそのまま Enter。回答が固まったら「この内容で提出して」と伝えてください。採点後はこのページの更新を待つか再読み込みしてください。"}
         </p>
       )}
     </div>

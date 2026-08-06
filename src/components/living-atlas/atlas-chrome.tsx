@@ -9,6 +9,7 @@ export type AtlasChromeActive =
   | "/harness"
   | "/entries"
   | "/requirements"
+  | "/setup"
   | "/gates/[id]";
 
 /**

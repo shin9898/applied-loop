@@ -3,6 +3,7 @@ import {
   loadHarnessRepos,
   loadStreakDays,
 } from "@/components/living-atlas/load-atlas-data";
+import { getTerminalWsToken } from "@/lib/terminal-token";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,10 @@ export default async function HarnessPage() {
     loadStreakDays(),
   ]);
   return (
-    <AtlasHarness repos={repos} streakDays={streakDays} />
+    <AtlasHarness
+      repos={repos}
+      streakDays={streakDays}
+      wsToken={getTerminalWsToken()}
+    />
   );
 }

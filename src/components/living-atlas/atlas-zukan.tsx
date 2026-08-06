@@ -8,6 +8,7 @@ import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasGroupedList } from "./atlas-list-groups";
+import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 
 export type ZukanItem = {
   id: string;
@@ -26,21 +27,37 @@ export type ZukanItem = {
 export function AtlasZukan({
   items,
   streakDays,
+  wsToken = null,
 }: {
   items: ZukanItem[];
   streakDays?: number;
+  wsToken?: string | null;
 }) {
   const open = items.filter((i) => i.status !== "clear").length;
+  const fog = items.filter((i) => i.status === "fog").length;
   return (
     <AtlasChrome active="/zukan" streakDays={streakDays}>
       <AtlasShell>
+        <AtlasReveal as="section">
+          {wsToken ? (
+            <AtlasAssist
+              wsToken={wsToken}
+              intent="general"
+              context={`ずかん 未CLEAR ${open} / 全 ${items.length} / 霧 ${fog}。find_related_learnings や enrich_gate_places が使える。`}
+              title="じゅもんでずかんを掘る"
+              blurb="霧を晴らし、似たつまずきを掘るなら、じゅもんを。"
+            />
+          ) : (
+            <AtlasAssistUnavailable />
+          )}
+        </AtlasReveal>
         <AtlasReveal as="section" className="dq-win p-3.5">
           <AtlasPageTitle
             title="ずかん"
             sub={`未CLEAR ${open} ／ 全 ${items.length}`}
           />
           <p className="mb-3 text-[12px] leading-relaxed text-[#c9c3a0]">
-            ばしょ × 系統で棚分け。未特定は霧帯へ。くわしい中身はたたかう／詳細へ。
+            ばしょ × 系統で棚分け。未特定は霧帯へ。くわしい中身はたたかう／詳細／じゅもんへ。
           </p>
           <AtlasGroupedList
             items={items}
@@ -52,10 +69,11 @@ export function AtlasZukan({
               <p className="text-[14px] text-[#c9c3a0]">まだ記録がないようじゃ。</p>
             }
             renderItem={(item, i) => {
+              const detailHref = `/zukan/${item.id}`;
               const fightHref =
                 item.status !== "clear" && item.gateId
                   ? `/gates/${item.gateId}`
-                  : "/zukan";
+                  : detailHref;
               const fog = isUnknownPlace(placeFrom(item.repo, item.domain));
               return (
                 <div
@@ -83,17 +101,32 @@ export function AtlasZukan({
                           : "霧"}
                   </span>
                   <div>
-                    <p className="m-0 text-[15px] leading-snug">{item.title}</p>
+                    <Link
+                      href={detailHref}
+                      className="m-0 text-[15px] leading-snug text-[#f7f3d9] no-underline hover:underline"
+                    >
+                      {item.title}
+                    </Link>
                     {item.summary ? (
                       <p className="mt-0.5 text-[11px] text-[#c9c3a0]">{item.summary}</p>
                     ) : null}
                   </div>
-                  <Link
-                    href={fightHref}
-                    className="font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a] no-underline"
-                  >
-                    {item.status === "clear" ? "みる" : "たたかう"}
-                  </Link>
+                  <div className="flex flex-col items-end gap-1">
+                    <Link
+                      href={detailHref}
+                      className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline"
+                    >
+                      みる
+                    </Link>
+                    {item.status !== "clear" && item.gateId ? (
+                      <Link
+                        href={fightHref}
+                        className="font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a] no-underline"
+                      >
+                        たたかう
+                      </Link>
+                    ) : null}
+                  </div>
                 </div>
               );
             }}
