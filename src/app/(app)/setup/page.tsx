@@ -17,11 +17,31 @@ type Props = {
 export default async function SetupPage({ searchParams }: Props) {
   const sp = searchParams ? await searchParams : {};
   await ensureTutorialSeed();
+  const { recordActivationOnce } = await import("@/lib/activation-funnel");
+  recordActivationOnce("setup_opened");
   const [diagnosis, streakDays] = await Promise.all([
     loadSetupDiagnosis(),
     loadStreakDays(),
   ]);
+  // B5-3: 採点 CLI が戻っていれば保留しれんを自動再採点
+  if (diagnosis.checks.some((c) => c.id === "grading_cli" && c.ok)) {
+    const { requeueFailedGradingIfCliReady } = await import(
+      "@/lib/requeue-failed-grading"
+    );
+    await requeueFailedGradingIfCliReady().catch((e) =>
+      console.error("[setup] auto-regrade:", e),
+    );
+  }
   const progress = await loadTutorialProgress(diagnosis);
+  if (diagnosis.gitHookInstalled) {
+    recordActivationOnce("hook_installed");
+  }
+  if (diagnosis.tutorialSampleSubmitted) {
+    recordActivationOnce("sample_submitted");
+  }
+  if (diagnosis.mcpRecent || progress.state.llmStepDone) {
+    recordActivationOnce("mcp_touched");
+  }
   return (
     <AtlasChrome active="/setup" streakDays={streakDays}>
       <AtlasShell>

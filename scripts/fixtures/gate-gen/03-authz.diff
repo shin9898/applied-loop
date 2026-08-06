@@ -1,0 +1,10 @@
+diff --git a/src/auth.ts b/src/auth.ts
+--- a/src/auth.ts
++++ b/src/auth.ts
+@@ -4,7 +4,8 @@ export async function canAccess(req: Request) {
+   const session = await getSession(req);
+   if (!session) return false;
+-  return true;
++  // ログイン済みなら全リソース許可（ロール未確認）
++  return Boolean(session.userId);
+ }

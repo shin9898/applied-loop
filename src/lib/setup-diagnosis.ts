@@ -16,6 +16,8 @@ import {
   mcpTouchedRecently,
   readTutorialState,
 } from "@/lib/tutorial-state";
+import { probeGradingCli } from "@/lib/headless-llm";
+import { recentGenFailures } from "@/lib/gate";
 
 export type SetupCheckId =
   | "app"
@@ -23,6 +25,7 @@ export type SetupCheckId =
   | "terminal_env"
   | "terminal_up"
   | "git_hook"
+  | "grading_cli"
   | "first_gate"
   | "first_learning"
   | "tutorial_sample"
@@ -71,6 +74,10 @@ export type SetupDiagnosis = {
     claudeProjectJson: string;
     codexToml: string;
   };
+  /** git hook 本体が ~/.applied-loop にあるか */
+  gitHookInstalled: boolean;
+  /** 直近24h のしれん生成失敗 */
+  genFailures: { auth: number; other: number };
 };
 
 function probePort(host: string, port: number, ms = 250): Promise<boolean> {
@@ -130,21 +137,24 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
   const y = new Date(dayStartJST(now).getTime() - 24 * 60 * 60 * 1000);
   const yesterdayKey = dateKeyJST(y);
 
-  const [gateCount, learningCount, todayMap, yesterdayMap] = await Promise.all([
-    prisma.gate.count(),
-    Promise.all([
-      prisma.entry.count(),
-      prisma.capture.count(),
-    ]).then(([e, c]) => e + c),
-    prisma.dailyTaskMap.findUnique({
-      where: { dateKey: todayKey },
-      select: { id: true },
-    }),
-    prisma.dailyTaskMap.findUnique({
-      where: { dateKey: yesterdayKey },
-      select: { id: true },
-    }),
-  ]);
+  const grading = probeGradingCli();
+  const [gateCount, learningCount, todayMap, yesterdayMap, genFailures] =
+    await Promise.all([
+      prisma.gate.count(),
+      Promise.all([
+        prisma.entry.count(),
+        prisma.capture.count(),
+      ]).then(([e, c]) => e + c),
+      prisma.dailyTaskMap.findUnique({
+        where: { dateKey: todayKey },
+        select: { id: true },
+      }),
+      prisma.dailyTaskMap.findUnique({
+        where: { dateKey: yesterdayKey },
+        select: { id: true },
+      }),
+      recentGenFailures(),
+    ]);
 
   const checks: SetupCheck[] = [
     {
@@ -165,7 +175,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
         ? "合言葉は .env に刻まれておる"
         : "合言葉がない。賢者ともじゅもんとも、扉が開かぬぞ",
       howTo:
-        ".env に `MCP_TOKEN=<長い乱数>` を書き、サーバーを再起動する",
+        "`npm run setup` で自動生成（弱い／空の TOKEN も書き戻す）。その後 `npm run dev:all` で再起動",
       plain:
         "API・MCP・アプリ内じゅもんの共通パスワード。無いと外部 LLM もじゅもんも認証に失敗する。",
     },
@@ -252,7 +262,21 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
         : "鉤がまだない。コミットからしれんの種が生えぬぞ（今は飛ばしてよい）",
       howTo: "`./scripts/setup-git-hook.sh /path/to/your-repo`",
       plain:
-        "git commit 後にイベントが送られ、理解度ゲート（しれん）候補が自動で増える。Cloud では動かぬことも多い（ベストエフォート）。",
+        "git commit 後にイベントが送られ、しれん（理解度チェック）候補が自動で増える。Cloud では動かぬことも多い（ベストエフォート）。",
+    },
+    {
+      id: "grading_cli",
+      label: "採点の賢者（claude/codex CLI）",
+      ok: grading.ok,
+      required: false,
+      detail: grading.ok
+        ? `採点経路は見える——${grading.detail}`
+        : genFailures.auth + genFailures.other > 0
+          ? `${grading.detail}（直近の生成失敗: auth ${genFailures.auth} / other ${genFailures.other}）`
+          : grading.detail,
+      howTo: grading.howTo,
+      plain:
+        "提出後の採点はヘッドレス LLM（claude または codex）。無いと保留になる。CLI が戻るとじゅんび／ちずを開いたときに自動で再採点を試す。",
     },
     {
       id: "first_gate",
@@ -265,7 +289,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
           : "まだしれんがない。じゅんびでサンプルを用意せよ",
       howTo: "/setup を開く（サンプル seed）または hook 後にコミット",
       plain:
-        "データベースに Gate が1件以上ある。ホームの『たたかう』や /gates で解ける。",
+        "しれんが1件以上ある。ホームの『たたかう』や /gates で解ける。",
     },
     {
       id: "first_learning",
@@ -278,7 +302,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
           : "まだ学びが落ちておらぬ。サンプルまたはじゅもんで拾わせよ",
       howTo: "/setup のサンプル seed、または capture_learning_candidate",
       plain:
-        "Entry または Capture が1件以上。にっき／受信箱に学びが並び始める。",
+        "にっきまたは受信箱の候補が1件以上。学びが並び始める。",
     },
   ];
 
@@ -308,5 +332,7 @@ export async function loadSetupDiagnosis(): Promise<SetupDiagnosis> {
     tutorialGateId: TUTORIAL_GATE_ID,
     mcpEndpoint,
     mcpSnippets,
+    gitHookInstalled: gitHook,
+    genFailures,
   };
 }

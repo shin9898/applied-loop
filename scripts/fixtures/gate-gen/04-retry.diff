@@ -1,0 +1,8 @@
+diff --git a/src/jobs.ts b/src/jobs.ts
+--- a/src/jobs.ts
++++ b/src/jobs.ts
+@@ -8,4 +8,7 @@ export async function enqueue(job: Job) {
+   await queue.push(job);
++  // 失敗時も同じ payload で即リトライ（冪等キーなし）
++  job.retries = 3;
+ }

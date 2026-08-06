@@ -5,10 +5,11 @@
 
 export type McpSurface = "core" | "full";
 
-/** P0 時点の core（request_gate は P1 で追加） */
+/** core 面（≤6）。P1 で request_gate を追加 */
 export const MCP_CORE_TOOLS = [
   "morning_briefing",
   "list_pending_gates",
+  "request_gate",
   "answer_gate",
   "get_gate_result",
 ] as const;

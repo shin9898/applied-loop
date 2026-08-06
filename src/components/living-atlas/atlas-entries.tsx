@@ -114,6 +114,15 @@ export function AtlasEntries({
           )}
         </AtlasReveal>
         <AtlasReveal as="section" className="dq-win p-3.5">
+          <AtlasPageTitle title="週次・音声" sub="ルミナの語り" />
+          <p className="mb-2 text-[12px] leading-relaxed text-[#c9c3a0]">
+            ナビ姫ルミナが先週のちずを語る。月曜の朝の要約で原稿が溜まる。音声化は外出し。
+          </p>
+          <Link href="/digest" className="dq-btn w-fit !px-3 !py-2 text-[8px]">
+            ルミナの語りをきく
+          </Link>
+        </AtlasReveal>
+        <AtlasReveal as="section" className="dq-win p-3.5">
           <AtlasPageTitle
             title="にっき"
             sub={pending ? `未仕分け ${pending} 件` : "仕分けはひと段落のようじゃ"}

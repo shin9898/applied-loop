@@ -101,8 +101,9 @@ CLAUDE.md / Cursor Rules / Codex AGENTS に追記する文（必要に応じて�
 
 ## 3.5 ツール面（core / full）
 
-既定は仲間向け **`MCP_SURFACE=core`**（`morning_briefing` / `list_pending_gates` / `answer_gate` / `get_gate_result` のみ）。  
-本人の全ツールは `.env` に `MCP_SURFACE=full`。ADR-0019。
+既定は仲間向け **`MCP_SURFACE=core`**（`morning_briefing` / `list_pending_gates` / `request_gate` / `answer_gate` / `get_gate_result` の5本）。  
+本人の全ツールは `.env` に `MCP_SURFACE=full`。ADR-0019。  
+**いつ何を解放するか**は1行表: [surface-unlock.md](./surface-unlock.md)（P3 B1-5）。
 
 ## 4. Cloud Agent 向け（Reachable MCP）
 
@@ -140,7 +141,7 @@ Living Atlas 各画面の「じゅもんをとなえる」から Claude/Codex �
 | 領域 | ツール |
 |---|---|
 | 朝・把握 | `morning_briefing`, `list_pending_gates`, `get_gate_result` |
-| しれん | `answer_gate`, `enrich_gate_places` |
+| しれん | `request_gate`, `answer_gate`, `enrich_gate_places` |
 | 学び | `capture_learning_candidate`, `triage_inbox`, `record_application`, `find_related_learnings` |
 | 目標 | `register_goals`, `update_goal`, `approve_goal_link`, `reject_goal_link` |
 | 任務×学び | `save_task_mappings` |

@@ -4,11 +4,14 @@ import {
   placeFrom,
   type SystemKind,
 } from "@/lib/atlas-taxonomy";
+import type { QuadrantFlows } from "@/lib/quadrant";
+import { QuadrantMap } from "@/components/quadrant-map";
 import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasGroupedList } from "./atlas-list-groups";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
+import { AtlasZukanSampleSprite } from "./atlas-zukan-sample";
 
 export type ZukanItem = {
   id: string;
@@ -28,10 +31,13 @@ export function AtlasZukan({
   items,
   streakDays,
   wsToken = null,
+  quadrant = null,
 }: {
   items: ZukanItem[];
   streakDays?: number;
   wsToken?: string | null;
+  /** P3: 4象限（ホーム CTA は増やさない） */
+  quadrant?: QuadrantFlows | null;
 }) {
   const open = items.filter((i) => i.status !== "clear").length;
   const fog = items.filter((i) => i.status === "fog").length;
@@ -51,6 +57,19 @@ export function AtlasZukan({
             <AtlasAssistUnavailable />
           )}
         </AtlasReveal>
+        {quadrant ? (
+          <AtlasReveal as="section" className="dq-win p-3.5">
+            <AtlasPageTitle
+              title="ちしきの4つのくに"
+              sub={`${quadrant.weekKey} の流れ`}
+            />
+            <p className="mb-3 text-[12px] leading-relaxed text-[#c9c3a0]">
+              未知の未知〜知の知。今週どこが動いたかを見る地図じゃ（ちずの CTA
+              は触らない）。
+            </p>
+            <QuadrantMap flows={quadrant} />
+          </AtlasReveal>
+        ) : null}
         <AtlasReveal as="section" className="dq-win p-3.5">
           <AtlasPageTitle
             title="ずかん"
@@ -64,9 +83,27 @@ export function AtlasZukan({
             getKey={(i) => i.id}
             getPlace={(i) => placeFrom(i.repo, i.domain)}
             getSystem={(i) => i.system ?? "other"}
-            unknownHint="つまずきに紐づくゲートの repo / domain が空だと霧に入るぞ。"
+            unknownHint="つまずきに紐づくしれんのばしょ（repo / domain）が空だと霧に入るぞ。"
             empty={
-              <p className="text-[14px] text-[#c9c3a0]">まだ記録がないようじゃ。</p>
+              <div className="grid gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 border-[3px] border-white bg-[#001a8c] p-1 shadow-[4px_4px_0_#000]">
+                    <AtlasZukanSampleSprite scale={3} />
+                  </div>
+                  <div className="grid gap-2">
+                    <p className="m-0 text-[15px] leading-relaxed text-[#f7f3d9]">
+                      ずかんはまだ空じゃ
+                    </p>
+                    <p className="m-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+                      まだつまずきなし。miss すると、左のような像がここに増える。
+                      しれんにこたえて CLEAR や miss になると貯まるぞ。まずは1問提出せよ。
+                    </p>
+                  </div>
+                </div>
+                <Link href="/gates" className="dq-btn w-fit">
+                  しれんへ
+                </Link>
+              </div>
             }
             renderItem={(item, i) => {
               const detailHref = `/zukan/${item.id}`;

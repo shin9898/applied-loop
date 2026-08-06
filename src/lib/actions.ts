@@ -128,15 +128,18 @@ export async function joinWaitlist(formData: FormData) {
 
 // --- 理解度ゲート (表示側の救済・記録のみ。回答は MCP answer_gate へ集約) ---
 
-export type GateBattleVerdict = "pass" | "retry" | "pending" | "empty" | "busy";
+export type GateBattleVerdict =
+  | "pass"
+  | "retry"
+  | "pending"
+  | "empty"
+  | "busy"
+  | "grading_failed";
 
 function verdictFromStatus(status: string): GateBattleVerdict {
   if (status === "passed" || status === "self_graded_pass") return "pass";
-  if (
-    status === "failed" ||
-    status === "self_graded_fail" ||
-    status === "grading_failed"
-  ) {
+  if (status === "grading_failed") return "grading_failed";
+  if (status === "failed" || status === "self_graded_fail") {
     return "retry";
   }
   if (status === "answered" || status === "grading") return "pending";
@@ -203,29 +206,71 @@ export async function pollGateVerdict(
   verdict: GateBattleVerdict;
   note: string | null;
   debrief: GateDebrief | null;
+  nextReviewLabel: string | null;
 }> {
   try {
     await requireAuth();
     const id = gateId.trim();
-    if (!id) return { verdict: "pending", note: null, debrief: null };
+    if (!id) {
+      return { verdict: "pending", note: null, debrief: null, nextReviewLabel: null };
+    }
     const gate = await prisma.gate.findUnique({
       where: { id },
-      select: { status: true, gradeNote: true, rubricResult: true },
+      select: {
+        status: true,
+        gradeNote: true,
+        rubricResult: true,
+        rubricCriteria: true,
+        misconception: { select: { nextReviewAt: true } },
+      },
     });
-    if (!gate) return { verdict: "pending", note: null, debrief: null };
+    if (!gate) {
+      return { verdict: "pending", note: null, debrief: null, nextReviewLabel: null };
+    }
     const verdict = verdictFromStatus(gate.status);
+    if (
+      verdict === "pass" ||
+      verdict === "retry" ||
+      verdict === "grading_failed"
+    ) {
+      const { recordActivationOnce, maybeRecordFirstComplete } = await import(
+        "@/lib/activation-funnel"
+      );
+      recordActivationOnce("first_verdict", { status: gate.status });
+      const { isTutorialGateSubmitted } = await import("@/lib/tutorial-seed");
+      const { mcpTouchedRecently } = await import("@/lib/tutorial-state");
+      maybeRecordFirstComplete({
+        sampleSubmitted: await isTutorialGateSubmitted(),
+        mcpTouched: mcpTouchedRecently(),
+        hasVerdict: true,
+      });
+    }
+    const { TUTORIAL_GATE_ID } = await import("@/lib/tutorial-constants");
     const debrief =
       verdict === "pass" || verdict === "retry"
-        ? buildGateDebrief(gate.gradeNote, gate.rubricResult)
+        ? buildGateDebrief(gate.gradeNote, gate.rubricResult, {
+            rubricCriteriaJson: gate.rubricCriteria,
+            ensureAspects: id === TUTORIAL_GATE_ID && verdict === "retry",
+          })
         : null;
+    const nextAt = gate.misconception?.nextReviewAt;
+    const nextReviewLabel = nextAt
+      ? nextAt.toISOString().slice(0, 10)
+      : null;
     return {
       verdict,
       note: gate.gradeNote,
       debrief,
+      nextReviewLabel,
     };
   } catch (e) {
     console.error("[gate] pollGateVerdict failed:", e);
-    return { verdict: "pending", note: null, debrief: null };
+    return {
+      verdict: "pending",
+      note: null,
+      debrief: null,
+      nextReviewLabel: null,
+    };
   }
 }
 
@@ -350,14 +395,25 @@ export async function retryGrading(formData: FormData) {
   await requireAuth();
   const gateId = str(formData, "gateId");
   if (!gateId) throw new Error("gateId is required");
-  await prisma.gate.updateMany({
-    where: { id: gateId, status: "grading_failed" },
+  await retryGateGrading(gateId);
+}
+
+/** バトル UI 用: 採点失敗からの再採点 */
+export async function retryGateGrading(gateId: string): Promise<"pending" | "busy"> {
+  await requireAuth();
+  const id = gateId.trim();
+  if (!id) return "busy";
+  const updated = await prisma.gate.updateMany({
+    where: { id, status: "grading_failed" },
     data: { status: "answered", gradeNote: null },
   });
+  if (updated.count === 0) return "busy";
   after(async () => {
-    await gradeGate(gateId).catch((e) => console.error("[gate] grade failed:", e));
+    await gradeGate(id).catch((e) => console.error("[gate] grade failed:", e));
   });
-  revalidatePath(`/gates/${gateId}`);
+  revalidatePath(`/gates/${id}`);
+  revalidatePath("/gates");
+  return "pending";
 }
 
 /** セルフ採点フォールバック (self_graded フラグで NSM 計算時に区別できる) */
@@ -388,17 +444,40 @@ export async function selfGrade(formData: FormData) {
   revalidatePath("/");
 }
 
+const DISMISS_REASONS = new Set([
+  "bad_question",
+  "duplicate",
+  "not_relevant",
+  "other",
+]);
+
 /** ゲートを閉じる (スキップ。発火点チューニングの計測対象) */
 export async function dismissGate(formData: FormData) {
   await requireAuth();
   const gateId = str(formData, "gateId");
+  const reason = str(formData, "reason") || "other";
   if (!gateId) throw new Error("gateId is required");
-  await prisma.gate.updateMany({
-    where: { id: gateId, status: "pending" },
-    data: { status: "dismissed" },
+  await dismissGateWithReason(gateId, reason);
+}
+
+/** バトル UI 用: 悪問スキップ（B5-4） */
+export async function dismissGateWithReason(
+  gateId: string,
+  reason: string,
+): Promise<"ok" | "busy"> {
+  await requireAuth();
+  const id = gateId.trim();
+  const r = DISMISS_REASONS.has(reason) ? reason : "other";
+  if (!id) return "busy";
+  const updated = await prisma.gate.updateMany({
+    where: { id, status: { in: ["pending", "failed", "grading_failed"] } },
+    data: { status: "dismissed", dismissReason: r },
   });
+  if (updated.count === 0) return "busy";
   revalidatePath("/gates");
+  revalidatePath(`/gates/${id}`);
   revalidatePath("/");
+  return "ok";
 }
 
 /** 参考リソースをクリックした記録 (ADR-0007)。pending/answered のみ。NSM 判定には使わない */
@@ -440,6 +519,8 @@ export async function ensureTutorialSeedAction(): Promise<{ gateId: string }> {
   await requireAuth();
   const { ensureTutorialSeed } = await import("@/lib/tutorial-seed");
   const r = await ensureTutorialSeed();
+  const { recordActivationOnce } = await import("@/lib/activation-funnel");
+  recordActivationOnce("sample_started", { gateId: r.gateId });
   revalidatePath("/setup");
   revalidatePath("/");
   revalidatePath("/gates");
@@ -466,6 +547,8 @@ export async function markTutorialLlmStepDoneAction(): Promise<void> {
   await requireAuth();
   const { writeTutorialState } = await import("@/lib/tutorial-state");
   writeTutorialState({ llmStepDone: true });
+  const { recordActivationOnce } = await import("@/lib/activation-funnel");
+  recordActivationOnce("mcp_touched", { source: "manual_done" });
   revalidatePath("/setup");
 }
 
@@ -486,6 +569,41 @@ export async function completeTutorialAction(): Promise<void> {
   await requireAuth();
   const { writeTutorialState } = await import("@/lib/tutorial-state");
   writeTutorialState({ completedAt: new Date().toISOString() });
+  const { recordActivationOnce, maybeRecordFirstComplete } = await import(
+    "@/lib/activation-funnel"
+  );
+  const { isTutorialGateSubmitted } = await import("@/lib/tutorial-seed");
+  const sampleSubmitted = await isTutorialGateSubmitted();
+  const hasVerdict = await prisma.gate.count({
+    where: {
+      status: {
+        in: [
+          "passed",
+          "failed",
+          "self_graded_pass",
+          "self_graded_fail",
+          "grading_failed",
+        ],
+      },
+    },
+  });
+  maybeRecordFirstComplete({
+    sampleSubmitted,
+    mcpTouched: true,
+    hasVerdict: hasVerdict > 0,
+  });
+  if (hasVerdict > 0) recordActivationOnce("first_verdict");
   revalidatePath("/setup");
   revalidatePath("/");
+}
+
+/** B3-3: 初 CLEAR 後に証跡ナビを出すか */
+export async function getEvidenceNavUnlocked(): Promise<boolean> {
+  try {
+    await requireAuth();
+    const { hasFirstClear } = await import("@/lib/first-clear");
+    return hasFirstClear();
+  } catch {
+    return false;
+  }
 }

@@ -10,12 +10,20 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
-/** ADR-0019 P0: コア4面のみ。他は直 URL / MCP_SURFACE=full */
-const NAV = [
+/** ADR-0019: コア4面。初 CLEAR 後に証跡面を追加（B3-3） */
+const NAV_CORE = [
   { href: "/", label: "ちず", plain: "ホーム" },
   { href: "/gates", label: "しれん", plain: "理解チェック" },
   { href: "/zukan", label: "ずかん", plain: "つまずき" },
   { href: "/setup", label: "じゅんび", plain: "セットアップ" },
+] as const;
+
+const NAV_EVIDENCE = [
+  { href: "/entries", label: "にっき", plain: "学び・受信箱" },
+  { href: "/goals", label: "もくひょう", plain: "目標証跡" },
+  { href: "/harness", label: "どうぐ", plain: "ハーネス" },
+  /** P3 B12-5: requirements 復帰（初 CLEAR 後。直 URL は常時可） */
+  { href: "/requirements", label: "ようけん", plain: "要件ゲート" },
 ] as const;
 
 const STORAGE_KEY = "atlas-cmd-dock-v1";
@@ -32,8 +40,8 @@ function pathActive(pathname: string, href: string) {
 }
 
 function defaultPos(collapsed: boolean): { left: number; top: number } {
-  const w = collapsed ? 96 : 212;
-  const h = collapsed ? 48 : 200;
+  const w = collapsed ? 104 : 276;
+  const h = collapsed ? 48 : 248;
   return {
     left: Math.max(8, window.innerWidth - w - 12),
     top: Math.max(8, window.innerHeight - h - 12),
@@ -41,7 +49,7 @@ function defaultPos(collapsed: boolean): { left: number; top: number } {
 }
 
 function clampPos(left: number, top: number, el: HTMLElement | null) {
-  const w = el?.offsetWidth ?? 212;
+  const w = el?.offsetWidth ?? 276;
   const h = el?.offsetHeight ?? 48;
   const maxL = Math.max(8, window.innerWidth - w - 8);
   const maxT = Math.max(8, window.innerHeight - h - 8);
@@ -80,6 +88,7 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
   const rootRef = useRef<HTMLElement | null>(null);
   const [ready, setReady] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [evidenceUnlocked, setEvidenceUnlocked] = useState(false);
   const [pos, setPos] = useState({ left: 0, top: 0 });
   const drag = useRef<{
     ox: number;
@@ -104,6 +113,15 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
       }
       setReady(true);
     });
+    void import("@/lib/actions").then(({ getEvidenceNavUnlocked }) =>
+      getEvidenceNavUnlocked()
+        .then((v) => {
+          if (!cancelled) setEvidenceUnlocked(v);
+        })
+        .catch(() => {
+          /* ignore */
+        }),
+    );
     return () => {
       cancelled = true;
     };
@@ -192,6 +210,9 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
   if (!ready) return null;
 
   const style = { left: pos.left, top: pos.top };
+  const navItems = evidenceUnlocked
+    ? [...NAV_CORE, ...NAV_EVIDENCE]
+    : [...NAV_CORE];
 
   if (collapsed) {
     return (
@@ -237,7 +258,7 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
         コマンド
       </div>
       <ul className="atlas-cmd-dock__grid">
-        {NAV.map((n) => {
+        {navItems.map((n) => {
           const active = pathActive(pathname, n.href);
           return (
             <li key={n.href}>
@@ -246,14 +267,21 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
                 className={active ? "is-active" : undefined}
                 title={`${n.label}（${n.plain}）`}
               >
-                <span className="atlas-cmd-dock__cur" aria-hidden />
-                {n.label}
-                <span className="atlas-cmd-dock__plain"> {n.plain}</span>
+                <span className="atlas-cmd-dock__row">
+                  <span className="atlas-cmd-dock__cur" aria-hidden />
+                  {n.label}
+                </span>
+                <span className="atlas-cmd-dock__plain">{n.plain}</span>
               </Link>
             </li>
           );
         })}
       </ul>
+      {evidenceUnlocked ? (
+        <div className="atlas-cmd-dock__streak" style={{ color: "#9ec0ff" }}>
+          証跡面解放済み
+        </div>
+      ) : null}
       {typeof streakDays === "number" && streakDays > 0 ? (
         <div className="atlas-cmd-dock__streak">れんぞく {streakDays}日</div>
       ) : null}

@@ -571,6 +571,8 @@ export function AtlasCloudMcpWizardSection({
 }) {
   const [open, setOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  /** P3 B12-3b: コア完走後だけ CTA を強調（既定オープンには戻さない） */
+  const emphasize = diagnosis.tutorialReady;
 
   useEffect(() => {
     // ADR-0019 P0 B12-3: 初回視界から外す。明示オープン時のみ開く
@@ -593,9 +595,21 @@ export function AtlasCloudMcpWizardSection({
   };
 
   return (
-    <div className="border-[3px] border-[#9ec0ff] bg-[#000c4a] p-3.5 outline outline-2 outline-[#002070]">
-      <p className="m-0 font-[family-name:var(--font-pixel)] text-[9px] text-[#9ec0ff]">
-        ◆ 任意 · Cloud の生成AIからも同じループ
+    <div
+      className={`border-[3px] bg-[#000c4a] p-3.5 outline outline-2 outline-[#002070] ${
+        emphasize
+          ? "border-[#f0d25a]"
+          : "border-[#9ec0ff]"
+      }`}
+    >
+      <p
+        className={`m-0 font-[family-name:var(--font-pixel)] text-[9px] ${
+          emphasize ? "text-[#f0d25a]" : "text-[#9ec0ff]"
+        }`}
+      >
+        {emphasize
+          ? "◆ コア完走後の次の一手 · Cloud の生成AIからも同じループ"
+          : "◆ 任意 · Cloud の生成AIからも同じループ"}
         {diagnosis.mcpEndpoint.reachable ? "（Reachable）" : ""}
       </p>
       <p className="mt-2 mb-0 text-[15px] leading-snug text-[#f7f3d9]">
@@ -612,10 +626,16 @@ export function AtlasCloudMcpWizardSection({
           className="dq-btn !px-3 !py-2 text-[8px]"
           onClick={() => toggle(!open)}
         >
-          {!hydrated ? "開く" : open ? "ウィザードを閉じる" : "ウィザードを始める"}
+          {!hydrated
+            ? "開く"
+            : open
+              ? "ウィザードを閉じる"
+              : emphasize
+                ? "Cloud ウィザードを始める"
+                : "ウィザードを始める"}
         </button>
         <span className="text-[10px] text-[#9a9470]">
-          選ぶ → トンネル → 登録 → 疎通（4手）
+          選ぶ → トンネル → 登録 → 疎通（4手）· 既定はたたんだまま
         </span>
       </div>
       {open ? (

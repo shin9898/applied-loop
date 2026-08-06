@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import {
   checkGateMicroAspect,
+  dismissGateWithReason,
   pollGateVerdict,
   resubmitGateAnswer,
+  retryGateGrading,
   submitGateAnswer,
   type GateBattleVerdict,
 } from "@/lib/actions";
@@ -24,11 +26,15 @@ export function AtlasGateBattleClient({
     contextSummary?: string | null;
     system?: SystemKind;
     resources?: { kind: string; label: string; href?: string | null }[];
-    initialVerdict?: Extract<BattleVerdict, "pass" | "retry"> | null;
+    initialVerdict?: Extract<
+      BattleVerdict,
+      "pass" | "retry" | "grading_failed"
+    > | null;
     initialDebrief?: GateDebrief | null;
     relatedEntryId?: string | null;
     relatedInboxId?: string | null;
     relatedMisconceptionId?: string | null;
+    nextReviewLabel?: string | null;
   };
 }) {
   const router = useRouter();
@@ -54,6 +60,7 @@ export function AtlasGateBattleClient({
       relatedEntryId={gate.relatedEntryId ?? null}
       relatedInboxId={gate.relatedInboxId ?? null}
       relatedMisconceptionId={gate.relatedMisconceptionId ?? null}
+      initialNextReviewLabel={gate.nextReviewLabel ?? null}
       zukanHref={zukanHref}
       onFlee={() => router.push(isTutorial ? "/setup" : "/")}
       onGoGates={() => router.push("/gates")}
@@ -63,7 +70,19 @@ export function AtlasGateBattleClient({
           ? () => router.push("/setup?from=sample_gate")
           : undefined
       }
+      autoLeaveOnAccept={!isTutorial}
       afterAcceptLabel="じゅんびにもどる（次の手へ）"
+      onDismissBadQuestion={
+        isTutorial
+          ? undefined
+          : async () => {
+              try {
+                return await dismissGateWithReason(gate.id, "bad_question");
+              } catch {
+                return "busy";
+              }
+            }
+      }
       onCastSpell={async (answer, mode) => {
         try {
           const fn = mode === "resubmit" ? resubmitGateAnswer : submitGateAnswer;
@@ -74,10 +93,18 @@ export function AtlasGateBattleClient({
       }}
       onPollVerdict={async () => {
         try {
-          const { verdict, debrief } = await pollGateVerdict(gate.id);
-          return { verdict, debrief };
+          const { verdict, debrief, nextReviewLabel } =
+            await pollGateVerdict(gate.id);
+          return { verdict, debrief, nextReviewLabel };
         } catch {
           return { verdict: "pending" satisfies GateBattleVerdict };
+        }
+      }}
+      onRetryGrading={async () => {
+        try {
+          return await retryGateGrading(gate.id);
+        } catch {
+          return "busy";
         }
       }}
       onCheckMicro={async ({ aspect, paraphrase }) => {

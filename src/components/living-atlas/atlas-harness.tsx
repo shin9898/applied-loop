@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { WeeklyTokenBreakdown } from "@/lib/harness-stats";
+import { TokenStackChart } from "@/components/harness-charts";
 import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
@@ -22,13 +24,20 @@ export function AtlasHarness({
   repos,
   streakDays,
   wsToken = null,
+  weeklyTokens = [],
 }: {
   repos: HarnessRepo[];
   streakDays?: number;
   wsToken?: string | null;
+  /** B12-4: 観測グラフ（先に見せ、canon は下のリンク） */
+  weeklyTokens?: WeeklyTokenBreakdown[];
 }) {
   const weak = repos.filter((r) => r.health !== "ok");
   const focus = weak[0] ?? repos[0];
+  const hasTokenSignal = weeklyTokens.some(
+    (w) =>
+      w.cacheRead + w.cacheCreate + w.tokensIn + w.tokensOut + w.thinking > 0,
+  );
   return (
     <AtlasChrome active="/harness" streakDays={streakDays}>
       <AtlasShell>
@@ -40,7 +49,7 @@ export function AtlasHarness({
               context={
                 focus
                   ? `注目 repo: ${focus.name}\nhealth: ${focus.health}\n${focus.criteria ?? ""}\n${focus.uplift ?? ""}`
-                  : "観測なし。suggest_cache_prefix_fix の前に計測を溜めよ。"
+                  : "観測なし。suggest_cache_prefix_form の前に計測を溜めよ。"
               }
               title="じゅもんで処方を進める"
               blurb="どうぐの見立てを、じゅもんで実行の段まで進めよ。"
@@ -50,12 +59,39 @@ export function AtlasHarness({
           )}
         </AtlasReveal>
         <AtlasReveal as="section" className="dq-win p-3.5">
+          <AtlasPageTitle title="観測（週次トークン）" sub="先に数字を見る" />
+          <p className="mb-3 text-[13px] leading-relaxed text-[#c9c3a0]">
+            ハーネス理解ループの入口。積み上げを見てから、下の repo
+            見立て・canon へ進め（P3 B12-4）。
+          </p>
+          {hasTokenSignal ? (
+            <TokenStackChart weeks={weeklyTokens} />
+          ) : (
+            <p className="m-0 text-[14px] text-[#c9c3a0]">
+              まだ週次トークンが無い。ハーネス計測が溜まるとここに棒が出る。
+            </p>
+          )}
+          <p className="mt-3 mb-0">
+            <Link
+              href="/harness/concepts/prompt-cache"
+              className="font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a] no-underline"
+            >
+              canon: プロンプトキャッシュの型 →
+            </Link>
+          </p>
+        </AtlasReveal>
+        <AtlasReveal as="section" className="dq-win p-3.5">
           <AtlasPageTitle
             title="どうぐ"
-            sub={weak.length ? `弱っておる repo が ${weak.length} 件` : "いまのところ元気じゃ"}
+            sub={
+              weak.length
+                ? `弱っておる repo が ${weak.length} 件`
+                : "いまのところ元気じゃ"
+            }
           />
           <p className="mb-3 text-[13px] leading-relaxed text-[#c9c3a0]">
-            危・注だけでなく、安でも「なぜ安か／どう上げるか」を見立てで確認せよ。深い実行は MCP。
+            危・注だけでなく、安でも「なぜ安か／どう上げるか」を見立てで確認せよ。深い実行は
+            MCP。
           </p>
           {repos.length === 0 ? (
             <p className="text-[14px] text-[#c9c3a0]">
@@ -78,13 +114,19 @@ export function AtlasHarness({
                             : "text-[#3ecf5a]"
                       }`}
                     >
-                      {repo.health === "bad" ? "危" : repo.health === "warn" ? "注" : "安"}
+                      {repo.health === "bad"
+                        ? "危"
+                        : repo.health === "warn"
+                          ? "注"
+                          : "安"}
                     </span>
                     <div>
                       <p className="m-0 font-[family-name:var(--font-pixel)] text-[10px] leading-relaxed">
                         {repo.name}
                       </p>
-                      <p className="mt-1 text-[13px] text-[#c9c3a0]">{repo.note}</p>
+                      <p className="mt-1 text-[13px] text-[#c9c3a0]">
+                        {repo.note}
+                      </p>
                       <div className="mt-2 h-2.5 border-2 border-[#223] bg-black">
                         <i
                           className={`block h-full ${

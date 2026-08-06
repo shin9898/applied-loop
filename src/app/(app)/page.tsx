@@ -12,6 +12,14 @@ export default async function AtlasHomePage() {
     loadHomeProps(),
     loadSetupDiagnosis(),
   ]);
+  if (setupDiagnosis.checks.some((c) => c.id === "grading_cli" && c.ok)) {
+    const { requeueFailedGradingIfCliReady } = await import(
+      "@/lib/requeue-failed-grading"
+    );
+    await requeueFailedGradingIfCliReady().catch((e) =>
+      console.error("[home] auto-regrade:", e),
+    );
+  }
   return (
     <AtlasChrome active="/" streakDays={props.streakDays}>
       <AtlasDashboard

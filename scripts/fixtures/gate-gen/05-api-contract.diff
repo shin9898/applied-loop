@@ -1,0 +1,8 @@
+diff --git a/src/api.ts b/src/api.ts
+--- a/src/api.ts
++++ b/src/api.ts
+@@ -12,6 +12,7 @@ export type UserDto = {
+   id: string;
+   name: string;
++  displayName: string; // 破壊的追加（必須）
+ };

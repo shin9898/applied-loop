@@ -17,12 +17,10 @@ import { AtlasShell } from "./atlas-shell";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasWorldMap, REGION_LEGEND } from "./atlas-world-map";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
-import {
-  AtlasSetupBanner,
-  AtlasWorldIntroModal,
-} from "./atlas-onboarding";
+import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
 import { pickTaskMapDisplay } from "@/lib/task-map-display";
+import { resolveHomeCta } from "@/lib/home-cta";
 
 export type TaskMapView = {
   dateKey: string;
@@ -158,9 +156,18 @@ function StatusCommandPanel({
         })}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-        {tab === "status" ? (
-          <div className="flex min-h-full flex-col gap-3">
+      {/*
+        3タブを同一グリッドセルに重ね、高さは最大（通常はステータス）で固定。
+        切り替え時のパネル高さジャンプ／ちらつきを防ぐ。
+      */}
+      <div className="grid min-h-0 flex-1 overflow-y-auto overflow-x-hidden [grid-template-areas:'stack']">
+        <div
+          role="tabpanel"
+          aria-hidden={tab !== "status"}
+          className={`[grid-area:stack] flex flex-col gap-3 ${
+            tab === "status" ? "" : "invisible pointer-events-none"
+          }`}
+        >
             <div>
               <div className="flex items-end justify-between gap-2">
                 <div>
@@ -232,7 +239,7 @@ function StatusCommandPanel({
               </ul>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col border-t-2 border-[#002070] pt-3">
+            <div className="flex flex-col border-t-2 border-[#002070] pt-3">
               <h3 className="m-0 mb-2 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
                 ◆ いまのクエスト
               </h3>
@@ -251,15 +258,19 @@ function StatusCommandPanel({
                   </li>
                 ))}
               </ul>
-              <p className="mt-auto mb-0 pt-3 text-[11px] leading-relaxed text-[#c9c3a0]">
+              <p className="mb-0 pt-3 text-[11px] leading-relaxed text-[#c9c3a0]">
                 任務・弱点は上のタブへ。移動は黒いコマンド窓じゃ。
               </p>
             </div>
-          </div>
-        ) : null}
+        </div>
 
-        {tab === "tasks" ? (
-          <div>
+        <div
+          role="tabpanel"
+          aria-hidden={tab !== "tasks"}
+          className={`[grid-area:stack] ${
+            tab === "tasks" ? "" : "invisible pointer-events-none"
+          }`}
+        >
             <p className="m-0 mb-2 text-[12px] text-[#c9c3a0]">
               {activeMap
                 ? `${showingYesterday ? "昨日の控え · " : ""}${activeMap.dateKey} · ${taskCount} 任務 · 学び ${relatedCount}`
@@ -336,7 +347,7 @@ function StatusCommandPanel({
                       任務の代わりに、いま解けるしれんがあるぞ。
                     </p>
                     <p className="m-0 mb-2 line-clamp-2 text-[13px] text-[#f7f3d9]">
-                      {pendingGate.title ?? "未クリアの理解度ゲート"}
+                      {pendingGate.title ?? "未クリアのしれん"}
                     </p>
                     <Link href={fightHref} className="dq-btn inline-block">
                       たたかう
@@ -344,16 +355,20 @@ function StatusCommandPanel({
                   </div>
                 ) : (
                   <p className="m-0 border-t-2 border-[#002070] pt-2.5 text-[12px] text-[#c9c3a0]">
-                    しれんもまだない。学びを capture するか、じゅんびを点検せよ。
+                    しれんもまだない。学びを拾うか、じゅんびを点検せよ。
                   </p>
                 )}
               </div>
             )}
-          </div>
-        ) : null}
+        </div>
 
-        {tab === "weak" ? (
-          <div>
+        <div
+          role="tabpanel"
+          aria-hidden={tab !== "weak"}
+          className={`[grid-area:stack] ${
+            tab === "weak" ? "" : "invisible pointer-events-none"
+          }`}
+        >
             <p className="m-0 mb-2 text-[12px] text-[#c9c3a0]">
               横断で欠ける論点。次のしれんで優先せよ。
             </p>
@@ -388,8 +403,7 @@ function StatusCommandPanel({
                 まだ弱点の集計がないようじゃ。しれんを積むとここが育つぞ。
               </p>
             )}
-          </div>
-        ) : null}
+        </div>
       </div>
     </AtlasReveal>
   );
@@ -397,18 +411,18 @@ function StatusCommandPanel({
 
 const LOG: Record<string, { who: string; title: string; body: string }> = {
   "quest-1": {
-    who: "◆ ゲートの案内",
-    title: "未クリアの理解度ゲート",
-    body: "『たたかう』でバトル画面へ。じゅもん（回答）は採点パイプラインに送られるぞ。",
+    who: "◆ しれんの案内",
+    title: "未クリアのしれん",
+    body: "『たたかう』で解答画面へ。じゅもん（回答）は採点に送られるぞ。",
   },
   "clear-1": {
     who: "◆ CLEAR（ずかんに記録済み）",
     title: "クリア済みのつまずき",
-    body: "ずかんで本文・根拠・再出題を見返せる。同じ系統のゲートのヒントになるぞ。",
+    body: "ずかんで本文・根拠・再出題を見返せる。同じ系統のしれんのヒントになるぞ。",
   },
   you: {
     who: "◆ いまのばしょ",
-    title: "ゲート連峰のふもと",
+    title: "しれん連峰のふもと",
     body: "未クリアの「！」は未解明帯にある。画面のコマンド窓（黒）でどうぐ・にっきへ移れるぞ。",
   },
 };
@@ -421,8 +435,8 @@ export function AtlasDashboard({
   systemStars = [],
   pendingGate,
   todos = [
-    { title: "① 未クリアゲートを1つ解く", meta: "『たたかう』→ じゅもん（LLM）で回答" },
-    { title: "② 受信箱の学びを仕分ける", meta: "にっき → capture 候補を確認" },
+    { title: "① 未クリアのしれんを1つ解く", meta: "『たたかう』→ じゅもん（LLM）で回答" },
+    { title: "② 受信箱の学びを仕分ける", meta: "にっき → 候補を確認" },
     { title: "③ 弱ってる repo の処方を見る", meta: "どうぐ → cache / harness 処方" },
   ],
   taskMap = null,
@@ -436,17 +450,25 @@ export function AtlasDashboard({
     adventurerProp ?? adventurerLevelFromResolved(resolvedTotal);
 
   const log = LOG[activeId] ?? {
-    who: "◆ ゲートの案内",
+    who: "◆ しれんの案内",
     title: pendingGate?.title ?? "つぎのしれんはないようじゃ",
     body: pendingGate
-      ? "『たたかう』でバトル画面へ。問い全文はそこで読むのじゃ。"
+      ? "『たたかう』で解答画面へ。問い全文はそこで読むのじゃ。"
       : "ちずのピンを選ぶか、コマンド窓からにっき・どうぐを開くとよいぞ。",
   };
 
-  const fightHref = pendingGate ? `/gates/${pendingGate.id}` : "/gates";
+  const primaryCta = resolveHomeCta({
+    essentialsReady: setupDiagnosis?.essentialsReady ?? true,
+    tutorialSampleSubmitted:
+      setupDiagnosis?.tutorialSampleSubmitted ?? true,
+    tutorialReady: setupDiagnosis?.tutorialReady ?? true,
+    pendingGateId: pendingGate?.id ?? null,
+    pendingGateTitle: pendingGate?.title ?? null,
+    gitHookInstalled: setupDiagnosis?.gitHookInstalled ?? false,
+  });
   const assistContext = [
     pendingGate
-      ? `次のしれん gateId: ${pendingGate.id}\n${pendingGate.title ?? ""}\n${pendingGate.question}`
+      ? `次のしれん id: ${pendingGate.id}\n${pendingGate.title ?? ""}\n${pendingGate.question}`
       : "次のしれん: なし",
     weaknesses?.length
       ? `弱点: ${weaknesses
@@ -461,11 +483,24 @@ export function AtlasDashboard({
   return (
     <AtlasShell>
       <AtlasWorldIntroModal />
-      {setupDiagnosis && !setupDiagnosis.essentialsReady ? (
-        <AtlasReveal as="section">
-          <AtlasSetupBanner diagnosis={setupDiagnosis} />
-        </AtlasReveal>
-      ) : null}
+      <AtlasReveal as="section">
+        <div className="grid grid-cols-1 items-center gap-3.5 border-4 border-[#f0d25a] bg-[#001a8c] p-4 outline outline-4 outline-[#000c4a] shadow-[6px_6px_0_#000] md:grid-cols-[1fr_auto]">
+          <div>
+            <div className="mb-2 font-[family-name:var(--font-pixel)] text-[11px] text-[#f0d25a]">
+              ◆ いまの一手
+            </div>
+            <h1 className="m-0 font-[family-name:var(--font-jp)] text-[18px] font-normal leading-relaxed">
+              {primaryCta.title}
+            </h1>
+            <p className="mt-2 text-[13px] leading-relaxed text-[#c9c3a0]">
+              {primaryCta.body}
+            </p>
+          </div>
+          <Link href={primaryCta.href} className="dq-btn">
+            {primaryCta.label}
+          </Link>
+        </div>
+      </AtlasReveal>
       <AtlasReveal as="section">
         {wsToken ? (
           <AtlasAssist
@@ -473,36 +508,14 @@ export function AtlasDashboard({
             intent="general"
             context={assistContext}
             title="じゅもんで今日を進める"
-            blurb="朝の仕分けも、証跡も、どうぐの見立ても——願うならここからじゅもんを。ひとつのしれんなら下の『たたかう』じゃ。"
-            plain="ホーム用の全体操作。Claude/Codex が開き MCP で morning_briefing・仕分け・処方など。1問集中は『たたかう』→ゲート画面。"
+            blurb="朝の仕分けも、証跡も、どうぐの見立ても——願うならここからじゅもんを。ひとつのしれんなら上の一手へ。"
+            plain="ホーム用の全体操作。Claude/Codex が開き MCP で morning_briefing・仕分け・処方など。1問集中は上のプライマリ CTA。"
             defaultOpen={false}
           />
         ) : (
           <AtlasAssistUnavailable />
         )}
       </AtlasReveal>
-      {pendingGate ? (
-        <AtlasReveal as="section">
-          <div className="grid grid-cols-1 items-center gap-3.5 border-4 border-[#f0d25a] bg-[#001a8c] p-4 outline outline-4 outline-[#000c4a] shadow-[6px_6px_0_#000] md:grid-cols-[1fr_auto]">
-            <div>
-              <div className="mb-2 font-[family-name:var(--font-pixel)] text-[11px] text-[#f0d25a]">
-                ◆ つぎのしれん
-              </div>
-              <h1 className="m-0 font-[family-name:var(--font-jp)] text-[18px] font-normal leading-relaxed">
-                {pendingGate.title ?? "未クリアの理解度ゲート"}
-              </h1>
-              <p className="mt-2 text-[13px] leading-relaxed text-[#c9c3a0]">
-                {[pendingGate.context, pendingGate.system]
-                  .filter(Boolean)
-                  .join(" · ") || "たたかう画面で問い全文を読むのじゃ"}
-              </p>
-            </div>
-            <Link href={fightHref} className="dq-btn">
-              たたかう
-            </Link>
-          </div>
-        </AtlasReveal>
-      ) : null}
 
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1.6fr_0.9fr]">
         <AtlasReveal as="section" className="dq-win flex h-full flex-col gap-2.5 p-3">
@@ -555,11 +568,9 @@ export function AtlasDashboard({
           <h2 className="m-0 text-[16px] font-normal leading-relaxed">{log.title}</h2>
           <p className="mt-2 text-[13px] leading-relaxed text-[#c9c3a0]">{log.body}</p>
         </div>
-        {pendingGate ? (
-          <Link href={fightHref} className="dq-btn">
-            たたかう
-          </Link>
-        ) : null}
+        <Link href={primaryCta.href} className="dq-btn">
+          {primaryCta.label}
+        </Link>
       </AtlasReveal>
     </AtlasShell>
   );

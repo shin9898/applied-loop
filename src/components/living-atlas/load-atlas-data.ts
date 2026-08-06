@@ -40,6 +40,7 @@ const GOAL_EVIDENCE_TARGET = 3;
 function mapGateStatus(status: string): GateListItem["status"] {
   if (status === "pending") return "pending";
   if (status === "answered" || status === "grading") return "grading";
+  if (status === "grading_failed") return "grading_failed";
   if (status === "passed" || status === "self_graded_pass") return "passed";
   return "failed";
 }
@@ -51,13 +52,10 @@ function domainLabel(domain: string | null | undefined): string {
 
 function mapInitialVerdict(
   status: string,
-): "pass" | "retry" | null {
+): "pass" | "retry" | "grading_failed" | null {
   if (status === "passed" || status === "self_graded_pass") return "pass";
-  if (
-    status === "failed" ||
-    status === "self_graded_fail" ||
-    status === "grading_failed"
-  ) {
+  if (status === "grading_failed") return "grading_failed";
+  if (status === "failed" || status === "self_graded_fail") {
     return "retry";
   }
   return null;
@@ -804,11 +802,13 @@ export async function loadGateById(id: string): Promise<{
   contextSummary?: string | null;
   system: SystemKind;
   resources: { kind: string; label: string; href?: string | null }[];
-  initialVerdict: "pass" | "retry" | null;
+  initialVerdict: "pass" | "retry" | "grading_failed" | null;
   initialDebrief: ReturnType<typeof buildGateDebrief> | null;
   relatedEntryId: string | null;
   relatedInboxId: string | null;
   relatedMisconceptionId: string | null;
+  /** B5-5: misconception.nextReviewAt の日付ラベル */
+  nextReviewLabel: string | null;
 } | null> {
   if (!id) return null;
   const gate = await prisma.gate.findUnique({
@@ -821,9 +821,12 @@ export async function loadGateById(id: string): Promise<{
       status: true,
       gradeNote: true,
       rubricResult: true,
+      rubricCriteria: true,
       contextSummary: true,
       resources: true,
+      misconceptionId: true,
       event: { select: { repoPath: true } },
+      misconception: { select: { nextReviewAt: true } },
     },
   });
   if (!gate) return null;
@@ -839,8 +842,13 @@ export async function loadGateById(id: string): Promise<{
     ),
     resolveGateFollowups(gate.id),
   ]);
+  const { TUTORIAL_GATE_ID } = await import("@/lib/tutorial-constants");
   const debrief = initialVerdict
-    ? buildGateDebrief(gate.gradeNote, gate.rubricResult)
+    ? buildGateDebrief(gate.gradeNote, gate.rubricResult, {
+        rubricCriteriaJson: gate.rubricCriteria,
+        ensureAspects:
+          gate.id === TUTORIAL_GATE_ID && initialVerdict === "retry",
+      })
     : null;
   const system = classifySystem({
     text: `${gate.question}\n${gate.contextSummary ?? ""}`,
@@ -848,6 +856,10 @@ export async function loadGateById(id: string): Promise<{
     targetConcept: gate.targetConcept,
     rootCause: debrief?.rootCause ?? null,
   });
+  const nextAt = gate.misconception?.nextReviewAt;
+  const nextReviewLabel = nextAt
+    ? nextAt.toISOString().slice(0, 10)
+    : null;
   return {
     id: gate.id,
     question: gate.question,
@@ -859,7 +871,8 @@ export async function loadGateById(id: string): Promise<{
     initialDebrief: debrief,
     relatedEntryId: followups.entryId,
     relatedInboxId: followups.inboxId,
-    relatedMisconceptionId: followups.misconceptionId,
+    relatedMisconceptionId: followups.misconceptionId ?? gate.misconceptionId,
+    nextReviewLabel,
   };
 }
 

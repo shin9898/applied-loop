@@ -289,6 +289,73 @@ async function runCodex(prompt: string): Promise<string> {
   }
 }
 
+/** setup 診断用: 採点 CLI の有無だけ見る（LLM は呼ばない） */
+export function probeGradingCli(): {
+  ok: boolean;
+  provider: "claude" | "codex" | "none";
+  detail: string;
+  howTo: string;
+} {
+  const provider = (process.env.HEADLESS_LLM_PROVIDER ?? "auto").toLowerCase();
+  const claude = claudeBin();
+  const codex = codexBin();
+  if (provider === "claude") {
+    return claude
+      ? {
+          ok: true,
+          provider: "claude",
+          detail: `claude CLI: ${claude}`,
+          howTo: "問題なければそのまま。認証切れなら `claude` で再ログイン",
+        }
+      : {
+          ok: false,
+          provider: "none",
+          detail: "HEADLESS_LLM_PROVIDER=claude だが claude CLI が見つからない",
+          howTo:
+            "Claude Code を入れ、`claude` が PATH に出るようにする（または HEADLESS_CLAUDE_BIN）",
+        };
+  }
+  if (provider === "codex") {
+    return codex
+      ? {
+          ok: true,
+          provider: "codex",
+          detail: `codex CLI: ${codex}`,
+          howTo: "問題なければそのまま。認証切れなら `codex` で再ログイン",
+        }
+      : {
+          ok: false,
+          provider: "none",
+          detail: "HEADLESS_LLM_PROVIDER=codex だが codex CLI が見つからない",
+          howTo:
+            "Codex CLI を入れ PATH に出す（または HEADLESS_CODEX_BIN）",
+        };
+  }
+  if (claude) {
+    return {
+      ok: true,
+      provider: "claude",
+      detail: `claude CLI: ${claude}${codex ? `（codex もある: ${codex}）` : ""}`,
+      howTo: "認証切れなら `claude` / `codex` で再ログイン",
+    };
+  }
+  if (codex) {
+    return {
+      ok: true,
+      provider: "codex",
+      detail: `codex CLI: ${codex}`,
+      howTo: "認証切れなら `codex` で再ログイン",
+    };
+  }
+  return {
+    ok: false,
+    provider: "none",
+    detail: "採点用の claude / codex CLI が見つからない",
+    howTo:
+      "Claude Code か Codex CLI を入れ、`npm run regrade -- <gateId>` で疎通確認",
+  };
+}
+
 /** プロバイダ選択つきのヘッドレス LLM 呼び出し */
 export async function runHeadlessLLM(prompt: string): Promise<string> {
   const provider = (process.env.HEADLESS_LLM_PROVIDER ?? "auto").toLowerCase();

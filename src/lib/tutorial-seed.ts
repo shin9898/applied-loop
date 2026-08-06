@@ -45,7 +45,7 @@ export async function ensureTutorialSeed(): Promise<TutorialSeedResult> {
     where: { id: TUTORIAL_MISC_ID },
     create: {
       id: TUTORIAL_MISC_ID,
-      concept: "プロンプトキャッシュは「同じ文が続くと安い」だけだと思っている",
+      concept: "「動く実装」と「説明できる理解」を同じだと思っている",
       status: "open",
       rootCause: "knowledge",
     },
@@ -61,18 +61,25 @@ export async function ensureTutorialSeed(): Promise<TutorialSeedResult> {
       domain: "学習 / メタ",
       targetConcept: "理解ギャップ",
       question:
-        "「生成AIで機能は実装できたが、仕組みを説明できない」状態を、自分の言葉で説明してください。どんな場面で困り、何が足りないと感じていますか。",
-      contextSummary:
-        "チュートリアル用のサンプルしれん。コミット由来ではない中立な出題。",
+        "最近、生成AIでコードは出せたが「なぜ動くか」を自分の言葉で言えなかった場面を1つ挙げ、何が足りなかったかを2〜4文で書いてください。",
+      contextSummary: [
+        "場面の例: PRレビューで設計意図を聞かれた／障害で再現手順を説明できなかった／翌日に同じ修正をやり直した。",
+        "このサンプルはコミット由来ではない。3分以内で書いて提出し、採点結果（CLEAR / miss / 保留）が戻るところまで体験する。",
+      ].join("\n"),
       rubricCriteria: JSON.stringify([
-        "具体的な場面（レビュー・障害・別タスク再発など）に触れている",
-        "「動く／出荷できる」と「説明できる／再現できる」の差を言い換えている",
+        "具体的な場面が1つある（レビュー・障害・再作業など）",
+        "「動いた／出荷できた」と「説明・再現できた」の差に触れている",
         "一般論だけで終わらず、自分の体験か観察が入っている",
       ]),
       resources: JSON.stringify([
         {
           kind: "note",
-          label: "ヒント: 金曜にマージして月曜に詰まる場面を思い出す",
+          label: "手がかり: 金曜マージ→月曜に詰まった経験を思い出す",
+          ref: "tutorial",
+        },
+        {
+          kind: "note",
+          label: "提出後: しれん画面で CLEAR / miss / 保留（採点失敗）を確認",
           ref: "tutorial",
         },
       ]),

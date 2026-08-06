@@ -1,0 +1,10 @@
+diff --git a/src/cache.ts b/src/cache.ts
+--- a/src/cache.ts
++++ b/src/cache.ts
+@@ -1,5 +1,8 @@
+ export function prefixKey(userId: string) {
+-  return `user:${userId}`;
++  // 日付をキーに混ぜた。日をまたぐと別キーになる。
++  const day = new Date().toISOString().slice(0, 10);
++  return `user:${userId}:${day}`;
+ }

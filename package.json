@@ -2,6 +2,9 @@
   "name": "applied-loop",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,6 +12,9 @@
     "lint": "eslint",
     "test": "tsx --test src/lib/*.test.ts",
     "setup": "node scripts/bootstrap-local.mjs",
+    "db:reset": "node scripts/db-reset.mjs",
+    "audit:onboarding": "node scripts/audit-onboarding-sync.mjs",
+    "preflight": "node scripts/preflight-local.mjs --ports",
     "mcp:cloud-config": "node scripts/print-cloud-mcp-config.mjs",
     "import:data": "tsx scripts/import.ts",
     "seed:exp1": "tsx scripts/seed-exp1.ts",
@@ -17,6 +23,11 @@
     "dev:terminal": "node scripts/terminal-server.mjs",
     "dev:all": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" concurrently \"npm run dev -- -p 3100\" \"npm run dev:terminal\"",
     "regrade": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" tsx scripts/regrade-gate.ts",
+    "funnel:report": "node scripts/activation-funnel-report.mjs",
+    "supply:health": "tsx scripts/supply-health-weekly.ts",
+    "eval:gate-gen": "tsx scripts/eval-gate-gen.ts",
+    "eval:grade-spot": "tsx scripts/eval-grade-spot.ts",
+    "dismiss:report": "tsx scripts/dismiss-reasons-report.ts",
     "rewrite-gates": "node scripts/rewrite-gates.mjs",
     "postinstall": "node scripts/fixinstall-node-pty.mjs"
   },

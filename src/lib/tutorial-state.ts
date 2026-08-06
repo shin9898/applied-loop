@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { TutorialLlmTrack } from "@/lib/tutorial-constants";
+import { recordActivationOnce } from "@/lib/activation-funnel";
 
 export type TutorialState = {
   llmTrack?: TutorialLlmTrack | null;
@@ -64,6 +65,7 @@ export function touchMcpActivity(): void {
     }
   }
   writeTutorialState(patch);
+  recordActivationOnce("mcp_touched");
 }
 
 /** @deprecated 選択前の疎通まで含めてしまうので、貼る完了判定には mcpCountsForLlmStep を使う */

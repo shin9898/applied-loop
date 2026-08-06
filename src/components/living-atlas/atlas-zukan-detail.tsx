@@ -1,5 +1,10 @@
 import Link from "next/link";
 import { placeFrom, systemLabel, type SystemKind } from "@/lib/atlas-taxonomy";
+import {
+  parseRootCause,
+  rootCauseLabel,
+  rootCauseOneLiner,
+} from "@/lib/grade-payload";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasShell } from "./atlas-shell";
@@ -25,6 +30,9 @@ export function AtlasZukanDetail({ item, streakDays }: AtlasZukanDetailProps) {
   const place = placeFrom(item.repo, item.domain);
   const statusLabel =
     item.status === "clear" ? "CLEAR" : item.status === "fog" ? "ふたたびもや" : "未クリア";
+  const cause = parseRootCause(item.rootCause);
+  const causeLabel = rootCauseLabel(cause);
+  const causeLine = rootCauseOneLiner(cause);
 
   return (
     <AtlasChrome active="/zukan" streakDays={streakDays}>
@@ -40,13 +48,18 @@ export function AtlasZukanDetail({ item, streakDays }: AtlasZukanDetailProps) {
           </div>
           <AtlasPageTitle title="ずかん詳細" sub={statusLabel} />
           <p className="m-0 text-[12px] text-[#9ec0ff]">
-            {[place.label, systemLabel(item.system), item.rootCause]
+            {[place.label, systemLabel(item.system), causeLabel]
               .filter(Boolean)
               .join(" · ")}
           </p>
           <h2 className="mt-3 mb-0 text-[18px] font-normal leading-relaxed text-[#f7f3d9]">
             {item.concept}
           </h2>
+          {causeLine ? (
+            <p className="mt-2 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+              {causeLine}
+            </p>
+          ) : null}
           {item.gateQuestion ? (
             <div className="mt-3 border-l-[3px] border-[#9ec0ff] pl-2.5">
               <p className="m-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">

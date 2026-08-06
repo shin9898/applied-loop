@@ -79,14 +79,14 @@ trap cleanup EXIT
 
 MANIFEST="$TMP_DIR/manifest.json"
 
-# ナレーション本文から「さやか:」段落を抽出し、manifest の title シーンにする
+# ナレーション本文から「ルミナ:」（旧「さやか:」）段落を抽出し、manifest の title シーンにする
 python3 - "$NARRATION" "$MANIFEST" "$SAFE_BRANCH" "$FEATURE_ID" "$VOICEVOX_SPEAKER" "$SPEED_SCALE" <<'PY'
 import json, re, sys
 from pathlib import Path
 
 narration_path, manifest_path, branch, feature_id, speaker, speed = sys.argv[1:7]
 text = Path(narration_path).read_text(encoding="utf-8")
-# 見出し・引用を除き、さやか: 段落または空行区切りの本文を取る
+# 見出し・引用を除き、話者プレフィックス段落または空行区切りの本文を取る
 body_lines = []
 for line in text.splitlines():
     s = line.strip()
@@ -104,8 +104,8 @@ for line in body_lines:
             paras.append(" ".join(buf))
             buf = []
         continue
-    # 「さやか:」プレフィックスは TTS では読まない
-    line = re.sub(r"^さやか\s*[:：]\s*", "", line)
+    # 話者プレフィックスは TTS では読まない（ルミナ／旧さやか）
+    line = re.sub(r"^(?:ルミナ|さやか)\s*[:：]\s*", "", line)
     buf.append(line)
 if buf:
     paras.append(" ".join(buf))

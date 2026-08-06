@@ -1,0 +1,8 @@
+diff --git a/src/repo.ts b/src/repo.ts
+--- a/src/repo.ts
++++ b/src/repo.ts
+@@ -10,6 +10,9 @@ export async function saveUser(u: User) {
+   await db.user.create({ data: u });
++  // 書き込み成功をそのまま return。再読なし。
+   return u;
+ }

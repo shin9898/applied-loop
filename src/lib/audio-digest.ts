@@ -177,11 +177,15 @@ function buildFactsBlock(agg: WeeklyAgg): string {
 }
 
 async function generateNarrationText(agg: WeeklyAgg): Promise<string> {
+  const { NARRATION_PERSONA } = await import("@/lib/narration-persona");
+  const name = NARRATION_PERSONA.name;
   const facts = buildFactsBlock(agg);
   const prompt = [
-    "あなたはナビキャラ「さやか」。明るく親しみやすい口調で、週次の学びダイジェストをナレーション原稿にする。",
+    `あなたはナビキャラ「${name}」。${NARRATION_PERSONA.promptTrait}`,
+    "週次の学びダイジェストをナレーション原稿にする。",
+    "口調は清廉で甘く優しいお姫様の丁寧語で統一する（例: 「〜ですね」「〜ましょうね」「だいじょうぶ」）。「〜ですわ」系やタメ口にはしない。",
     "聞き流せる長さ: 全体でおおよそ 2400 字以内、セリフ形式の段落を 4 つ前後。",
-    "各段落は「さやか: 」で始める。コード・回答全文・個人情報は書かない。数値は事実ブロックの範囲内で。",
+    `各段落は「${name}: 」で始める。コード・回答全文・個人情報は書かない。数値は事実ブロックの範囲内で。`,
     "構成の目安:",
     "1) 週のあいさつと全体の雰囲気",
     "2) 解消したつまずき・新しく見つかったつまずき",
@@ -225,21 +229,23 @@ export async function generateWeeklyNarration(
   } catch (e) {
     console.error("[audio-digest] LLM failed:", e);
     // LLM 失敗時も事実ベースのフォールバック原稿を残す
+    const { NARRATION_PERSONA } = await import("@/lib/narration-persona");
+    const p = NARRATION_PERSONA.linePrefix;
     body = [
-      `さやか: ${agg.weekKey} の学びダイジェストです。自動原稿の生成に失敗したので、事実だけお伝えします。`,
+      `${p}${agg.weekKey} の学びダイジェストを、そっとお届けしますね。自動原稿が作れなかったので、事実だけお伝えします。`,
       "",
-      `さやか: 解消したつまずきは ${agg.resolvedMisconceptions.length} 件、新しいつまずきは ${agg.newMisconceptions.length} 件でした。`,
+      `${p}解消したつまずきは ${agg.resolvedMisconceptions.length} 件、新しいつまずきは ${agg.newMisconceptions.length} 件でした。小さな一歩でも、ちゃんと進んでいますよ。`,
       "",
-      `さやか: 象限の流れは、未知の未知 ${agg.quadrant.unknownUnknownDiscovery}、知の未知から知の知へ ${agg.quadrant.knownUnknownToKnownKnown}、未知の知から知の知へ ${agg.quadrant.unknownKnownToKnownKnown}、知の知の維持 ${agg.quadrant.knownKnownMaintenance} です。`,
+      `${p}象限の流れは、未知の未知 ${agg.quadrant.unknownUnknownDiscovery}、知の未知から知の知へ ${agg.quadrant.knownUnknownToKnownKnown}、未知の知から知の知へ ${agg.quadrant.unknownKnownToKnownKnown}、知の知の維持 ${agg.quadrant.knownKnownMaintenance} です。`,
       "",
-      `さやか: 来週の焦点は open の誤解 ${agg.nextFocus.length} 件。無理せず、ひとつずつ確認していきましょう。`,
+      `${p}来週の焦点は open の誤解 ${agg.nextFocus.length} 件。だいじょうぶ、無理しなくて大丈夫です。ひとつずつ、いっしょに霧を晴らしていきましょうね。`,
     ].join("\n");
   }
 
   const md = [
     `# Applied Loop 週次ダイジェスト — ${weekKey}`,
     "",
-    `> ナレーション原稿 (音声化前)。生成: ${now.toISOString()}`,
+    `> ナビ: ルミナ（音声化前原稿）。生成: ${now.toISOString()}`,
     "",
     body,
     "",

@@ -23,6 +23,14 @@ import { AtlasVoicePlain } from "./atlas-voice-plain";
 
 const INTRO_KEY = "atlas-world-intro-seen";
 
+/** 完了画面 B: 会話供給（B4-4b） */
+const REQUEST_GATE_PASTE = [
+  "Applied Loop の MCP で request_gate を呼んでください。",
+  "引数 diff には、いまの変更差分（git diff の内容）を渡してください。",
+  "repo と summary は分かれば任意で。",
+  "生成されたしれんを見せて、提出は私が明示したあと answer_gate で送ってください。",
+].join("\n");
+
 /** ホーム用: 必須欠け or チュートリアル未完のとき */
 export function AtlasSetupBanner({ diagnosis }: { diagnosis: SetupDiagnosis }) {
   if (diagnosis.essentialsReady && diagnosis.tutorialReady) return null;
@@ -344,7 +352,7 @@ export function AtlasSetupPanel({
         ) : null}
 
         {current === "hook" ? (
-          <div className="mt-2 space-y-2">
+          <div id="git-hook" className="mt-2 space-y-2 scroll-mt-24">
             <p className="m-0 text-[15px] text-[#f7f3d9]">
               （任意）git hook でしれんを増やす
             </p>
@@ -377,16 +385,33 @@ export function AtlasSetupPanel({
         ) : null}
 
         {current === "done" ? (
-          <div className="mt-2 space-y-2">
+          <div id="git-hook" className="mt-2 space-y-2 scroll-mt-24">
             <p className="m-0 text-[15px] text-[#3ecf5a]">チュートリアル完了</p>
             <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-              つぎは供給（しれんが増える道）。自分の repo に git hook を入れるか、しれん画面で状態を見る。
+              つぎは供給（しれんが増える道）。どちらか一方でよい。
             </p>
-            <pre className="m-0 overflow-x-auto border-[2px] border-white bg-[#000c4a] p-2.5 text-[11px] text-[#f7f3d9]">
-              {"./scripts/setup-git-hook.sh /path/to/your-repo"}
-            </pre>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-2 border-[2px] border-[#002070] bg-[#000c4a] p-2.5">
+              <p className="m-0 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
+                A. git hook（毎日の自動）
+              </p>
+              <pre className="m-0 overflow-x-auto text-[11px] text-[#f7f3d9]">
+                {"./scripts/setup-git-hook.sh /path/to/your-repo"}
+              </pre>
               <CopyButton text="./scripts/setup-git-hook.sh /path/to/your-repo" />
+            </div>
+            <div className="grid gap-2 border-[2px] border-[#002070] bg-[#000c4a] p-2.5">
+              <p className="m-0 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
+                B. 会話で request_gate（hook なしの日）
+              </p>
+              <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+                LLM に差分を渡し、「request_gate でしれんを1問作って」と頼む。
+              </p>
+              <pre className="m-0 overflow-x-auto whitespace-pre-wrap text-[11px] text-[#f7f3d9]">
+                {REQUEST_GATE_PASTE}
+              </pre>
+              <CopyButton text={REQUEST_GATE_PASTE} />
+            </div>
+            <div className="flex flex-wrap gap-2">
               <Link
                 href="/gates"
                 className="dq-btn inline-block !px-3 !py-2 text-[8px]"
@@ -400,11 +425,15 @@ export function AtlasSetupPanel({
                 ちずへもどる
               </Link>
             </div>
+            <p className="m-0 pt-1 text-[11px] leading-relaxed text-[#9ec0ff]">
+              任意の次: 下の青い／金カード『Cloud の生成AIからも…』（P3
+              B12-3b）。解放条件は docs/surface-unlock.md。
+            </p>
           </div>
         ) : null}
       </div>
 
-      {/* Cloud / Reachable MCP（任意・1手ウィザード） */}
+      {/* Cloud / Reachable MCP（任意・1手ウィザード。既定たたみ） */}
       <AtlasCloudMcpWizardSection diagnosis={diagnosis} />
 
       {/* 用語 */}

@@ -39,17 +39,32 @@ export type TutorialProgress = {
   sampleSubmitted: boolean;
 };
 
-export async function loadTutorialProgress(
-  diagnosis: SetupDiagnosis,
-): Promise<TutorialProgress> {
-  const state = readTutorialState();
-  const sampleSubmitted = await isTutorialGateSubmitted();
-  const mcpRecent = mcpTouchedRecently();
-  // 貼る完了: 自己申告 or「LLM選択より後」の MCP 疎通のみ（既存疎通では飛ばさない）
-  const llmStepDone = mcpCountsForLlmStep(state);
-  const tokenOk = diagnosis.checks.find((c) => c.id === "mcp_token")?.ok ?? false;
-  const hookOk = diagnosis.checks.find((c) => c.id === "git_hook")?.ok ?? false;
-  const llmTrack = state.llmTrack ?? null;
+export type TutorialProgressInput = {
+  tokenOk: boolean;
+  sampleSubmitted: boolean;
+  llmTrack: TutorialLlmTrack | null;
+  llmStepDone: boolean;
+  hookOk: boolean;
+  hookSkipped: boolean;
+  completedAt: string | null | undefined;
+};
+
+/** 純関数: 分岐判定（B4-5）。副作用なし */
+export function computeTutorialProgress(input: TutorialProgressInput): {
+  steps: TutorialProgress["steps"];
+  currentStepId: TutorialStepId;
+  tutorialReady: boolean;
+  shouldPersistCompletedAt: boolean;
+} {
+  const {
+    tokenOk,
+    sampleSubmitted,
+    llmTrack,
+    llmStepDone,
+    hookOk,
+    hookSkipped,
+    completedAt,
+  } = input;
 
   const steps: TutorialProgress["steps"] = [
     {
@@ -80,14 +95,14 @@ export async function loadTutorialProgress(
       id: "hook",
       label: "（任意）git hook でしれんを増やす",
       plain: "今は飛ばしてよい。毎日の自動生成用。",
-      done: hookOk || Boolean(state.hookSkipped),
+      done: hookOk || hookSkipped,
       optional: true,
     },
     {
       id: "done",
       label: "チュートリアル完了",
       plain: "本運用は朝の要約 → しれん → 学びの記録。",
-      done: Boolean(state.completedAt),
+      done: Boolean(completedAt),
     },
   ];
 
@@ -96,11 +111,8 @@ export async function loadTutorialProgress(
     sampleSubmitted &&
     Boolean(llmTrack) &&
     llmStepDone &&
-    (Boolean(state.completedAt) ||
-      hookOk ||
-      Boolean(state.hookSkipped));
+    (Boolean(completedAt) || hookOk || hookSkipped);
 
-  // completedAt が無くてもコアが揃えば current は done 扱いへ
   let currentStepId: TutorialStepId = "done";
   for (const s of steps) {
     if (s.id === "done") continue;
@@ -116,28 +128,62 @@ export async function loadTutorialProgress(
     llmTrack &&
     llmStepDone
   ) {
-    currentStepId = state.completedAt ? "done" : "hook";
-    if (hookOk || state.hookSkipped) currentStepId = "done";
+    currentStepId = completedAt ? "done" : "hook";
+    if (hookOk || hookSkipped) currentStepId = "done";
   }
 
-  // hook 既存などで完了相当なのに completedAt が無い場合は書き留める
-  let stateOut = state;
-  if (tutorialReady && !state.completedAt && currentStepId === "done") {
-    stateOut = writeTutorialState({
-      completedAt: new Date().toISOString(),
-    });
+  const shouldPersistCompletedAt =
+    tutorialReady && !completedAt && currentStepId === "done";
+
+  if (shouldPersistCompletedAt) {
     const doneStep = steps.find((s) => s.id === "done");
     if (doneStep) doneStep.done = true;
   }
 
+  tutorialReady =
+    tutorialReady ||
+    Boolean(completedAt && tokenOk && sampleSubmitted && llmStepDone);
+
   return {
     steps,
     currentStepId,
-    tutorialReady:
-      tutorialReady ||
-      Boolean(
-        stateOut.completedAt && tokenOk && sampleSubmitted && llmStepDone,
-      ),
+    tutorialReady,
+    shouldPersistCompletedAt,
+  };
+}
+
+export async function loadTutorialProgress(
+  diagnosis: SetupDiagnosis,
+): Promise<TutorialProgress> {
+  const state = readTutorialState();
+  const sampleSubmitted = await isTutorialGateSubmitted();
+  const mcpRecent = mcpTouchedRecently();
+  const llmStepDone = mcpCountsForLlmStep(state);
+  const tokenOk = diagnosis.checks.find((c) => c.id === "mcp_token")?.ok ?? false;
+  const hookOk = diagnosis.checks.find((c) => c.id === "git_hook")?.ok ?? false;
+  const llmTrack = state.llmTrack ?? null;
+
+  const computed = computeTutorialProgress({
+    tokenOk,
+    sampleSubmitted,
+    llmTrack,
+    llmStepDone,
+    hookOk,
+    hookSkipped: Boolean(state.hookSkipped),
+    completedAt: state.completedAt,
+  });
+
+  let stateOut = state;
+  if (computed.shouldPersistCompletedAt) {
+    stateOut = writeTutorialState({
+      completedAt: new Date().toISOString(),
+    });
+  }
+
+  return {
+    steps: computed.steps,
+    currentStepId: computed.currentStepId,
+    tutorialReady: computed.tutorialReady,
     tutorialGateId: TUTORIAL_GATE_ID,
     llmTrack,
     state: stateOut,

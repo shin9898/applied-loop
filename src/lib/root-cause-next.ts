@@ -43,10 +43,10 @@ export function rootCauseNextSteps(
           label: "にっきで学びを拾う",
           href: entryHref,
           reason: deep?.entryId
-            ? "関連 Entry の詳細を開く"
+            ? "関連にっきの詳細を開く"
             : deep?.inboxId
               ? "このしれん由来の受信箱候補を開く"
-              : "足りない知識を Entry として残す（関連が見つからず一覧へ）",
+              : "足りない知識をにっきとして残す（関連が見つからず一覧へ）",
         },
         {
           label: "ずかんで同系統を見る",

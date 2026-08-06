@@ -20,11 +20,18 @@ import {
 } from "@/lib/micro-progress";
 import { AtlasMicroDrill, AtlasRecallDrill } from "./atlas-micro-drill";
 
-export type BattleVerdict = "pass" | "retry" | "pending" | "empty" | "busy";
+export type BattleVerdict =
+  | "pass"
+  | "retry"
+  | "pending"
+  | "empty"
+  | "busy"
+  | "grading_failed";
 
 export type PollResult = {
   verdict: BattleVerdict;
   debrief?: GateDebrief | null;
+  nextReviewLabel?: string | null;
 };
 
 export type BattleResource = {
@@ -47,19 +54,28 @@ export type AtlasBattleProps = {
   enemyName?: string;
   initialHp?: number;
   /** 再訪時: すでに採点済みなら結果＋デブリーフを初期表示 */
-  initialVerdict?: Extract<BattleVerdict, "pass" | "retry"> | null;
+  initialVerdict?: Extract<
+    BattleVerdict,
+    "pass" | "retry" | "grading_failed"
+  > | null;
   initialDebrief?: GateDebrief | null;
   onFlee?: () => void;
   onGoGates?: () => void;
   /** 受理成功後に呼ぶ（チュートリアルの /setup 復帰など） */
   onAccepted?: () => void;
+  /** true なら受理直後に onAccepted を自動実行。サンプルは false で miss デブリーフを見せる */
+  autoLeaveOnAccept?: boolean;
   /** 受理後に出す導線ラベル（例: じゅんびにもどる） */
   afterAcceptLabel?: string;
+  /** 悪問として閉じる（pending のみ） */
+  onDismissBadQuestion?: () => Promise<"ok" | "busy">;
   onCastSpell?: (
     answer: string,
     mode: "submit" | "resubmit",
   ) => Promise<BattleVerdict> | BattleVerdict;
   onPollVerdict?: () => Promise<PollResult | BattleVerdict>;
+  /** 採点失敗（保留）からの再採点 */
+  onRetryGrading?: () => Promise<"pending" | "busy">;
   onCheckMicro?: (input: {
     aspect: string;
     paraphrase: string;
@@ -70,6 +86,8 @@ export type AtlasBattleProps = {
   relatedEntryId?: string | null;
   relatedInboxId?: string | null;
   relatedMisconceptionId?: string | null;
+  /** B5-5: CLEAR 時の再出題予告ラベル */
+  initialNextReviewLabel?: string | null;
   onGoZukan?: () => void;
 };
 
@@ -93,12 +111,15 @@ function DebriefPanel({
   relatedEntryId = null,
   relatedInboxId = null,
   relatedMisconceptionId = null,
+  nextReviewLabel = null,
 }: {
   verdict: Extract<BattleVerdict, "pass" | "retry">;
   debrief: GateDebrief | null;
   relatedEntryId?: string | null;
   relatedInboxId?: string | null;
   relatedMisconceptionId?: string | null;
+  /** B5-5: CLEAR 時の再出題予告（YYYY-MM-DD など） */
+  nextReviewLabel?: string | null;
 }) {
   if (verdict === "pass") {
     const leftover = debrief?.weakAspects ?? [];
@@ -114,6 +135,16 @@ function DebriefPanel({
             </p>
           </div>
         ) : null}
+        <div className="border-[3px] border-[#9ec0ff] bg-[#000c4a] p-3">
+          <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[10px] text-[#9ec0ff]">
+            ◆ 再出題の予告
+          </div>
+          <p className="m-0 text-[14px] leading-relaxed text-[#f7f3d9]">
+            {nextReviewLabel
+              ? `つぎのしれん候補日: ${nextReviewLabel}（ずかんの再出題スケジューラ）`
+              : "紐づく誤解があれば、数日後に再出題がかかる。ずかんで nextReview を見よ。"}
+          </p>
+        </div>
         {leftover.length > 0 ? (
           <div className="border-[3px] border-[#f0d25a] bg-[#000c4a] p-3">
             <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
@@ -242,7 +273,7 @@ function DebriefPanel({
 }
 
 /**
- * 理解度ゲート = DQバトル画面
+ * しれん（理解度チェック）= DQバトル画面
  * 左＝敵／右＝出題（敵セリフ）。下部ログはナレーター／操作案内／デブリーフ。
  */
 export function AtlasBattle({
@@ -258,26 +289,42 @@ export function AtlasBattle({
   onFlee,
   onGoGates,
   onAccepted,
+  autoLeaveOnAccept = true,
   afterAcceptLabel = "じゅんびにもどる",
   onCastSpell,
   onPollVerdict,
+  onRetryGrading,
+  onDismissBadQuestion,
   onCheckMicro,
   hintText = "関連エントリやどうぐの処方を確認できるぞ。",
   zukanHref = "/zukan",
   relatedEntryId = null,
   relatedInboxId = null,
   relatedMisconceptionId = null,
+  initialNextReviewLabel = null,
   onGoZukan,
 }: AtlasBattleProps) {
   const def = enemy ?? DEFAULT_ENEMY;
   const displayName = enemyName ?? def.name;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hp, setHp] = useState(initialVerdict === "pass" ? 0 : initialHp);
-  const [phase, setPhase] = useState<Phase>(initialVerdict ? "result" : "idle");
+  const [nextReviewLabel, setNextReviewLabel] = useState<string | null>(
+    initialNextReviewLabel,
+  );
+  const [phase, setPhase] = useState<Phase>(
+    initialVerdict === "grading_failed"
+      ? "result"
+      : initialVerdict
+        ? "result"
+        : "idle",
+  );
   const [cmd, setCmd] = useState<"answer" | "hint" | "zukan" | "run">("answer");
   const [narrator, setNarrator] = useState(() => {
     if (initialVerdict === "pass") {
       return "CLEAR！　つまずきはしずまった。ちずがあかるくなり、ずかんへ記録されるぞ。";
+    }
+    if (initialVerdict === "grading_failed") {
+      return "採点が途中で止まった（保留）。じゅんびで採点 CLI を確認し、『再採点する』を押すのじゃ。";
     }
     if (initialVerdict === "retry") {
       return "しかし！　まだあかりが足りぬ。デブリーフを読んだら、いきなり全文ではなく『まず1観点を言い直す』のじゃ。";
@@ -336,8 +383,10 @@ export function AtlasBattle({
       try {
         const raw = await onPollVerdict();
         if (cancelled) return;
-        const { verdict: v, debrief: d } = normalizePoll(raw);
-        if (v === "pass" || v === "retry") {
+        const { verdict: v, debrief: d, nextReviewLabel: nrl } =
+          normalizePoll(raw);
+        if (nrl) setNextReviewLabel(nrl);
+        if (v === "pass" || v === "retry" || v === "grading_failed") {
           applyVerdict(v, d ?? null);
           return;
         }
@@ -362,7 +411,7 @@ export function AtlasBattle({
   }, [phase, onPollVerdict, gateId]);
 
   function applyVerdict(
-    v: Extract<BattleVerdict, "pass" | "retry">,
+    v: Extract<BattleVerdict, "pass" | "retry" | "grading_failed">,
     d: GateDebrief | null,
   ) {
     setVerdict(v);
@@ -375,7 +424,7 @@ export function AtlasBattle({
       clearMicroProgress(gateId);
       setMicroDone(false);
       setMicroSeed("");
-    } else {
+    } else if (v === "retry") {
       const saved = loadMicroProgress(gateId);
       setMicroDone(!!saved?.microDone);
       setMicroSeed(saved ? buildAnswerSeedFromMicro(saved.cleared) : "");
@@ -385,11 +434,13 @@ export function AtlasBattle({
     setNarrator(
       v === "pass"
         ? leftoverOnPass > 0
-          ? "CLEAR！　ただし薄い論点が残っておる。『あとひと押し』を見て種を拾え。"
-          : "CLEAR！　つまずきはしずまった。ちずがあかるくなり、ずかんへ記録されるぞ。"
-        : weakCount > 0
-          ? "しかし！　まだあかりが足りぬ。デブリーフを読んだら『まず1観点を言い直す』で筋肉をつけよ。いきなり全文はきついぞ。"
-          : "しかし！　まだあかりが足りぬ。下のデブリーフを読んでから答え直せ。",
+          ? "CLEAR！　ただし薄い論点が残っておる。『あとひと押し』を見て種を拾え。ずかんも見ておけ。"
+          : "CLEAR！　つまずきはしずまった。ずかんで記録を見返せるぞ。"
+        : v === "grading_failed"
+          ? "採点が途中で止まった（保留）。認証切れなら CLI にログインし直し、『再採点する』を押せ。"
+          : weakCount > 0
+            ? "しかし！　まだあかりが足りぬ。デブリーフを読んだら『まず1観点を言い直す』で筋肉をつけよ。いきなり全文はきついぞ。"
+            : "しかし！　まだあかりが足りぬ。下のデブリーフを読んでから答え直せ。",
     );
   }
 
@@ -465,8 +516,12 @@ export function AtlasBattle({
     });
 
     setVerdict(result);
-    if (result === "pass" || result === "retry") {
-      if (onAccepted) {
+    if (
+      result === "pass" ||
+      result === "retry" ||
+      result === "grading_failed"
+    ) {
+      if (onAccepted && autoLeaveOnAccept && result !== "grading_failed") {
         setAnim("idle");
         setPhase("waiting");
         setNarrator(
@@ -481,8 +536,17 @@ export function AtlasBattle({
       if (onPollVerdict) {
         try {
           const polled = normalizePoll(await onPollVerdict());
-          applyVerdict(result, polled.debrief ?? null);
-          return;
+          if (polled.nextReviewLabel) {
+            setNextReviewLabel(polled.nextReviewLabel);
+          }
+          if (
+            polled.verdict === "pass" ||
+            polled.verdict === "retry" ||
+            polled.verdict === "grading_failed"
+          ) {
+            applyVerdict(polled.verdict, polled.debrief ?? null);
+            return;
+          }
         } catch {
           /* fall through */
         }
@@ -493,7 +557,7 @@ export function AtlasBattle({
 
     setAnim("idle");
     setPhase("waiting");
-    if (onAccepted) {
+    if (onAccepted && autoLeaveOnAccept) {
       setNarrator(
         "回答は受け付けた！　合否はあとでよい——じゅんびの次の手へ戻るぞ。",
       );
@@ -503,7 +567,9 @@ export function AtlasBattle({
       return;
     }
     setNarrator(
-      "回答は受け付けた！　いま採点の旅の途中じゃ。この画面で結果が戻るのを待て。急ぎならしれん一覧でも確認できるぞ。",
+      onAccepted
+        ? "回答は受け付けた！　採点が戻るまで待て。結果を見たら下のボタンでじゅんびに戻れるぞ。"
+        : "回答は受け付けた！　いま採点の旅の途中じゃ。この画面で結果が戻るのを待て。急ぎならしれん一覧でも確認できるぞ。",
     );
   }
 
@@ -522,7 +588,7 @@ export function AtlasBattle({
     <div className="mx-auto grid max-w-[1180px] gap-2.5 px-3.5 py-3.5">
       <div className="flex items-center justify-between gap-2.5">
         <div className="font-[family-name:var(--font-pixel)] text-[12px] text-[#f0d25a]">
-          ◆ しれん／理解度ゲート
+          ◆ しれん（理解度チェック）
         </div>
         <button type="button" className="dq-btn dq-btn-ghost" onClick={onFlee}>
           にげる（ちずへ）
@@ -568,35 +634,49 @@ export function AtlasBattle({
             <div className="mb-2.5 font-[family-name:var(--font-pixel)] text-[11px] text-[#f0d25a]">
               ◆ つまずき「{displayName.replace(/^つまずき：/, "")}」のセリフ
             </div>
-            <p className="m-0 text-[18px] leading-relaxed text-[#f7f3d9] md:text-[20px]">
-              「{question}」
-            </p>
             {contextSummary ? (
-              <div className="mt-3 border-l-[3px] border-[#9ec0ff] pl-2.5">
+              <div className="mb-3 border-l-[3px] border-[#9ec0ff] pl-2.5">
                 <div className="mb-1 font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
-                  ◆ 当時の状況
+                  ◆ 文脈
                 </div>
                 <p className="m-0 whitespace-pre-wrap text-[13px] leading-relaxed text-[#c9c3a0]">
                   {contextSummary}
                 </p>
               </div>
             ) : null}
+            <div className="mb-1 font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a]">
+              ◆ 問い
+            </div>
+            <p className="m-0 text-[18px] leading-relaxed text-[#f7f3d9] md:text-[20px]">
+              「{question}」
+            </p>
             {resources.length > 0 ? (
-              <ul className="mt-2 mb-0 list-none space-y-1 p-0">
-                {resources.map((r) => (
-                  <li key={`${r.kind}:${r.label}`} className="text-[12px] text-[#9ec0ff]">
-                    {r.href ? (
-                      <a href={r.href} className="text-[#9ec0ff] no-underline hover:underline">
-                        [{r.kind}] {r.label}
-                      </a>
-                    ) : (
-                      <span>
-                        [{r.kind}] {r.label}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-3">
+                <div className="mb-1 font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
+                  ◆ 手がかり
+                </div>
+                <ul className="mt-0 mb-0 list-none space-y-1 p-0">
+                  {resources.map((r) => (
+                    <li
+                      key={`${r.kind}:${r.label}`}
+                      className="text-[12px] text-[#9ec0ff]"
+                    >
+                      {r.href ? (
+                        <a
+                          href={r.href}
+                          className="text-[#9ec0ff] no-underline hover:underline"
+                        >
+                          [{r.kind}] {r.label}
+                        </a>
+                      ) : (
+                        <span>
+                          [{r.kind}] {r.label}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
             <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
               ……と、まものが言い放った。この問いにこたえて、あかりをともせ！
@@ -632,8 +712,10 @@ export function AtlasBattle({
                   : verdict === "pass"
                     ? "CLEAR"
                     : verdict === "retry"
-                      ? "もういちど"
-                      : "たたかい中"}
+                      ? "miss"
+                      : verdict === "grading_failed"
+                        ? "保留"
+                        : "たたかい中"}
               </span>
             </div>
           </div>
@@ -726,6 +808,7 @@ export function AtlasBattle({
                 relatedEntryId={relatedEntryId}
                 relatedInboxId={relatedInboxId}
                 relatedMisconceptionId={relatedMisconceptionId}
+                nextReviewLabel={nextReviewLabel}
               />
             ) : null}
 
@@ -772,8 +855,14 @@ export function AtlasBattle({
                     void (async () => {
                       setNarrator("結果を覗きにいったぞ…");
                       const raw = (await onPollVerdict?.()) ?? "pending";
-                      const { verdict: v, debrief: d } = normalizePoll(raw);
-                      if (v === "pass" || v === "retry") {
+                      const { verdict: v, debrief: d, nextReviewLabel: nrl } =
+                        normalizePoll(raw);
+                      if (nrl) setNextReviewLabel(nrl);
+                      if (
+                        v === "pass" ||
+                        v === "retry" ||
+                        v === "grading_failed"
+                      ) {
                         applyVerdict(v, d ?? null);
                       } else {
                         setNarrator(
@@ -796,6 +885,36 @@ export function AtlasBattle({
 
             {phase === "result" ? (
               <div className="mt-3 flex flex-wrap gap-2">
+                {verdict === "grading_failed" ? (
+                  <>
+                    <button
+                      type="button"
+                      className="dq-btn"
+                      onClick={() => {
+                        void (async () => {
+                          setNarrator("再採点を頼んだぞ…");
+                          setPhase("waiting");
+                          const r = (await onRetryGrading?.()) ?? "busy";
+                          if (r !== "pending") {
+                            setPhase("result");
+                            setNarrator(
+                              "再採点を始められなかった。じゅんびで採点 CLI を確認せよ。",
+                            );
+                          } else {
+                            setNarrator(
+                              "再採点の旅が始まった。結果が戻るまで待て。",
+                            );
+                          }
+                        })();
+                      }}
+                    >
+                      再採点する
+                    </button>
+                    <Link href="/setup" className="dq-btn dq-btn-ghost">
+                      じゅんびで診断
+                    </Link>
+                  </>
+                ) : null}
                 {verdict === "retry" && hasMicro && !microDone ? (
                   <button type="button" className="dq-btn" onClick={startMicro}>
                     まず1観点を言い直す
@@ -833,13 +952,56 @@ export function AtlasBattle({
                     本回答へ
                   </button>
                 ) : null}
-                {verdict === "pass" ? (
-                  <button type="button" className="dq-btn" onClick={onFlee}>
-                    ちずへもどる
+                {verdict === "pass" || verdict === "retry" ? (
+                  <button
+                    type="button"
+                    className="dq-btn"
+                    onClick={() => {
+                      if (onGoZukan) onGoZukan();
+                      else if (typeof window !== "undefined") {
+                        window.location.href = zukanHref;
+                      }
+                    }}
+                  >
+                    ずかんを見る
                   </button>
+                ) : null}
+                {verdict === "pass" || verdict === "retry" ? (
+                  onAccepted ? (
+                    <button type="button" className="dq-btn dq-btn-ghost" onClick={onAccepted}>
+                      {afterAcceptLabel}
+                    </button>
+                  ) : (
+                    <button type="button" className="dq-btn dq-btn-ghost" onClick={onFlee}>
+                      ちずへもどる
+                    </button>
+                  )
                 ) : null}
                 <button type="button" className="dq-btn dq-btn-ghost" onClick={onGoGates}>
                   しれん一覧へ
+                </button>
+              </div>
+            ) : null}
+
+            {phase === "idle" && onDismissBadQuestion ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="dq-btn dq-btn-ghost"
+                  onClick={() => {
+                    void (async () => {
+                      setNarrator("悪問として閉じるぞ…");
+                      const r = await onDismissBadQuestion();
+                      if (r === "ok") {
+                        setNarrator("閉じた。しれん一覧へ戻るのじゃ。");
+                        window.setTimeout(() => onGoGates?.(), 500);
+                      } else {
+                        setNarrator("閉じられなかった。すでに提出済みか、状態が変わっておるぞ。");
+                      }
+                    })();
+                  }}
+                >
+                  悪問として閉じる
                 </button>
               </div>
             ) : null}

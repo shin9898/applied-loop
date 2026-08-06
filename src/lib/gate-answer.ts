@@ -149,5 +149,15 @@ export async function acceptGateAnswer(input: {
     gradeGate(id).catch((e) => console.error("[gate] grade failed:", e));
   });
 
+  try {
+    const { recordActivationOnce } = await import("@/lib/activation-funnel");
+    const { TUTORIAL_GATE_ID } = await import("@/lib/tutorial-constants");
+    if (id === TUTORIAL_GATE_ID) {
+      recordActivationOnce("sample_submitted", { source: input.source });
+    }
+  } catch {
+    /* ignore */
+  }
+
   return { ok: true, status: "accepted" };
 }

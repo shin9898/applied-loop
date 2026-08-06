@@ -9,14 +9,12 @@ type FlowKey =
 const FLOWS: {
   key: FlowKey;
   label: string;
-  /** SVG arrow path endpoints (from → to) in viewBox coords */
   x1: number;
   y1: number;
   x2: number;
   y2: number;
 }[] = [
   {
-    // 未知の未知への流入 (発見)
     key: "unknownUnknownDiscovery",
     label: "未知の未知の発見",
     x1: 140,
@@ -25,7 +23,6 @@ const FLOWS: {
     y2: 365,
   },
   {
-    // 知の未知 → 知の知 (左上→右上)
     key: "knownUnknownToKnownKnown",
     label: "知の未知 → 知の知",
     x1: 225,
@@ -34,7 +31,6 @@ const FLOWS: {
     y2: 110,
   },
   {
-    // 未知の知 → 知の知 (右下→右上)
     key: "unknownKnownToKnownKnown",
     label: "未知の知 → 知の知",
     x1: 360,
@@ -43,7 +39,6 @@ const FLOWS: {
     y2: 185,
   },
   {
-    // 知の知の維持 (右上でループ風の短い矢印)
     key: "knownKnownMaintenance",
     label: "知の知の維持",
     x1: 455,
@@ -53,21 +48,29 @@ const FLOWS: {
   },
 ];
 
-function activeColor(n: number): string {
-  return n > 0 ? "#BC5B33" : "#B8AB90";
+const C = {
+  navy: "#000c4a",
+  navyDeep: "#001a8c",
+  cream: "#f7f3d9",
+  muted: "#c9c3a0",
+  gold: "#f0d25a",
+  blue: "#9ec0ff",
+  dim: "#5a6a9a",
+  white: "#ffffff",
+  black: "#000000",
+} as const;
+
+function stroke(n: number): string {
+  return n > 0 ? C.gold : C.dim;
 }
 
-function boxFill(n: number): string {
-  return n > 0 ? "#FBF8F0" : "#F4EEE2";
-}
-
-function boxStroke(n: number): string {
-  return n > 0 ? "#BC5B33" : "#E3D9C4";
+function countFill(n: number): string {
+  return n > 0 ? C.gold : C.dim;
 }
 
 /**
- * 認知の4象限 — 週次フローを SVG で描画 (チャートライブラリ不使用)。
- * ゼロ件の遷移はグレーアウト。
+ * 認知の4象限 — Living Atlas / DQ ウィンドウ色で描画。
+ * ゼロ件の遷移は暗くする。
  */
 export function QuadrantMap({ flows }: { flows: QuadrantFlows }) {
   const uu = flows.unknownUnknownDiscovery;
@@ -75,14 +78,13 @@ export function QuadrantMap({ flows }: { flows: QuadrantFlows }) {
   const uk = flows.unknownKnownToKnownKnown;
   const kk = flows.knownKnownMaintenance;
 
-  // 各象限ボックスの「活性」は関連フローの合計で判断
   const qUnknownUnknown = uu;
   const qKnownUnknown = uu + ku;
   const qUnknownKnown = uk;
   const qKnownKnown = ku + uk + kk;
 
   return (
-    <div className="space-y-3">
+    <div className="grid gap-3">
       <svg
         viewBox="0 0 520 400"
         className="h-auto w-full max-w-[560px]"
@@ -91,7 +93,7 @@ export function QuadrantMap({ flows }: { flows: QuadrantFlows }) {
       >
         <defs>
           <marker
-            id="arrow-active"
+            id="dq-arrow-active"
             viewBox="0 0 10 10"
             refX="8"
             refY="5"
@@ -99,10 +101,10 @@ export function QuadrantMap({ flows }: { flows: QuadrantFlows }) {
             markerHeight="6"
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#BC5B33" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill={C.gold} />
           </marker>
           <marker
-            id="arrow-muted"
+            id="dq-arrow-muted"
             viewBox="0 0 10 10"
             refX="8"
             refY="5"
@@ -110,39 +112,55 @@ export function QuadrantMap({ flows }: { flows: QuadrantFlows }) {
             markerHeight="6"
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#B8AB90" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill={C.dim} />
           </marker>
         </defs>
 
-        {/* 軸ラベル: X=知識の有無, Y=自覚の有無 */}
-        <text x="140" y="24" textAnchor="middle" fill="#8A7C66" fontSize="11">
+        <rect x="0" y="0" width="520" height="400" fill={C.navyDeep} />
+
+        <text
+          x="140"
+          y="22"
+          textAnchor="middle"
+          fill={C.blue}
+          fontSize="11"
+          fontFamily="var(--font-pixel), monospace"
+        >
           知らない
         </text>
-        <text x="360" y="24" textAnchor="middle" fill="#8A7C66" fontSize="11">
+        <text
+          x="360"
+          y="22"
+          textAnchor="middle"
+          fill={C.blue}
+          fontSize="11"
+          fontFamily="var(--font-pixel), monospace"
+        >
           知っている
         </text>
         <text
-          x="18"
+          x="16"
           y="110"
           textAnchor="middle"
-          fill="#8A7C66"
+          fill={C.blue}
           fontSize="10"
-          transform="rotate(-90 18 110)"
+          fontFamily="var(--font-pixel), monospace"
+          transform="rotate(-90 16 110)"
         >
           自覚あり
         </text>
         <text
-          x="18"
+          x="16"
           y="290"
           textAnchor="middle"
-          fill="#8A7C66"
+          fill={C.blue}
           fontSize="10"
-          transform="rotate(-90 18 290)"
+          fontFamily="var(--font-pixel), monospace"
+          transform="rotate(-90 16 290)"
         >
           自覚なし
         </text>
 
-        {/* 左上=知の未知, 右上=知の知, 左下=未知の未知, 右下=未知の知 */}
         <QuadrantBox
           x={60}
           y={40}
@@ -176,27 +194,28 @@ export function QuadrantMap({ flows }: { flows: QuadrantFlows }) {
           detail={uk > 0 ? `調べて合格 ${uk}` : undefined}
         />
 
-        {/* 遷移矢印 */}
         {FLOWS.map((f) => {
           const n = flows[f.key];
           const active = n > 0;
           return (
-            <g key={f.key} opacity={active ? 1 : 0.45}>
+            <g key={f.key} opacity={active ? 1 : 0.4}>
               <line
                 x1={f.x1}
                 y1={f.y1}
                 x2={f.x2}
                 y2={f.y2}
-                stroke={activeColor(n)}
-                strokeWidth={active ? 2.5 : 1.5}
-                markerEnd={active ? "url(#arrow-active)" : "url(#arrow-muted)"}
+                stroke={active ? C.gold : C.dim}
+                strokeWidth={active ? 3 : 2}
+                markerEnd={
+                  active ? "url(#dq-arrow-active)" : "url(#dq-arrow-muted)"
+                }
               />
               <text
                 x={(f.x1 + f.x2) / 2 + (f.x1 === f.x2 ? 14 : 0)}
                 y={(f.y1 + f.y2) / 2 + (f.y1 === f.y2 ? -8 : 4)}
-                fill={activeColor(n)}
-                fontSize="12"
-                fontWeight={active ? 700 : 400}
+                fill={active ? C.gold : C.dim}
+                fontSize="13"
+                fontFamily="var(--font-pixel), monospace"
               >
                 {n}
               </text>
@@ -205,18 +224,22 @@ export function QuadrantMap({ flows }: { flows: QuadrantFlows }) {
         })}
       </svg>
 
-      <ul className="grid gap-2 text-xs text-ink-secondary sm:grid-cols-2">
+      <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
         {FLOWS.map((f) => {
           const n = flows[f.key];
           return (
             <li
               key={f.key}
-              className={`rounded-md px-3 py-2 ${
-                n > 0 ? "bg-accent-soft text-accent" : "bg-bg text-ink-faint"
+              className={`border-[3px] px-3 py-2 text-[12px] ${
+                n > 0
+                  ? "border-[#f0d25a] bg-[#000c4a] text-[#f7f3d9]"
+                  : "border-[#002070] bg-[#000c4a] text-[#c9c3a0]"
               }`}
             >
-              <span className="font-bold">{f.label}</span>
-              <span className="ml-2">{n}件</span>
+              <span className="font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a]">
+                {f.label}
+              </span>
+              <span className="ml-2">{n} 件</span>
             </li>
           );
         })}
@@ -240,39 +263,68 @@ function QuadrantBox({
   count: number;
   detail?: string;
 }) {
+  const active = count > 0;
   return (
     <g>
+      {/* 白ふちの二重枠（DQ ウィンドウ） */}
       <rect
         x={x}
         y={y}
         width={160}
         height={140}
-        rx={10}
-        fill={boxFill(count)}
-        stroke={boxStroke(count)}
-        strokeWidth={count > 0 ? 2 : 1}
+        fill={C.black}
+        stroke={C.white}
+        strokeWidth={3}
       />
-      <text x={x + 80} y={y + 36} textAnchor="middle" fill="#2E2418" fontSize="15" fontWeight="700">
+      <rect
+        x={x + 4}
+        y={y + 4}
+        width={152}
+        height={132}
+        fill={C.navy}
+        stroke={stroke(count)}
+        strokeWidth={active ? 2 : 1}
+      />
+      <text
+        x={x + 80}
+        y={y + 36}
+        textAnchor="middle"
+        fill={C.cream}
+        fontSize="14"
+        fontFamily="var(--font-pixel), monospace"
+      >
         {title}
       </text>
-      <text x={x + 80} y={y + 56} textAnchor="middle" fill="#8A7C66" fontSize="10">
+      <text
+        x={x + 80}
+        y={y + 56}
+        textAnchor="middle"
+        fill={C.muted}
+        fontSize="10"
+      >
         {subtitle}
       </text>
       <text
         x={x + 80}
-        y={y + 96}
+        y={y + 98}
         textAnchor="middle"
-        fill={count > 0 ? "#BC5B33" : "#B8AB90"}
+        fill={countFill(count)}
         fontSize="28"
-        fontWeight="700"
+        fontFamily="var(--font-pixel), monospace"
       >
         {count}
       </text>
-      {detail && (
-        <text x={x + 80} y={y + 118} textAnchor="middle" fill="#8A7C66" fontSize="10">
+      {detail ? (
+        <text
+          x={x + 80}
+          y={y + 120}
+          textAnchor="middle"
+          fill={C.blue}
+          fontSize="10"
+        >
           {detail}
         </text>
-      )}
+      ) : null}
     </g>
   );
 }

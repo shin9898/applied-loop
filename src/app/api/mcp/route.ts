@@ -231,6 +231,9 @@ const handler = createMcpHandler(
       async () => {
         await requireAuth();
         const now = new Date();
+        // 疎通直後に pending が空にならないようサンプルを保証（B4-3）
+        const { ensureTutorialSeed } = await import("@/lib/tutorial-seed");
+        await ensureTutorialSeed();
         const { getWeaknessPatternsForDashboard } = await import(
           "@/lib/weakness"
         );
@@ -297,12 +300,61 @@ const handler = createMcpHandler(
     );
 
     server.registerTool(
+      "request_gate",
+      {
+        description: [
+          "会話からしれん（理解度チェック）を1問生成する。git hook が無い日や Cloud 作業日の供給経路。",
+          "引数 diff に変更差分を渡す（DB には保存しない）。repo / summary は任意のヒント。",
+          "ユーザーが「この差分で出題して」「request_gate」と明示したときだけ呼ぶ。",
+          "呼んだあと: 生成された問いを見せ、提出はユーザーが明示したら answer_gate。",
+        ].join(" "),
+        inputSchema: {
+          diff: z
+            .string()
+            .describe("git diff または変更差分テキスト（長い場合は先頭が使われる）"),
+          repo: z
+            .string()
+            .optional()
+            .describe("リポジトリ名のヒント（任意）"),
+          summary: z
+            .string()
+            .optional()
+            .describe("変更の一行要約（任意）"),
+        },
+      },
+      async ({ diff, repo, summary }) => {
+        await requireAuth();
+        const { requestGateFromDiff } = await import("@/lib/gate");
+        const result = await requestGateFromDiff({ diff, repo, summary });
+        if (!result.ok) {
+          return { ...text(result.message), isError: true };
+        }
+        return text(
+          [
+            `# しれんを生成しました`,
+            `gateId: ${result.gateId}`,
+            result.domain ? `domain: ${result.domain}` : "",
+            result.contextSummary
+              ? `contextSummary:\n${result.contextSummary}`
+              : "",
+            `question: ${result.question}`,
+            "",
+            "次: ユーザーが提出を明示したら answer_gate。合否は会話中に断定しない。",
+            `Web: http://localhost:3100/gates/${result.gateId}`,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        );
+      }
+    );
+
+    server.registerTool(
       "answer_gate",
       {
         description: [
           "しれん（理解度チェック）への回答を受理する。ユーザーが「提出する／送って」と明示したときだけ呼ぶ。",
           "採点は非同期。合否・点数は絶対に返さない（会話中の迎合を防ぐ）。",
-          "呼んだあと: ユーザーに get_gate_result か Web のしれん画面で後で確認するよう伝える。",
+          "呼んだあと: 固定案内どおり get_gate_result か Web のしれん画面へ誘導する。",
           'アプリ内じゅもん経由なら source: "terminal"。',
         ].join(" "),
         inputSchema: {
@@ -327,11 +379,14 @@ const handler = createMcpHandler(
         if (!result.ok) {
           return { ...text(result.message), isError: true };
         }
+        // B1-4: 合否表現なし＋次アクション固定
         return text(
           [
-            "回答を受理しました。採点は非同期です。合否はこの応答には含めません。",
-            `結果確認: get_gate_result(gateId: "${gateId}") または http://localhost:3100/gates/${gateId}`,
-            "つまずきが記録されたらずかん（http://localhost:3100/zukan）も見てください。",
+            "回答を受け付けました。採点は裏で進みます。この応答には合否を書きません。",
+            "次の一手（どれか1つ）:",
+            `- get_gate_result(gateId: "${gateId}") で状態を見る`,
+            `- Web のしれん画面: http://localhost:3100/gates/${gateId}`,
+            "- つまずきが付いたらずかん: http://localhost:3100/zukan",
           ].join("\n"),
         );
       }
@@ -854,6 +909,12 @@ const handler = createMcpHandler(
         const today = dayStartJST();
         const now = new Date();
 
+        // 疎通直後に pending が空にならないようサンプルを保証（B4-3）
+        const { ensureTutorialSeed } = await import("@/lib/tutorial-seed");
+        await ensureTutorialSeed().catch((e) =>
+          console.error("[briefing] ensureTutorialSeed failed:", e),
+        );
+
         // 出題予定を過ぎた誤解から retry / sr_review ゲートを生成する (ADR-0006 §6)
         await scheduleDueGates().catch((e) =>
           console.error("[briefing] scheduleDueGates failed:", e)
@@ -887,32 +948,56 @@ const handler = createMcpHandler(
           );
         });
 
-        const [pending, experiments, pendingGates, openMisconceptions, activeGoals] =
-          await Promise.all([
-            prisma.capture.findMany({
-              where: { status: "pending" },
-              // SQLite: DESC では NULL が末尾。未採点は後ろに回る
-              orderBy: [{ importanceScore: "desc" }, { capturedAt: "desc" }],
-              take: 10,
-            }),
-            prisma.experiment.findMany({
-              where: { status: "active" },
-              include: { entry: true, checkIns: { where: { date: today } } },
-            }),
-            prisma.gate.findMany({
-              where: pendingGateWhere(now),
-              orderBy: { createdAt: "desc" },
-              take: 5,
-            }),
-            prisma.misconception.count({
-              where: { status: { in: ["open", "regressed"] } },
-            }),
-            prisma.goal.findMany({
-              where: { status: "active" },
-              orderBy: { createdAt: "asc" },
-              select: { id: true, title: true },
-            }),
-          ]);
+        const yesterdayStart = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+        const [
+          pending,
+          experiments,
+          pendingGates,
+          openMisconceptions,
+          activeGoals,
+          yesterdayGraded,
+        ] = await Promise.all([
+          prisma.capture.findMany({
+            where: { status: "pending" },
+            // SQLite: DESC では NULL が末尾。未採点は後ろに回る
+            orderBy: [{ importanceScore: "desc" }, { capturedAt: "desc" }],
+            take: 10,
+          }),
+          prisma.experiment.findMany({
+            where: { status: "active" },
+            include: { entry: true, checkIns: { where: { date: today } } },
+          }),
+          prisma.gate.findMany({
+            where: pendingGateWhere(now),
+            orderBy: { createdAt: "desc" },
+            take: 5,
+          }),
+          prisma.misconception.count({
+            where: { status: { in: ["open", "regressed"] } },
+          }),
+          prisma.goal.findMany({
+            where: { status: "active" },
+            orderBy: { createdAt: "asc" },
+            select: { id: true, title: true },
+          }),
+          prisma.gate.findMany({
+            where: {
+              gradedAt: { gte: yesterdayStart, lt: today },
+              status: {
+                in: [
+                  "passed",
+                  "failed",
+                  "self_graded_pass",
+                  "self_graded_fail",
+                  "grading_failed",
+                ],
+              },
+            },
+            select: { status: true, question: true, id: true },
+            orderBy: { gradedAt: "desc" },
+            take: 8,
+          }),
+        ]);
 
         const evidence = await Promise.all(
           activeGoals.map(async (g) => ({
@@ -922,6 +1007,62 @@ const handler = createMcpHandler(
         );
 
         const lines: string[] = ["# おはようございます — Applied Loop", ""];
+
+        // P2: 冒頭は「今日のしれん1件＋昨日の判定」に固定（単一推奨）
+        {
+          const focus = pendingGates[0] ?? null;
+          lines.push("## 今日の一手");
+          if (focus) {
+            const q =
+              focus.question.length > 120
+                ? `${focus.question.slice(0, 117)}…`
+                : focus.question;
+            lines.push(`- 今日のしれん: ${q} (gateId: ${focus.id})`);
+            lines.push(
+              "  → list_pending_gates で詳細 → ユーザーが提出を明示したら answer_gate",
+            );
+          } else {
+            lines.push(
+              "- 今日のしれん: なし（コミット or request_gate で供給せよ）",
+            );
+          }
+          const yClear = yesterdayGraded.filter((g) =>
+            ["passed", "self_graded_pass"].includes(g.status),
+          ).length;
+          const yMiss = yesterdayGraded.filter((g) =>
+            ["failed", "self_graded_fail"].includes(g.status),
+          ).length;
+          const yHold = yesterdayGraded.filter(
+            (g) => g.status === "grading_failed",
+          ).length;
+          if (yesterdayGraded.length === 0) {
+            lines.push("- 昨日の判定: なし");
+          } else {
+            lines.push(
+              `- 昨日の判定: CLEAR ${yClear} / miss ${yMiss} / 保留 ${yHold}（計 ${yesterdayGraded.length}）`,
+            );
+            const sample = yesterdayGraded[0];
+            if (sample) {
+              const label = ["passed", "self_graded_pass"].includes(
+                sample.status,
+              )
+                ? "CLEAR"
+                : sample.status === "grading_failed"
+                  ? "保留"
+                  : "miss";
+              const sq =
+                sample.question.length > 80
+                  ? `${sample.question.slice(0, 77)}…`
+                  : sample.question;
+              lines.push(`  例: [${label}] ${sq}`);
+            }
+          }
+          if (openMisconceptions > 0) {
+            lines.push(`- 未解消の誤解: ${openMisconceptions} 件（ずかんで確認）`);
+          }
+          lines.push("");
+        }
+
         if (pendingGates.length > 0) {
           lines.push(`## 理解度ゲート: ${pendingGates.length} 件の出題中`);
           for (const g of pendingGates) {

@@ -23,13 +23,11 @@ LLM を入れたばかりでも、**ツール名を覚えなくてよい**。順
 画面: ホームのバナー → **じゅんび（`/setup`）**。ウィザードが「いまやる1手」だけを大きく出す。
 
 ```bash
-cp .env.example .env   # MCP_TOKEN と ENABLE_TERMINAL を編集
-npm install
-npx prisma migrate dev
+npm run setup          # preflight / install / .env生成 / migrate / sample seed
 npm run dev:all        # http://localhost:3100  +  WS :3101
 ```
 
-サンプルデータは `/setup` を開いたとき自動で入る。手動なら:
+手動でバラす場合は README「クイックスタート」へ。サンプルデータは `/setup` を開いたときにも入る。手動なら:
 
 ```bash
 npm run seed:tutorial

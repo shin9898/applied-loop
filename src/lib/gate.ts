@@ -12,17 +12,19 @@ import {
   refreshRequirementsForGate,
 } from "@/lib/requirement";
 import { serializeGradePayload } from "@/lib/grade-payload";
+import { readTutorialState } from "@/lib/tutorial-state";
 
 // 発火抑制ルール (ADR-0006 §2)。チューニングはここを変えるだけでよい
 export const GATE_THROTTLE_HOURS = 4;
 export const GATE_DAILY_CAP = 3;
 export const GATE_BACKLOG_CAP = 5;
+/** request_gate / generateGate が LLM に渡す diff 上限（超分は切り捨て。DB には保存しない） */
+export const DIFF_MAX_CHARS = 8000;
 
 const RETRY_DELAY_MS = 72 * 3600 * 1000; // 72h ルール
 const SR_BASE_DAYS = 7;
 const SR_MAX_DAYS = 60;
 const PERFECT_INTERVAL_CAP_DAYS = 14; // ADR-0010: 全観点 score=2 時の延長上限
-const DIFF_MAX_CHARS = 8000;
 const RESOURCE_KINDS = new Set(["doc", "file", "commit", "adr"]);
 const ROOT_CAUSES = new Set(["knowledge", "verification", "premise"]);
 
@@ -78,6 +80,13 @@ export async function recordEvent(input: EventInput): Promise<RecordEventResult>
 }
 
 async function checkThrottle(repo: string): Promise<string | null> {
+  const pendingCount = await prisma.gate.count({ where: { status: "pending" } });
+  if (pendingCount >= GATE_BACKLOG_CAP) return "backlog";
+
+  // B2-3: チュートリアル完了前は時間・日次キャップを免除（初日1件を通す）
+  const tutorialOpen = !readTutorialState().completedAt;
+  if (tutorialOpen) return null;
+
   const since = new Date(Date.now() - GATE_THROTTLE_HOURS * 3600 * 1000);
   const recentGate = await prisma.gate.findFirst({
     where: { event: { repo }, createdAt: { gte: since } },
@@ -92,10 +101,16 @@ async function checkThrottle(repo: string): Promise<string | null> {
   });
   if (todayCount >= GATE_DAILY_CAP) return "daily_cap";
 
-  const pendingCount = await prisma.gate.count({ where: { status: "pending" } });
-  if (pendingCount >= GATE_BACKLOG_CAP) return "backlog";
-
   return null;
+}
+
+/** diff 本文を切り詰め（ADR-0006: DB には保存しない） */
+export function truncateDiffForGate(diff: string): string {
+  const trimmed = diff.trim();
+  if (!trimmed) return "";
+  return trimmed.length > DIFF_MAX_CHARS
+    ? `${trimmed.slice(0, DIFF_MAX_CHARS)}\n...(truncated)`
+    : trimmed;
 }
 
 /** ローカルの git から diff を取得する (repoPath は execFile の引数としてのみ使用) */
@@ -106,11 +121,8 @@ async function getDiff(repoPath: string, ref: string): Promise<string | null> {
       ["-C", repoPath, "show", ref, "--format=%s%n%b", "--unified=3", "--no-color"],
       { maxBuffer: 2 * 1024 * 1024 }
     );
-    const trimmed = stdout.trim();
-    if (!trimmed) return null;
-    return trimmed.length > DIFF_MAX_CHARS
-      ? trimmed.slice(0, DIFF_MAX_CHARS) + "\n...(truncated)"
-      : trimmed;
+    const trimmed = truncateDiffForGate(stdout);
+    return trimmed || null;
   } catch {
     return null;
   }
@@ -154,26 +166,29 @@ function normalizeResources(raw: unknown): GateResource[] | null {
   return items.length > 0 ? items : null;
 }
 
-/** 発火したイベントから出題を生成して Gate を作成する (非同期ジョブ)。
- *  失敗は skipReason を gen_failed* に更新して記録する (認証切れは要ユーザー対応) */
-export async function generateGate(eventId: string): Promise<void> {
-  const event = await prisma.devEvent.findUnique({ where: { id: eventId } });
-  if (!event || !event.fired) return;
+type QuestionBuildOk = {
+  ok: true;
+  question: string;
+  targetConcept: string | null;
+  domain: string | null;
+  contextSummary: string | null;
+  rubric: string[] | null;
+  resources: GateResource[] | null;
+  reqSuggestions: unknown;
+};
 
-  const fail = async (reason: string) => {
-    await prisma.devEvent.update({
-      where: { id: eventId },
-      data: { fired: false, skipReason: reason },
-    });
-  };
+type QuestionBuildFail = {
+  ok: false;
+  reason: "gen_failed" | "gen_failed_auth" | "gen_failed_parse";
+};
 
-  if (!event.repoPath) return fail("gen_failed");
-  const diff = await getDiff(event.repoPath, event.ref);
-  if (!diff) return fail("gen_failed_diff");
-
-  // active Requirement があるときだけ提案欄を載せる (0 件なら完全 no-op)
+async function buildQuestionFromDiff(
+  diff: string,
+): Promise<QuestionBuildOk | QuestionBuildFail> {
   const reqBlock = await activeRequirementsPromptBlock();
-  const reqJson = reqBlock ? ',"requirement_suggestions":["requirementId",...]' : "";
+  const reqJson = reqBlock
+    ? ',"requirement_suggestions":["requirementId",...]'
+    : "";
 
   const prompt = [
     "以下の git diff (事例) から、理解度ゲートの問いを1つ生成せよ。2段階で考えよ。",
@@ -222,50 +237,187 @@ export async function generateGate(eventId: string): Promise<void> {
       e instanceof HeadlessLLMError &&
       (e.kind === "auth" || e.kind === "quota")
     ) {
-      return fail("gen_failed_auth");
+      return { ok: false, reason: "gen_failed_auth" };
     }
-    return fail("gen_failed");
+    return { ok: false, reason: "gen_failed" };
   }
-  if (!parsed?.question) return fail("gen_failed_parse");
+  if (!parsed?.question?.trim()) {
+    return { ok: false, reason: "gen_failed_parse" };
+  }
 
-  // principle を優先 (転用可能な一般原則)。従来の target_concept も互換で受理
   const targetConcept =
     (typeof parsed.principle === "string" && parsed.principle.trim()) ||
-    (typeof parsed.target_concept === "string" && parsed.target_concept.trim()) ||
-    (typeof parsed.targetConcept === "string" && parsed.targetConcept.trim()) ||
+    (typeof parsed.target_concept === "string" &&
+      parsed.target_concept.trim()) ||
+    (typeof parsed.targetConcept === "string" &&
+      parsed.targetConcept.trim()) ||
     null;
   const domain =
     typeof parsed.domain === "string" && parsed.domain.trim()
       ? parsed.domain.trim().slice(0, 80)
       : null;
   const contextSummary =
-    (typeof parsed.context_summary === "string" && parsed.context_summary.trim()) ||
-    (typeof parsed.contextSummary === "string" && parsed.contextSummary.trim()) ||
+    (typeof parsed.context_summary === "string" &&
+      parsed.context_summary.trim()) ||
+    (typeof parsed.contextSummary === "string" &&
+      parsed.contextSummary.trim()) ||
     null;
-  const rubric = normalizeRubricCriteria(parsed.rubric);
-  const resources = normalizeResources(parsed.resources);
+
+  return {
+    ok: true,
+    question: parsed.question.trim(),
+    targetConcept,
+    domain,
+    contextSummary: contextSummary ? contextSummary.slice(0, 600) : null,
+    rubric: normalizeRubricCriteria(parsed.rubric),
+    resources: normalizeResources(parsed.resources),
+    reqSuggestions:
+      parsed.requirement_suggestions ?? parsed.requirementSuggestions,
+  };
+}
+
+/** 発火したイベントから出題を生成して Gate を作成する (非同期ジョブ)。
+ *  失敗は skipReason を gen_failed* に更新して記録する (認証切れは要ユーザー対応) */
+export async function generateGate(eventId: string): Promise<void> {
+  const event = await prisma.devEvent.findUnique({ where: { id: eventId } });
+  if (!event || !event.fired) return;
+
+  const fail = async (reason: string) => {
+    await prisma.devEvent.update({
+      where: { id: eventId },
+      data: { fired: false, skipReason: reason },
+    });
+  };
+
+  if (!event.repoPath) return fail("gen_failed");
+  const diff = await getDiff(event.repoPath, event.ref);
+  if (!diff) return fail("gen_failed_diff");
+
+  const built = await buildQuestionFromDiff(diff);
+  if (!built.ok) return fail(built.reason);
 
   const gate = await prisma.gate.create({
     data: {
       eventId,
       kind: "initial",
-      question: parsed.question.trim(),
-      targetConcept,
-      domain,
-      contextSummary: contextSummary ? contextSummary.slice(0, 600) : null,
-      rubricCriteria: rubric ? JSON.stringify(rubric) : null,
-      resources: resources ? JSON.stringify(resources) : null,
+      question: built.question,
+      targetConcept: built.targetConcept,
+      domain: built.domain,
+      contextSummary: built.contextSummary,
+      rubricCriteria: built.rubric ? JSON.stringify(built.rubric) : null,
+      resources: built.resources ? JSON.stringify(built.resources) : null,
     },
   });
 
-  const reqSuggestions =
-    parsed.requirement_suggestions ?? parsed.requirementSuggestions;
-  await applyRequirementSuggestions(reqSuggestions, {
+  await applyRequirementSuggestions(built.reqSuggestions, {
     targetType: "gate",
     targetId: gate.id,
   }).catch((e) =>
-    console.error("[requirement] apply suggestions from generateGate failed:", e)
+    console.error("[requirement] apply suggestions from generateGate failed:", e),
   );
+}
+
+export type RequestGateResult =
+  | {
+      ok: true;
+      gateId: string;
+      question: string;
+      contextSummary: string | null;
+      domain: string | null;
+    }
+  | {
+      ok: false;
+      code:
+        | "empty_diff"
+        | "backlog"
+        | "gen_failed"
+        | "gen_failed_auth"
+        | "gen_failed_parse";
+      message: string;
+    };
+
+/**
+ * 会話からの供給（ADR-0019 P1 B1-2）。
+ * diff は引数で受け取り、DB には保存しない。DevEvent も作らない。
+ */
+export async function requestGateFromDiff(input: {
+  diff: string;
+  repo?: string | null;
+  summary?: string | null;
+}): Promise<RequestGateResult> {
+  const diff = truncateDiffForGate(input.diff);
+  if (!diff) {
+    return {
+      ok: false,
+      code: "empty_diff",
+      message: "diff が空です。変更差分を渡してください。",
+    };
+  }
+
+  const pendingCount = await prisma.gate.count({
+    where: { status: "pending" },
+  });
+  if (pendingCount >= GATE_BACKLOG_CAP) {
+    return {
+      ok: false,
+      code: "backlog",
+      message: `未回答のしれんが ${GATE_BACKLOG_CAP} 件以上ある。先に list_pending_gates で解くか片付けること。`,
+    };
+  }
+
+  const built = await buildQuestionFromDiff(diff);
+  if (!built.ok) {
+    const messages: Record<QuestionBuildFail["reason"], string> = {
+      gen_failed: "しれんの生成に失敗した。採点 CLI（claude/codex）と認証を確認せよ。",
+      gen_failed_auth:
+        "しれん生成が認証で止まった。claude / codex にログインし直して再実行せよ。",
+      gen_failed_parse: "しれん生成の応答を読めなかった。もう一度 request_gate せよ。",
+    };
+    return {
+      ok: false,
+      code: built.reason,
+      message: messages[built.reason],
+    };
+  }
+
+  const repoHint = input.repo?.trim().slice(0, 80) || null;
+  const summaryHint = input.summary?.trim().slice(0, 200) || null;
+  const contextSummary =
+    built.contextSummary ||
+    [summaryHint, repoHint ? `repo: ${repoHint}` : null, "（会話からの request_gate）"]
+      .filter(Boolean)
+      .join("\n") ||
+    null;
+
+  const gate = await prisma.gate.create({
+    data: {
+      kind: "initial",
+      question: built.question,
+      targetConcept: built.targetConcept,
+      domain: built.domain,
+      contextSummary: contextSummary ? contextSummary.slice(0, 600) : null,
+      rubricCriteria: built.rubric ? JSON.stringify(built.rubric) : null,
+      resources: built.resources ? JSON.stringify(built.resources) : null,
+    },
+  });
+
+  await applyRequirementSuggestions(built.reqSuggestions, {
+    targetType: "gate",
+    targetId: gate.id,
+  }).catch((e) =>
+    console.error(
+      "[requirement] apply suggestions from requestGateFromDiff failed:",
+      e,
+    ),
+  );
+
+  return {
+    ok: true,
+    gateId: gate.id,
+    question: gate.question,
+    contextSummary: gate.contextSummary,
+    domain: gate.domain,
+  };
 }
 
 /** 直近24時間の出題生成失敗 (認証切れ検知用) */
@@ -367,6 +519,40 @@ function resolveVerdict(result: GradeResult): boolean | null {
   if (result.verdict === "fail") return false;
   if (typeof result.passed === "boolean") return result.passed;
   return null;
+}
+
+/**
+ * B11-2: 同一 Q/A を2回採点し、verdict 一致を測る（DB 非破壊）。
+ */
+export async function spotCheckGradeConsistency(input: {
+  question: string;
+  answer: string;
+  diff?: string | null;
+  rubricCriteria?: string[] | null;
+}): Promise<{
+  a: boolean | null;
+  b: boolean | null;
+  agree: boolean;
+}> {
+  const goalsBlock = await activeGoalsPromptBlock();
+  const criteria = input.rubricCriteria ?? null;
+  const r1 = await callGradingLLM(
+    input.diff ?? null,
+    input.question,
+    input.answer,
+    criteria,
+    goalsBlock,
+  );
+  const r2 = await callGradingLLM(
+    input.diff ?? null,
+    input.question,
+    input.answer,
+    criteria,
+    goalsBlock,
+  );
+  const a = r1 ? resolveVerdict(r1) : null;
+  const b = r2 ? resolveVerdict(r2) : null;
+  return { a, b, agree: a !== null && b !== null && a === b };
 }
 
 function extractMisconceptions(result: GradeResult): string[] {
