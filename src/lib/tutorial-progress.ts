@@ -81,27 +81,30 @@ export function computeTutorialProgress(input: TutorialProgressInput): {
     },
     {
       id: "llm_pick",
-      label: "使う LLM を選ぶ",
-      plain: "Claude Code / Cursor / Codex / じゅもん、のどれか。",
+      label: "自分の LLM を選ぶ（つなぐ道）",
+      plain:
+        "Claude Code / Cursor / Codex / じゅもん。ここで選んだ側に Applied Loop をつなぐ。",
       done: Boolean(llmTrack),
     },
     {
       id: "llm_call",
-      label: "貼るだけで1回呼ぶ",
-      plain: "用意した文をチャットに貼る。MCP 疎通か「できた」で完了。",
+      label: "自分の LLM に MCP をつなぐ（貼る1回）",
+      plain:
+        "用意した文を選んだ LLM に貼る。疎通できれば接続完了（ツール名は覚えなくてよい）。",
       done: llmStepDone,
     },
     {
       id: "hook",
-      label: "（任意）git hook でしれんを増やす",
-      plain: "今は飛ばしてよい。毎日の自動生成用。",
+      label: "（任意）監視リポジトリを選ぶ",
+      plain:
+        "commit 供給の対象 repo を選び鉤をかける。未選択なら自動では溜まらない。Cloud 主なら飛ばしてよい。",
       done: hookOk || hookSkipped,
       optional: true,
     },
     {
       id: "done",
       label: "チュートリアル完了",
-      plain: "本運用は朝の要約 → しれん → 学びの記録。",
+      plain: "本運用は朝の要約 → しれん → 学びの記録。供給は監視中 repo の commit か request_gate。",
       done: Boolean(completedAt),
     },
   ];

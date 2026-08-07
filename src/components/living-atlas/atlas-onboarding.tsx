@@ -114,7 +114,7 @@ export function AtlasWorldIntroModal() {
         <AtlasVoicePlain
           className="mt-3"
           voice="ここは理解の地図じゃ。まずはじゅんびで、サンプルのしれんを1問提出せよ。賢者（LLM）との道は、そのあとでよい。"
-          plain="最初は Web で1問解く。MCP やツール名は次のステップで、貼るだけの文を渡す。"
+          plain="最初は Web で1問解く。そのあと自分の LLM に MCP をつなぐ（貼る文1回）。"
         />
         <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
           <button
@@ -174,9 +174,9 @@ function suggestedToken(): string {
 const STEP_CHIP: Record<string, string> = {
   token: "合言葉",
   sample_gate: "しれん",
-  llm_pick: "LLM",
-  llm_call: "貼る",
-  hook: "hook",
+  llm_pick: "LLM選ぶ",
+  llm_call: "つなぐ",
+  hook: "監視",
 };
 
 /** /setup: 進行つきチュートリアル */
@@ -223,7 +223,7 @@ export function AtlasSetupPanel({
               ? "支度の最短路は通った。あとは毎日のループじゃ。"
               : "聞け。いまやる1手だけを示そう。終われば次が開く。"
           }
-          plain="Web でサンプルしれん1問 → LLM に貼る文で1回呼ぶ。git hook は任意。"
+          plain="Web でサンプル1問 → 自分の LLM に MCP をつなぐ（貼る1回）→ 監視リポジトリは任意。"
         />
       </div>
 
@@ -292,9 +292,12 @@ export function AtlasSetupPanel({
 
         {current === "llm_pick" ? (
           <div className="mt-2 space-y-2">
-            <p className="m-0 text-[15px] text-[#f7f3d9]">使う LLM を選ぶ</p>
-            <p className="m-0 text-[12px] text-[#c9c3a0]">
-              迷ったら『じゅもん』。アプリ内から同じ道を開ける（ENABLE_TERMINAL=true）。
+            <p className="m-0 text-[15px] text-[#f7f3d9]">
+              自分の LLM を選ぶ（つなぐ道）
+            </p>
+            <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+              ここが「自分の LLM と Applied Loop をつなぐ」ステップの入口。
+              迷ったら『じゅもん』（アプリ内・ENABLE_TERMINAL=true）。
             </p>
             <div className="flex flex-wrap gap-2">
               {(
@@ -317,11 +320,13 @@ export function AtlasSetupPanel({
         {current === "llm_call" && progress.llmTrack && paste ? (
           <div className="mt-2 space-y-2">
             <p className="m-0 text-[15px] text-[#f7f3d9]">
-              {TUTORIAL_LLM_LABELS[progress.llmTrack]} に、この文を貼る
+              自分の LLM（{TUTORIAL_LLM_LABELS[progress.llmTrack]}）に MCP
+              をつなぐ
             </p>
             <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-              ツール名を覚えなくてよい。この道を選んだあとに貼って呼ぶこと。
-              以前の MCP 接続だけでは次に進まない。
+              下の文を選んだ LLM に貼って1回呼ぶ。これで Applied Loop
+              とつながる（ツール名は覚えなくてよい）。
+              この道を選んだあとの疎通だけがカウントされる。
               {progress.mcpRecent && progress.steps.find((s) => s.id === "llm_call")?.done
                 ? " —— 選択後の疎通を検知したぞ。"
                 : ""}

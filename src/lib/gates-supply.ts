@@ -45,10 +45,10 @@ export function resolveGatesSupplyState(input: {
   if (!input.gitHookInstalled) {
     return {
       kind: "no_hook",
-      title: "しれんの種を拾う鉤がない",
-      body: "git hook を入れると、コミットからしれんが増える。じゅんびの鉤ステップへ進め。",
-      href: "/setup#git-hook",
-      cta: "鉤を入れる",
+      title: "監視リポジトリがない",
+      body: "じゅんびで repo を選び鉤をかけると、その commit からしれんが増える。request_gate でも供給できる。",
+      href: "/setup#watched-repos",
+      cta: "監視を入れる",
     };
   }
 

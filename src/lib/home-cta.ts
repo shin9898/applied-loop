@@ -58,10 +58,10 @@ export function resolveHomeCta(input: {
   if (!input.gitHookInstalled) {
     return {
       kind: "hook",
-      href: "/setup#git-hook",
-      label: "鉤を入れる",
-      title: "しれんの種を拾う鉤がまだない",
-      body: "自分の repo に git hook を入れると、コミットからしれんが増える。じゅんびの鉤ステップへ。",
+      href: "/setup#watched-repos",
+      label: "監視を入れる",
+      title: "監視リポジトリがまだない",
+      body: "じゅんびで仕事 repo を選び鉤をかけると、その commit からしれんが増える。",
     };
   }
 
@@ -70,6 +70,6 @@ export function resolveHomeCta(input: {
     href: "/gates",
     label: "しれんを見る",
     title: "いま挑めるしれんはない",
-    body: "鉤はかかっておる。次のコミットを待つ、またはしれん一覧で CLEAR 済みを見返せ。",
+    body: "監視はかかっておる。次のコミットを待つ、またはしれん一覧で CLEAR 済みを見返せ。",
   };
 }
