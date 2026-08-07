@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Applied Loop — ぼうけんのしょ</title>
+    <title>Applied Loop — AIで書いたコードの「わかったつもり」を、あとから試す</title>
     <meta
       name="description"
-      content="理解ギャップを、地図に残す。ローカル MCP ループ Applied Loop / Living Atlas。"
+      content="Cursor や Claude で進めた実装について、コミットのたびに理解チェックが届く。手元で回るローカル学習ループ Applied Loop。"
     />
     <!-- 正本の物語: docs/onboarding.md。アプリ内 /lp と章立てを同期すること。 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -24,6 +24,7 @@
         --gold: #f0d25a;
         --blue: #9ec0ff;
         --mute: #9a9470;
+        --line: #002070;
         --font-px: "Press Start 2P", monospace;
         --font-jp: "DotGothic16", sans-serif;
       }
@@ -49,6 +50,7 @@
         z-index: 2;
         display: flex;
         justify-content: flex-end;
+        flex-wrap: wrap;
         gap: 1rem;
         padding: 1rem 1.25rem;
       }
@@ -69,8 +71,8 @@
         min-height: 100svh;
         display: flex;
         flex-direction: column;
-        justify-content: flex-end;
-        padding: 5rem 1.25rem 2.5rem;
+        justify-content: center;
+        padding: 5rem 1.25rem 3rem;
         border-bottom: 4px solid #fff;
         overflow: hidden;
       }
@@ -91,41 +93,31 @@
         position: absolute;
         inset: 0 auto auto 0;
         width: 100%;
-        height: 55%;
+        height: 45%;
         background: linear-gradient(to bottom, var(--navy), transparent);
       }
-      .bang {
-        position: absolute;
-        top: 18%;
-        right: 8%;
-        width: 7rem;
-        height: 7rem;
-        display: none;
+      .hero-grid-layout {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 72rem;
+        margin: 0 auto;
+        display: grid;
+        gap: 2rem;
         align-items: center;
-        justify-content: center;
-        border: 4px solid #fff;
-        background: var(--navy);
-        box-shadow: 6px 6px 0 #000;
-        font-family: var(--font-px);
-        font-size: 10px;
-        color: var(--gold);
       }
       @media (min-width: 768px) {
-        .bang {
-          display: flex;
-        }
         .hero {
-          padding: 5rem 2.5rem 3.5rem;
+          padding: 5rem 2.5rem 4rem;
+        }
+        .hero-grid-layout {
+          grid-template-columns: 1fr 1fr;
+          gap: 3rem;
         }
         .section {
           padding-left: 2.5rem;
           padding-right: 2.5rem;
         }
-      }
-      .hero-inner {
-        position: relative;
-        z-index: 1;
-        max-width: 48rem;
       }
       .brand {
         margin: 0;
@@ -135,17 +127,18 @@
       }
       .brand-sub {
         margin: 0.5rem 0 0;
-        font-size: 22px;
+        font-size: 14px;
+        color: var(--blue);
+        line-height: 1.6;
       }
       h1 {
-        margin: 1.5rem 0 0;
-        font-size: clamp(28px, 5vw, 40px);
+        margin: 1.25rem 0 0;
+        font-size: clamp(26px, 4.5vw, 36px);
         font-weight: 400;
-        line-height: 1.2;
+        line-height: 1.25;
       }
       .lead {
         margin: 1rem 0 0;
-        max-width: 36rem;
         font-size: 15px;
         line-height: 1.7;
         color: var(--dim);
@@ -180,6 +173,64 @@
         color: var(--mute);
         line-height: 1.6;
       }
+      .preview {
+        border: 4px solid #fff;
+        background: var(--navy);
+        box-shadow: 8px 8px 0 #000;
+        padding: 0.75rem;
+        max-width: 28rem;
+        width: 100%;
+        margin: 0 auto;
+      }
+      @media (min-width: 768px) {
+        .preview {
+          margin: 0;
+          max-width: none;
+        }
+      }
+      .preview .label {
+        margin: 0;
+        font-family: var(--font-px);
+        font-size: 8px;
+        color: var(--gold);
+      }
+      .tiles {
+        margin-top: 0.75rem;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+      }
+      .tile {
+        aspect-ratio: 1;
+        border: 2px solid var(--line);
+        background: var(--deep);
+      }
+      .tile.quest {
+        border-color: #fff;
+        background: var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-px);
+        font-size: 10px;
+        color: var(--gold);
+      }
+      .quest-box {
+        margin-top: 0.75rem;
+        border: 2px solid #fff;
+        background: var(--deep);
+        padding: 0.5rem;
+      }
+      .quest-box p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .quest-box .hint {
+        margin-top: 0.25rem;
+        font-size: 11px;
+        color: var(--mute);
+      }
       .section {
         padding: 3.5rem 1.25rem;
         border-bottom: 4px solid #fff;
@@ -210,6 +261,15 @@
         display: grid;
         gap: 1rem;
       }
+      .grid2 {
+        display: grid;
+        gap: 1rem;
+      }
+      @media (min-width: 640px) {
+        .grid2 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
       @media (min-width: 768px) {
         .grid3 {
           grid-template-columns: repeat(3, 1fr);
@@ -222,15 +282,18 @@
         box-shadow: 6px 6px 0 #000;
         padding: 1rem;
       }
-      .section.alt .win-lite {
-        border: 3px solid #002070;
-        background: var(--navy);
+      .pane {
+        border: 3px solid var(--line);
+        background: var(--deep);
         padding: 1rem;
       }
+      .section.alt .pane {
+        background: var(--navy);
+      }
       .win h3,
-      .win-lite h3 {
+      .pane h3 {
         margin: 0.5rem 0 0;
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 400;
       }
       .win .n {
@@ -240,19 +303,19 @@
         color: var(--gold);
       }
       .win p,
-      .win-lite p {
+      .pane p {
         margin: 0.5rem 0 0;
         font-size: 13px;
         line-height: 1.7;
         color: var(--dim);
       }
-      .win-lite .t {
+      .pane .t {
         margin: 0;
         font-family: var(--font-px);
         font-size: 10px;
         color: var(--blue);
       }
-      .win-lite .body {
+      .pane .body {
         color: var(--cream);
         font-size: 14px;
       }
@@ -293,6 +356,8 @@
   </head>
   <body>
     <header class="nav">
+      <a href="#pain">困りごと</a>
+      <a href="#resolve">解消</a>
       <a href="#how">仕組み</a>
       <a href="https://github.com/shin9898/applied-loop" target="_blank" rel="noreferrer"
         >GitHub</a
@@ -304,67 +369,142 @@
       <div class="hero-bg" aria-hidden="true"></div>
       <div class="hero-grid" aria-hidden="true"></div>
       <div class="hero-fade" aria-hidden="true"></div>
-      <div class="bang" aria-hidden="true">！</div>
-      <div class="hero-inner">
-        <p class="brand">Applied Loop</p>
-        <p class="brand-sub">ぼうけんのしょ</p>
-        <h1>理解ギャップを、地図に残す。</h1>
-        <p class="lead">
-          vibe coding で通り過ぎた「わかったつもり」を、しれん（理解チェック）とずかん（つまずき）に変える。ローカルで回る
-          MCP ループ。UI は Living Atlas。
-        </p>
-        <div class="cta-row">
-          <a
-            class="btn"
-            href="https://github.com/shin9898/applied-loop"
-            target="_blank"
-            rel="noreferrer"
-            >GitHub を見る</a
-          >
-          <a class="btn btn-ghost" href="../onboarding.md">始め方案内へ</a>
+      <div class="hero-grid-layout">
+        <div>
+          <p class="brand">Applied Loop</p>
+          <p class="brand-sub">
+            ぼうけんのしょ — AIコーディング向けの、理解ギャップ学習ループ
+          </p>
+          <h1>
+            AIで書いたコードの<br />
+            「わかったつもり」を、あとから試す。
+          </h1>
+          <p class="lead">
+            Cursor や Claude
+            で進めた実装について、コミットのたびに理解チェックが届く。答えるとつまずきが残り、朝に次の一手が見える——手元のローカルツール。
+          </p>
+          <div class="cta-row">
+            <a
+              class="btn"
+              href="https://github.com/shin9898/applied-loop"
+              target="_blank"
+              rel="noreferrer"
+              >GitHub を見る</a
+            >
+            <a class="btn btn-ghost" href="../onboarding.md">始め方案内へ</a>
+          </div>
+          <p class="note">いまはセルフホスト dogfood。SaaS / マルチユーザーはまだない。</p>
         </div>
-        <p class="note">いまはセルフホスト dogfood。SaaS / マルチユーザーはまだない。</p>
+        <div class="preview" aria-hidden="true">
+          <p class="label">ちず · きょうのクエスト</p>
+          <div class="tiles">
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile quest">！</div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+            <div class="tile"></div>
+          </div>
+          <div class="quest-box">
+            <p>「このキャッシュ設計、なぜ必要？」</p>
+            <p class="hint">しれん · たたかう → 提出する</p>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section id="how" class="section">
-      <h2>最短3手（じゅんび）</h2>
-      <p class="sub">初日はツール名を覚えなくてよい。順番だけ守る。</p>
+    <section id="pain" class="section">
+      <h2>こんな困りごと向け</h2>
+      <p class="sub">速度だけが先に行き、理解と記録が置いていかれる——その穴を埋める。</p>
+      <div class="grid3">
+        <div class="pane">
+          <h3>コードは進むのに、説明できない</h3>
+          <p>AIとマージできたのに、レビューで「なぜこの設計？」と聞かれて言葉が出ない。</p>
+        </div>
+        <div class="pane">
+          <h3>学びがチャットに消える</h3>
+          <p>わかったつもりでも、セッションが終わると痕跡も結論も残らない。</p>
+        </div>
+        <div class="pane">
+          <h3>同じ勘違いが戻ってくる</h3>
+          <p>先週通した話が、別タスクで同じミスとして再発する。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="resolve" class="section alt">
+      <h2>なにが解消できるか</h2>
+      <p class="sub">
+        教材を増やすのではなく、自分の作業（コミット・セッション）を理解の材料にする。
+      </p>
+      <div class="grid3">
+        <div class="win">
+          <p class="n">01</p>
+          <h3>わかったつもりを、あとから試せる</h3>
+          <p>コミットや会話から理解チェック（しれん）が届く。合否はあとから見られる。</p>
+        </div>
+        <div class="win">
+          <p class="n">02</p>
+          <h3>つまずきが地図に残る</h3>
+          <p>答えた結果がずかんに貯まる。未解消や再発を追える。</p>
+        </div>
+        <div class="win">
+          <p class="n">03</p>
+          <h3>今日の一手が朝に見える</h3>
+          <p>朝の要約から、いま解くべきしれん／関連する学びに戻れる。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>なにができるか</h2>
+      <p class="sub">UI の呼び名はゲーム風。中身は全部、理解を残すための機能。</p>
+      <div class="grid2">
+        <div class="pane">
+          <p class="t">しれん（理解チェック）</p>
+          <p class="body">自分の差分について出題され、Web か自分の LLM から答える。</p>
+        </div>
+        <div class="pane">
+          <p class="t">ずかん（つまずき一覧）</p>
+          <p class="body">間違えた論点・誤解を一覧で追い、再出題につなげる。</p>
+        </div>
+        <div class="pane">
+          <p class="t">ちず（進捗の地図）</p>
+          <p class="body">未消化の理解ギャップをクエスト（！）として眺める。</p>
+        </div>
+        <div class="pane">
+          <p class="t">自分の LLM とつなぐ</p>
+          <p class="body">
+            Claude / Cursor / Codex などに MCP を1回貼る。操作の正典はツール側。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="how" class="section alt">
+      <h2>どう動くか</h2>
+      <p class="sub">初日はツール名を覚えなくてよい。起動 → 働く → 答える、の3手。</p>
       <div class="grid3">
         <div class="win">
           <p class="n">①</p>
-          <h3>サンプルしれんを1問</h3>
-          <p>Web の『たたかう』で提出。合否は待たなくてよい</p>
+          <h3>手元で起動する</h3>
+          <p>clone → setup → ブラウザでじゅんび。最初の1問は Web で提出してよい。</p>
         </div>
         <div class="win">
           <p class="n">②</p>
-          <h3>自分の LLM に MCP をつなぐ</h3>
-          <p>道を選び、貼る文を1回呼ぶ。ツール名は覚えなくてよい</p>
+          <h3>いつもどおり働く</h3>
+          <p>監視中の repo で commit、または会話から出題。PR 作成だけでは溜まらない。</p>
         </div>
         <div class="win">
           <p class="n">③</p>
-          <h3>（任意）監視リポジトリ</h3>
-          <p>仕事 repo を選んで鉤。未選択なら commit からは溜まらない</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section alt">
-      <h2>本運用のループ</h2>
-      <div class="grid3" style="margin-top: 2rem">
-        <div class="win-lite">
-          <p class="t">つなぐ</p>
-          <p class="body">アプリ + 合言葉 + 自分の LLM（MCP）。操作の正典はツール。</p>
-        </div>
-        <div class="win-lite">
-          <p class="t">集める</p>
-          <p class="body">
-            監視中 repo の commit、または会話の request_gate。PR 作成だけでは増えない。
-          </p>
-        </div>
-        <div class="win-lite">
-          <p class="t">進める</p>
-          <p class="body">朝の要約 → しれん → ずかん。わかったつもりを地図に残す。</p>
+          <h3>答えて、地図に残す</h3>
+          <p>しれんに答える → つまずきがずかんへ。朝に次の一手を見る。</p>
         </div>
       </div>
     </section>
@@ -372,6 +512,10 @@
     <section class="section last">
       <div class="win start-win">
         <h2>手元で始める</h2>
+        <p class="note" style="color: var(--dim); margin-top: 0.5rem">
+          自分のマシンで動かすオープンソース。API
+          キーを渡してクラウド学習させる製品ではない。
+        </p>
         <pre>
 git clone https://github.com/shin9898/applied-loop.git
 cd applied-loop
@@ -397,7 +541,7 @@ npm run dev:all
     </section>
 
     <footer>
-      <p>Applied Loop — 理解ギャップの Living Atlas</p>
+      <p>Applied Loop — AIコーディングの理解ギャップを、地図に残す</p>
       <p class="copy">© 2026</p>
     </footer>
   </body>
