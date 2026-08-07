@@ -6,6 +6,8 @@ import { isTutorialGateSubmitted } from "@/lib/tutorial-seed";
 import {
   buildMcpClientSnippets,
   getMcpEndpointInfo,
+  probeReachableMcpUrl,
+  type McpClientSnippets,
   type McpEndpointInfo,
 } from "@/lib/mcp-endpoint";
 import {
@@ -68,15 +70,17 @@ export type SetupDiagnosis = {
   /** 初心者チュートリアル完了 */
   tutorialReady: boolean;
   tutorialGateId: string;
-  /** MCP URL（localhost or Reachable） */
+  /** MCP URL（local + Reachable の Dual） */
   mcpEndpoint: McpEndpointInfo;
-  /** Cloud / 外部クライアント向け設定片 */
-  mcpSnippets: {
-    cursorJson: string;
-    claudeCli: string;
-    claudeProjectJson: string;
-    codexToml: string;
-  };
+  /** 手元 Desktop / CLI 向け（常に localhost） */
+  localMcpSnippets: McpClientSnippets;
+  /**
+   * Cloud / 外部クライアント向け。
+   * Reachable 未設定時は local と同じ（トンネル前のプレースホルダ）。
+   */
+  mcpSnippets: McpClientSnippets;
+  /** Reachable URL の簡易疎通（未設定は n/a） */
+  reachableProbe: "ok" | "fail" | "n/a";
   /** git hook 本体が ~/.applied-loop にあるか */
   gitHookInstalled: boolean;
   /** 監視登録した repo と接続状態（リポジトリ粒度） */
@@ -115,10 +119,17 @@ export async function loadSetupDiagnosis(opts?: {
 }): Promise<SetupDiagnosis> {
   const mcpEndpoint = getMcpEndpointInfo();
   const mcpToken = mcpEndpoint.tokenConfigured;
-  const mcpSnippets = buildMcpClientSnippets({
-    mcpUrl: mcpEndpoint.mcpUrl,
+  const localMcpSnippets = buildMcpClientSnippets({
+    mcpUrl: mcpEndpoint.localMcpUrl,
     token: process.env.MCP_TOKEN,
   });
+  const mcpSnippets = buildMcpClientSnippets({
+    mcpUrl: mcpEndpoint.reachableMcpUrl ?? mcpEndpoint.localMcpUrl,
+    token: process.env.MCP_TOKEN,
+  });
+  const reachableProbe = await probeReachableMcpUrl(
+    mcpEndpoint.reachableMcpUrl,
+  );
   const terminalEnv = process.env.ENABLE_TERMINAL === "true" && mcpToken;
   const terminalUp = terminalEnv
     ? await probePort("127.0.0.1", 3101)
@@ -253,17 +264,21 @@ export async function loadSetupDiagnosis(opts?: {
     {
       id: "cloud_mcp",
       label: "Cloud の生成AIから届く MCP URL",
-      ok: !mcpEndpoint.reachable || (mcpEndpoint.reachable && mcpToken),
+      ok:
+        !mcpEndpoint.reachable ||
+        (mcpEndpoint.reachable && mcpToken && reachableProbe !== "fail"),
       required: false,
-      detail: mcpEndpoint.reachable
-        ? mcpToken
-          ? `Reachable: ${mcpEndpoint.mcpUrl}`
-          : `URL はあるが合言葉がない（${mcpEndpoint.baseUrl}）`
-        : "いまは localhost（Cloud の生成AIには届かぬ）。/setup の青い任意カードへ",
+      detail: !mcpEndpoint.reachable
+        ? `Desktop 用は ${mcpEndpoint.localMcpUrl}。Cloud には届かぬ——青い任意カードへ`
+        : !mcpToken
+          ? `URL はあるが合言葉がない（${mcpEndpoint.reachableBaseUrl}）`
+          : reachableProbe === "fail"
+            ? `Reachable が応答しない（古いトンネルの可能性）: ${mcpEndpoint.reachableMcpUrl}。Desktop は ${mcpEndpoint.localMcpUrl} のまま`
+            : `Reachable: ${mcpEndpoint.reachableMcpUrl}（Desktop は ${mcpEndpoint.localMcpUrl}）`,
       howTo:
-        "/setup『Cloud の生成AIからも同じループ』ウィザード（選ぶ→トンネル→登録→疎通）。または `npm run mcp:cloud-config`",
+        "/setup『Cloud の生成AIからも同じループ』ウィザード（選ぶ→トンネル→登録→疎通）。Desktop の mcp.json には localhost だけ書く。または `npm run mcp:cloud-config`",
       plain:
-        "Cursor Cloud / Claude web / Codex など手元以外の AI 用。Desktop の MCP 設定は効かない。MCP だけトンネルで届ける（ADR-0018）。",
+        "手元 AI は常に localhost。Cloud Agent など別ホストだけ Reachable（トンネル）を使う。Desktop 設定にトンネル URL を書かない（ADR-0018）。",
     },
     {
       id: "git_hook",
@@ -355,7 +370,9 @@ export async function loadSetupDiagnosis(opts?: {
     tutorialReady,
     tutorialGateId: TUTORIAL_GATE_ID,
     mcpEndpoint,
+    localMcpSnippets,
     mcpSnippets,
+    reachableProbe,
     gitHookInstalled: gitHook || watchedSummary.anyConnected,
     watchedRepos,
     genFailures,

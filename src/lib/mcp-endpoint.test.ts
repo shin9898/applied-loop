@@ -7,6 +7,7 @@ import {
   isLoopbackBaseUrl,
   mcpEndpointUrl,
   resolveAppliedLoopBaseUrl,
+  resolveReachableBaseUrl,
 } from "./mcp-endpoint";
 
 describe("mcp-endpoint", () => {
@@ -14,16 +15,31 @@ describe("mcp-endpoint", () => {
     const env = {};
     assert.equal(resolveAppliedLoopBaseUrl(env), "http://localhost:3100");
     assert.equal(mcpEndpointUrl(env), "http://localhost:3100/api/mcp");
-    assert.equal(getMcpEndpointInfo(env).reachable, false);
+    const info = getMcpEndpointInfo(env);
+    assert.equal(info.reachable, false);
+    assert.equal(info.localMcpUrl, "http://localhost:3100/api/mcp");
+    assert.equal(info.reachableMcpUrl, null);
+    assert.equal(info.mcpUrl, info.localMcpUrl);
   });
 
-  it("prefers MCP_PUBLIC_URL over APPLIED_LOOP_URL", () => {
+  it("keeps localMcpUrl when Reachable is set", () => {
     const env = {
       APPLIED_LOOP_URL: "https://a.example/",
       MCP_PUBLIC_URL: "https://b.example/",
     };
     assert.equal(resolveAppliedLoopBaseUrl(env), "https://b.example");
-    assert.equal(getMcpEndpointInfo(env).reachable, true);
+    assert.equal(resolveReachableBaseUrl(env), "https://b.example");
+    const info = getMcpEndpointInfo(env);
+    assert.equal(info.reachable, true);
+    assert.equal(info.localMcpUrl, "http://localhost:3100/api/mcp");
+    assert.equal(info.reachableMcpUrl, "https://b.example/api/mcp");
+    assert.equal(info.mcpUrl, "https://b.example/api/mcp");
+  });
+
+  it("ignores loopback APPLIED_LOOP_URL for reachable", () => {
+    const env = { APPLIED_LOOP_URL: "http://127.0.0.1:3100" };
+    assert.equal(resolveReachableBaseUrl(env), null);
+    assert.equal(getMcpEndpointInfo(env).reachable, false);
   });
 
   it("detects loopback hosts", () => {
@@ -39,6 +55,7 @@ describe("mcp-endpoint", () => {
       token: "secret",
     });
     assert.match(s.cursorJson, /https:\/\/ex\.example\/api\/mcp/);
+    assert.match(s.cursorJson, /"type": "http"/);
     assert.match(s.cursorJson, /Bearer secret/);
     assert.match(s.claudeCli, /claude mcp add/);
     assert.match(s.claudeProjectJson, /"type": "http"/);

@@ -205,12 +205,13 @@ export function AtlasSetupPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount 時に一度だけ seed
   }, []);
 
+  const localMcpUrl = diagnosis.mcpEndpoint.localMcpUrl;
   const paste = useMemo(
     () =>
       progress.llmTrack
-        ? tutorialPastePrompt(progress.llmTrack, diagnosis.mcpEndpoint.mcpUrl)
+        ? tutorialPastePrompt(progress.llmTrack, localMcpUrl)
         : null,
-    [progress.llmTrack, diagnosis.mcpEndpoint.mcpUrl],
+    [progress.llmTrack, localMcpUrl],
   );
 
   return (
@@ -326,15 +327,15 @@ export function AtlasSetupPanel({
             <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
               下の文を選んだ LLM に貼って1回呼ぶ。これで Applied Loop
               とつながる（ツール名は覚えなくてよい）。
+              手元の生成AIは常に localhost（
+              <code className="text-[#9ec0ff]">{localMcpUrl}</code>
+              ）。Cloud Agent は下の青いカード。
               この道を選んだあとの疎通だけがカウントされる。
               {progress.mcpRecent && progress.steps.find((s) => s.id === "llm_call")?.done
                 ? " —— 選択後の疎通を検知したぞ。"
                 : ""}
             </p>
-            <LlmTrackHint
-              track={progress.llmTrack}
-              mcpUrl={diagnosis.mcpEndpoint.mcpUrl}
-            />
+            <LlmTrackHint track={progress.llmTrack} mcpUrl={localMcpUrl} />
             <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap border-[2px] border-white bg-[#000c4a] p-2.5 text-[11px] leading-relaxed text-[#f7f3d9]">
               {paste}
             </pre>
@@ -532,27 +533,29 @@ function LlmTrackHint({
   if (track === "claude") {
     return (
       <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-        つまり 先に{" "}
+        つまり 手元 CLI は先に{" "}
         <code>
           claude mcp add --transport http applied-loop {mcpUrl} --header
           &quot;Authorization: Bearer …&quot;
         </code>
-        。Web なら .mcp.json（type: http）。下の青いカード『Cloud の生成AIからも…』へ。
+        （localhost）。Claude Web / Cloud は下の青いカード（Reachable）。トンネル URL
+        を手元設定に書かない。
       </p>
     );
   }
   if (track === "cursor") {
     return (
       <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-        つまり Desktop なら mcp.json に url=<code>{mcpUrl}</code> と Bearer。
-        Cloud Agent なら下の青いカードへ（Desktop 設定は効かない）。
+        つまり Desktop の ~/.cursor/mcp.json は url=<code>{mcpUrl}</code>{" "}
+        と Bearer のみ。Cloud Agent は下の青いカード（Desktop 設定は効かない・トンネル
+        URL を mcp.json に書かない）。
       </p>
     );
   }
   return (
     <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-      つまり同じホストなら ~/.codex/config.toml。別ホストなら .codex/config.toml
-      （trusted）+ MCP_TOKEN。下の青いカード『Cloud の生成AIからも…』へ。
+      つまり手元は ~/.codex/config.toml に localhost URL。別ホストの Codex は下の青いカード
+      （Reachable + MCP_TOKEN）。
     </p>
   );
 }

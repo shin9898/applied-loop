@@ -78,7 +78,10 @@ npm run mcp:cloud-config -- --redact
 ```
 
 `/setup` でも同じスニペットとクライアント別手順を表示する。  
-**quick tunnel は再起動で URL が変わる** → 変わったらクライアント側の登録も更新する。
+**quick tunnel は再起動で URL が変わる** → 変わったら **Cloud 側の登録だけ**更新する。
+
+Desktop（`~/.cursor/mcp.json` 等）は常に `http://localhost:3100/api/mcp`。  
+トンネル URL を Desktop に書かない（本線チュートリアルも localhost 固定）。
 
 ---
 

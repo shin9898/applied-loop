@@ -10,8 +10,16 @@ Applied Loop の配布物は 3 点セット (ADR-0005):
 
 ## 1. MCP エンドポイントの登録
 
-前提: `npm run dev:all`（または `npm run dev -- -p 3100`）でアプリが起動していること。  
-自分用の既定: `http://localhost:3100/api/mcp`。  
+前提: `npm run dev:all`（または `npm run dev -- -p 3100`）でアプリが起動していること。
+
+| 使い方 | URL | 登録先 |
+|---|---|---|
+| **手元**（Cursor Desktop / 手元 Claude CLI / 手元 Codex） | 常に `http://localhost:3100/api/mcp` | Desktop 側の設定 |
+| **Cloud**（Cursor Cloud Agent など別ホスト） | Reachable（`APPLIED_LOOP_URL` / トンネル）`/api/mcp` | Cloud 側だけ（Agents UI 等） |
+
+**.env にトンネル URL があっても、Desktop の `mcp.json` には localhost だけ書く。**  
+混ぜると quick tunnel 失効時に手元まで死ぬ。Cloud 手順は [cloud-mcp.md](./cloud-mcp.md)。
+
 `.env` の `MCP_TOKEN` を Bearer に使う。
 
 ### Claude Code

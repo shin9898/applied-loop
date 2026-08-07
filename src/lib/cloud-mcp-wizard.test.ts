@@ -21,6 +21,22 @@ describe("cloud-mcp-wizard", () => {
     assert.equal(cloudTunnelReady({ reachable: true, tokenConfigured: true }), true);
     assert.equal(cloudTunnelReady({ reachable: true, tokenConfigured: false }), false);
     assert.equal(cloudTunnelReady({ reachable: false, tokenConfigured: true }), false);
+    assert.equal(
+      cloudTunnelReady({
+        reachable: true,
+        tokenConfigured: true,
+        reachableProbe: "fail",
+      }),
+      false,
+    );
+    assert.equal(
+      cloudTunnelReady({
+        reachable: true,
+        tokenConfigured: true,
+        reachableProbe: "ok",
+      }),
+      true,
+    );
   });
 
   it("detects MCP after verifyEnteredAt", () => {

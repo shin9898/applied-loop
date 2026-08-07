@@ -71,12 +71,18 @@ export function parseCloudWizardState(raw: unknown): CloudWizardPersisted {
   };
 }
 
-/** トンネルが Cloud 用として足りるか（診断） */
-export function cloudTunnelReady(opts: {
+export type CloudTunnelDiagnosis = {
   reachable: boolean;
   tokenConfigured: boolean;
-}): boolean {
-  return opts.reachable && opts.tokenConfigured;
+  /** fail のときは古い URL とみなして次へ進めない */
+  reachableProbe?: "ok" | "fail" | "n/a";
+};
+
+/** トンネルが Cloud 用として足りるか（診断） */
+export function cloudTunnelReady(opts: CloudTunnelDiagnosis): boolean {
+  if (!opts.reachable || !opts.tokenConfigured) return false;
+  if (opts.reachableProbe === "fail") return false;
+  return true;
 }
 
 /** verify 開始以降に MCP 認証成功があったか */
@@ -96,7 +102,7 @@ export function cloudVerifyDetected(opts: {
 export function cloudWizardCanAdvance(
   step: CloudWizardStepId,
   state: CloudWizardPersisted,
-  tunnel: { reachable: boolean; tokenConfigured: boolean },
+  tunnel: CloudTunnelDiagnosis,
   mcpLastAt?: string | null,
 ): boolean {
   switch (step) {

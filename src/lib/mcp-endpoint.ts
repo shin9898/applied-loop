@@ -1,17 +1,33 @@
 /**
  * MCP エンドポイント URL の解決とクライアント設定スニペット。
- * Cloud Agent 向け Reachable MCP（トンネル／公開 URL）の薄い楔。
+ *
+ * Desktop / 手元 CLI は常に localMcpUrl（localhost）。
+ * Cloud Agent など別ホストは reachableMcpUrl（トンネル／公開 URL）。
+ * 両者を混ぜない（Reachable 設定が Desktop 案内を汚染しない）。
  */
 
+export const LOCAL_APPLIED_LOOP_BASE = "http://localhost:3100";
+
 export type McpEndpointInfo = {
-  /** アプリ原点（末尾スラッシュなし） */
-  baseUrl: string;
-  /** Streamable HTTP MCP URL */
-  mcpUrl: string;
-  /** localhost 以外（Cloud から届きうる） */
+  /** 手元用原点（常に localhost:3100） */
+  localBaseUrl: string;
+  /** 手元用 MCP URL */
+  localMcpUrl: string;
+  /** 非 loopback の公開原点（未設定なら null） */
+  reachableBaseUrl: string | null;
+  /** Cloud 用 MCP URL（未設定なら null） */
+  reachableMcpUrl: string | null;
+  /** env に Reachable URL がある */
   reachable: boolean;
   /** MCP_TOKEN が設定されているか */
   tokenConfigured: boolean;
+  /**
+   * 設定上の主原点（Reachable があればそれ、なければ local）。
+   * Cloud スニペット・認証トリガー向け。Desktop 本線は localMcpUrl。
+   */
+  baseUrl: string;
+  /** baseUrl + /api/mcp（同上） */
+  mcpUrl: string;
 };
 
 function trimBase(raw: string): string {
@@ -25,7 +41,7 @@ export function resolveAppliedLoopBaseUrl(env: EnvMap = process.env): string {
   const raw =
     env.MCP_PUBLIC_URL?.trim() ||
     env.APPLIED_LOOP_URL?.trim() ||
-    "http://localhost:3100";
+    LOCAL_APPLIED_LOOP_BASE;
   return trimBase(raw);
 }
 
@@ -50,13 +66,32 @@ export function isLocalRequestHost(hostHeader: string | null | undefined): boole
   return bare === "localhost" || bare === "127.0.0.1" || bare === "[::1]" || bare === "::1";
 }
 
+/** env から Reachable 原点だけ取る（loopback や空は null） */
+export function resolveReachableBaseUrl(env: EnvMap = process.env): string | null {
+  const raw = env.MCP_PUBLIC_URL?.trim() || env.APPLIED_LOOP_URL?.trim() || "";
+  if (!raw) return null;
+  const base = trimBase(raw);
+  if (isLoopbackBaseUrl(base)) return null;
+  return base;
+}
+
 export function getMcpEndpointInfo(env: EnvMap = process.env): McpEndpointInfo {
-  const baseUrl = resolveAppliedLoopBaseUrl(env);
+  const localBaseUrl = LOCAL_APPLIED_LOOP_BASE;
+  const localMcpUrl = `${localBaseUrl}/api/mcp`;
+  const reachableBaseUrl = resolveReachableBaseUrl(env);
+  const reachableMcpUrl = reachableBaseUrl
+    ? `${reachableBaseUrl}/api/mcp`
+    : null;
+  const baseUrl = reachableBaseUrl ?? localBaseUrl;
   return {
+    localBaseUrl,
+    localMcpUrl,
+    reachableBaseUrl,
+    reachableMcpUrl,
+    reachable: Boolean(reachableBaseUrl),
+    tokenConfigured: Boolean(env.MCP_TOKEN?.trim()),
     baseUrl,
     mcpUrl: `${baseUrl}/api/mcp`,
-    reachable: !isLoopbackBaseUrl(baseUrl),
-    tokenConfigured: Boolean(env.MCP_TOKEN?.trim()),
   };
 }
 
@@ -86,6 +121,7 @@ export function buildMcpClientSnippets(opts: {
     {
       mcpServers: {
         "applied-loop": {
+          type: "http",
           url: opts.mcpUrl,
           headers: {
             Authorization: `Bearer ${token}`,
@@ -124,4 +160,24 @@ export function buildMcpClientSnippets(opts: {
     `bearer_token_env_var = "MCP_TOKEN"`,
   ].join("\n");
   return { cursorJson, claudeCli, claudeProjectJson, codexToml };
+}
+
+/** Reachable URL が生きているか（DNS/接続の簡易プローブ） */
+export async function probeReachableMcpUrl(
+  mcpUrl: string | null | undefined,
+  ms = 2500,
+): Promise<"ok" | "fail" | "n/a"> {
+  if (!mcpUrl) return "n/a";
+  try {
+    const res = await fetch(mcpUrl, {
+      method: "GET",
+      redirect: "manual",
+      signal: AbortSignal.timeout(ms),
+    });
+    // Streamable HTTP は GET で 405 等でもホストが生きていれば成功扱い
+    void res;
+    return "ok";
+  } catch {
+    return "fail";
+  }
 }

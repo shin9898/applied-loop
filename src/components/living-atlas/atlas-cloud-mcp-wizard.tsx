@@ -93,6 +93,7 @@ export function AtlasCloudMcpWizard({
   const tunnelOk = cloudTunnelReady({
     reachable: diagnosis.mcpEndpoint.reachable,
     tokenConfigured: diagnosis.mcpEndpoint.tokenConfigured,
+    reachableProbe: diagnosis.reachableProbe,
   });
 
   const verifyOk = cloudVerifyDetected({
@@ -151,6 +152,7 @@ export function AtlasCloudMcpWizard({
     {
       reachable: diagnosis.mcpEndpoint.reachable,
       tokenConfigured: diagnosis.mcpEndpoint.tokenConfigured,
+      reachableProbe: diagnosis.reachableProbe,
     },
     diagnosis.mcpLastAt,
   );
@@ -245,8 +247,13 @@ export function AtlasCloudMcpWizard({
 
         {state.step === "tunnel" ? (
           <StepTunnel
-            mcpUrl={diagnosis.mcpEndpoint.mcpUrl}
+            localMcpUrl={diagnosis.mcpEndpoint.localMcpUrl}
+            mcpUrl={
+              diagnosis.mcpEndpoint.reachableMcpUrl ??
+              diagnosis.mcpEndpoint.localMcpUrl
+            }
             reachable={diagnosis.mcpEndpoint.reachable}
+            reachableProbe={diagnosis.reachableProbe}
             tokenConfigured={diagnosis.mcpEndpoint.tokenConfigured}
             tunnelOk={tunnelOk}
             onRefresh={() => router.refresh()}
@@ -368,14 +375,18 @@ function StepPick({
 }
 
 function StepTunnel({
+  localMcpUrl,
   mcpUrl,
   reachable,
+  reachableProbe,
   tokenConfigured,
   tunnelOk,
   onRefresh,
 }: {
+  localMcpUrl: string;
   mcpUrl: string;
   reachable: boolean;
+  reachableProbe: "ok" | "fail" | "n/a";
   tokenConfigured: boolean;
   tunnelOk: boolean;
   onRefresh: () => void;
@@ -386,11 +397,11 @@ function StepTunnel({
         このアプリに Reachable URL を教える
       </p>
       <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-        ここで見るのは Cursor の接続状態ではない。{" "}
+        Cloud 用だけ。Desktop の MCP は常に{" "}
+        <code className="text-[#9ec0ff]">{localMcpUrl}</code>
+        （この画面のトンネル URL を ~/.cursor/mcp.json に書かない）。ここで見るのは{" "}
         <code className="text-[#9ec0ff]">.env</code> の{" "}
-        <code className="text-[#9ec0ff]">APPLIED_LOOP_URL</code>（トンネルの
-        https）をアプリが読んでいるか。Cursor に先に登録してあっても、ここが
-        localhost のままだと次へ進めない。
+        <code className="text-[#9ec0ff]">APPLIED_LOOP_URL</code> をアプリが読んでいるか。
       </p>
       <ol className="m-0 list-decimal space-y-1 pl-5 text-[11px] leading-relaxed text-[#c9c3a0]">
         {CLOUD_MCP_TUNNEL_STEPS.map((s) => (
@@ -399,16 +410,37 @@ function StepTunnel({
       </ol>
       <ul className="m-0 list-none space-y-1 p-0 text-[12px]">
         <li className={reachable ? "text-[#3ecf5a]" : "text-[#e84848]"}>
-          {reachable ? "✓" : "！"} アプリが見ている URL が localhost 以外
+          {reachable ? "✓" : "！"} アプリが見ている Reachable URL がある
         </li>
         <li className={tokenConfigured ? "text-[#3ecf5a]" : "text-[#e84848]"}>
           {tokenConfigured ? "✓" : "！"} MCP_TOKEN あり
         </li>
+        {reachable ? (
+          <li
+            className={
+              reachableProbe === "ok"
+                ? "text-[#3ecf5a]"
+                : reachableProbe === "fail"
+                  ? "text-[#e84848]"
+                  : "text-[#9a9470]"
+            }
+          >
+            {reachableProbe === "ok"
+              ? "✓ Reachable URL が応答する"
+              : reachableProbe === "fail"
+                ? "！ Reachable URL が応答しない（古いトンネルの可能性）"
+                : "· 疎通未確認"}
+          </li>
+        ) : null}
       </ul>
       <p className="m-0 text-[11px] text-[#c9c3a0]">
-        いまアプリが見ている MCP URL:
+        Cloud 用 MCP URL（Reachable）:
       </p>
       <p className="m-0 font-mono text-[11px] text-[#9ec0ff]">{mcpUrl}</p>
+      <p className="m-0 text-[11px] text-[#c9c3a0]">
+        Desktop 用（書き換えない）:{" "}
+        <code className="text-[#9ec0ff]">{localMcpUrl}</code>
+      </p>
       {!reachable ? (
         <p className="m-0 text-[11px] leading-relaxed text-[#f0d25a]">
           → .env に{" "}
@@ -419,9 +451,16 @@ function StepTunnel({
           を再起動してから「再診断する」。
         </p>
       ) : null}
+      {reachable && reachableProbe === "fail" ? (
+        <p className="m-0 text-[11px] leading-relaxed text-[#f0d25a]">
+          → cloudflared を起動し直し、新しい URL を .env に書いて再起動。Desktop の
+          mcp.json は localhost のまま触らなくてよい。
+        </p>
+      ) : null}
       <p className="m-0 text-[10px] leading-relaxed text-[#9a9470]">
         「再診断する」= このページを再読み込みして .env を見直すだけ。Cursor
-        側の疎通テストではない。quick tunnel は再起動で URL が変わる。
+        Desktop の疎通テストではない。quick tunnel は再起動で URL が変わる——変わるのは
+        Cloud 側の登録だけ。
       </p>
       <button
         type="button"
