@@ -4,6 +4,7 @@ AI に書かせたコードについて、**自分の理解を試す出題（し
 
 UI は Living Atlas。操作の正典は **MCP**（Web は地図・診断・提出入口）。
 
+**紹介 LP:** ローカル `/lp` · GitHub Pages 用静的版 [docs/lp/](docs/lp/)（repo Settings → Pages → Deploy from branch → `/docs`）  
 **進捗正本（Phase）:** [docs/phase-progress.md](docs/phase-progress.md) · [ADR-0019](docs/adr/0019-core-loop-phases.md)  
 初回セットアップ詳細: [docs/onboarding.md](docs/onboarding.md)  
 同僚ウォークスルー: [docs/walkthrough-checklist.md](docs/walkthrough-checklist.md)  
@@ -23,7 +24,7 @@ npm run dev:all        # http://localhost:3100
 
 2. ブラウザで **[じゅんび](http://localhost:3100/setup)** → サンプルしれんを1問提出（合否は待たなくてよい）
 3. LLM を選び、画面の**貼る文**をチャットへ → 先に `list_pending_gates` が走る
-4. 本運用の供給（どちらか）: git hook、または会話で `request_gate`（完了画面に案内）
+4. 本運用の供給（どちらか）: じゅんびで**監視リポジトリ**＋鉤、または会話で `request_gate`
 
 つまずきやすい3点:
 - **採点が出ない** → headless の Claude/Codex CLI にログイン済みか。`npm run regrade -- <gateId>`

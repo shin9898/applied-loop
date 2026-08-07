@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Applied Loop — ぼうけんのしょ</title>
+    <meta
+      name="description"
+      content="理解ギャップを、地図に残す。ローカル MCP ループ Applied Loop / Living Atlas。"
+    />
+    <!-- 正本の物語: docs/onboarding.md。アプリ内 /lp と章立てを同期すること。 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --navy: #001a8c;
+        --deep: #000c4a;
+        --cream: #f7f3d9;
+        --dim: #c9c3a0;
+        --gold: #f0d25a;
+        --blue: #9ec0ff;
+        --mute: #9a9470;
+        --font-px: "Press Start 2P", monospace;
+        --font-jp: "DotGothic16", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--deep);
+        color: var(--cream);
+        font-family: var(--font-jp);
+      }
+      a {
+        color: inherit;
+      }
+      .nav {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        z-index: 2;
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+      }
+      .nav a {
+        font-family: var(--font-px);
+        font-size: 8px;
+        color: var(--blue);
+        text-decoration: none;
+      }
+      .nav a:hover {
+        color: var(--gold);
+      }
+      .nav a.gold {
+        color: var(--gold);
+      }
+      .hero {
+        position: relative;
+        min-height: 100svh;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 5rem 1.25rem 2.5rem;
+        border-bottom: 4px solid #fff;
+        overflow: hidden;
+      }
+      .hero-bg {
+        position: absolute;
+        inset: 0;
+        background: var(--deep);
+      }
+      .hero-grid {
+        position: absolute;
+        inset: 0;
+        opacity: 0.4;
+        background-image: linear-gradient(#002070 1px, transparent 1px),
+          linear-gradient(90deg, #002070 1px, transparent 1px);
+        background-size: 32px 32px;
+      }
+      .hero-fade {
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        height: 55%;
+        background: linear-gradient(to bottom, var(--navy), transparent);
+      }
+      .bang {
+        position: absolute;
+        top: 18%;
+        right: 8%;
+        width: 7rem;
+        height: 7rem;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        border: 4px solid #fff;
+        background: var(--navy);
+        box-shadow: 6px 6px 0 #000;
+        font-family: var(--font-px);
+        font-size: 10px;
+        color: var(--gold);
+      }
+      @media (min-width: 768px) {
+        .bang {
+          display: flex;
+        }
+        .hero {
+          padding: 5rem 2.5rem 3.5rem;
+        }
+        .section {
+          padding-left: 2.5rem;
+          padding-right: 2.5rem;
+        }
+      }
+      .hero-inner {
+        position: relative;
+        z-index: 1;
+        max-width: 48rem;
+      }
+      .brand {
+        margin: 0;
+        font-family: var(--font-px);
+        font-size: 11px;
+        color: var(--gold);
+      }
+      .brand-sub {
+        margin: 0.5rem 0 0;
+        font-size: 22px;
+      }
+      h1 {
+        margin: 1.5rem 0 0;
+        font-size: clamp(28px, 5vw, 40px);
+        font-weight: 400;
+        line-height: 1.2;
+      }
+      .lead {
+        margin: 1rem 0 0;
+        max-width: 36rem;
+        font-size: 15px;
+        line-height: 1.7;
+        color: var(--dim);
+      }
+      .cta-row {
+        margin-top: 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-px);
+        font-size: 10px;
+        line-height: 1.45;
+        padding: 12px 16px;
+        border: 3px solid #fff;
+        box-shadow: 4px 4px 0 #000;
+        text-decoration: none;
+        background: var(--gold);
+        color: #1a1000;
+      }
+      .btn-ghost {
+        background: var(--deep);
+        color: var(--cream);
+      }
+      .note {
+        margin: 1rem 0 0;
+        font-size: 12px;
+        color: var(--mute);
+        line-height: 1.6;
+      }
+      .section {
+        padding: 3.5rem 1.25rem;
+        border-bottom: 4px solid #fff;
+        background: var(--navy);
+      }
+      .section.alt {
+        background: var(--deep);
+      }
+      .section.last {
+        border-bottom: none;
+      }
+      h2 {
+        margin: 0;
+        font-family: var(--font-px);
+        font-size: 12px;
+        color: var(--gold);
+        letter-spacing: 0.06em;
+        text-shadow: 2px 2px 0 #000;
+      }
+      .sub {
+        margin: 0.5rem 0 2rem;
+        max-width: 40rem;
+        font-size: 14px;
+        color: var(--dim);
+        line-height: 1.7;
+      }
+      .grid3 {
+        display: grid;
+        gap: 1rem;
+      }
+      @media (min-width: 768px) {
+        .grid3 {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      .win {
+        background: var(--navy);
+        border: 4px solid #fff;
+        outline: 4px solid var(--deep);
+        box-shadow: 6px 6px 0 #000;
+        padding: 1rem;
+      }
+      .section.alt .win-lite {
+        border: 3px solid #002070;
+        background: var(--navy);
+        padding: 1rem;
+      }
+      .win h3,
+      .win-lite h3 {
+        margin: 0.5rem 0 0;
+        font-size: 18px;
+        font-weight: 400;
+      }
+      .win .n {
+        margin: 0;
+        font-family: var(--font-px);
+        font-size: 10px;
+        color: var(--gold);
+      }
+      .win p,
+      .win-lite p {
+        margin: 0.5rem 0 0;
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--dim);
+      }
+      .win-lite .t {
+        margin: 0;
+        font-family: var(--font-px);
+        font-size: 10px;
+        color: var(--blue);
+      }
+      .win-lite .body {
+        color: var(--cream);
+        font-size: 14px;
+      }
+      pre {
+        margin: 0.75rem 0 0;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--cream);
+      }
+      .start-win {
+        max-width: 40rem;
+      }
+      footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 1.5rem 1.25rem;
+        background: var(--deep);
+        border-top: 4px solid #fff;
+        font-size: 12px;
+        color: var(--mute);
+      }
+      footer .copy {
+        font-family: var(--font-px);
+        font-size: 8px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <a href="#how">仕組み</a>
+      <a href="https://github.com/shin9898/applied-loop" target="_blank" rel="noreferrer"
+        >GitHub</a
+      >
+      <a class="gold" href="../onboarding.md">じゅんび手順</a>
+    </header>
+
+    <section class="hero">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="hero-grid" aria-hidden="true"></div>
+      <div class="hero-fade" aria-hidden="true"></div>
+      <div class="bang" aria-hidden="true">！</div>
+      <div class="hero-inner">
+        <p class="brand">Applied Loop</p>
+        <p class="brand-sub">ぼうけんのしょ</p>
+        <h1>理解ギャップを、地図に残す。</h1>
+        <p class="lead">
+          vibe coding で通り過ぎた「わかったつもり」を、しれん（理解チェック）とずかん（つまずき）に変える。ローカルで回る
+          MCP ループ。UI は Living Atlas。
+        </p>
+        <div class="cta-row">
+          <a
+            class="btn"
+            href="https://github.com/shin9898/applied-loop"
+            target="_blank"
+            rel="noreferrer"
+            >GitHub を見る</a
+          >
+          <a class="btn btn-ghost" href="../onboarding.md">始め方案内へ</a>
+        </div>
+        <p class="note">いまはセルフホスト dogfood。SaaS / マルチユーザーはまだない。</p>
+      </div>
+    </section>
+
+    <section id="how" class="section">
+      <h2>最短3手（じゅんび）</h2>
+      <p class="sub">初日はツール名を覚えなくてよい。順番だけ守る。</p>
+      <div class="grid3">
+        <div class="win">
+          <p class="n">①</p>
+          <h3>サンプルしれんを1問</h3>
+          <p>Web の『たたかう』で提出。合否は待たなくてよい</p>
+        </div>
+        <div class="win">
+          <p class="n">②</p>
+          <h3>自分の LLM に MCP をつなぐ</h3>
+          <p>道を選び、貼る文を1回呼ぶ。ツール名は覚えなくてよい</p>
+        </div>
+        <div class="win">
+          <p class="n">③</p>
+          <h3>（任意）監視リポジトリ</h3>
+          <p>仕事 repo を選んで鉤。未選択なら commit からは溜まらない</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt">
+      <h2>本運用のループ</h2>
+      <div class="grid3" style="margin-top: 2rem">
+        <div class="win-lite">
+          <p class="t">つなぐ</p>
+          <p class="body">アプリ + 合言葉 + 自分の LLM（MCP）。操作の正典はツール。</p>
+        </div>
+        <div class="win-lite">
+          <p class="t">集める</p>
+          <p class="body">
+            監視中 repo の commit、または会話の request_gate。PR 作成だけでは増えない。
+          </p>
+        </div>
+        <div class="win-lite">
+          <p class="t">進める</p>
+          <p class="body">朝の要約 → しれん → ずかん。わかったつもりを地図に残す。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section last">
+      <div class="win start-win">
+        <h2>手元で始める</h2>
+        <pre>
+git clone https://github.com/shin9898/applied-loop.git
+cd applied-loop
+npm run setup
+npm run dev:all
+# → http://localhost:3100/setup</pre
+        >
+        <p class="note" style="color: var(--dim)">
+          正本は <code style="color: var(--blue)">docs/onboarding.md</code>。仲間向け最短は
+          README 冒頭。
+        </p>
+        <div class="cta-row">
+          <a
+            class="btn"
+            href="https://github.com/shin9898/applied-loop"
+            target="_blank"
+            rel="noreferrer"
+            >リポジトリへ</a
+          >
+          <a class="btn btn-ghost" href="../onboarding.md">onboarding.md</a>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <p>Applied Loop — 理解ギャップの Living Atlas</p>
+      <p class="copy">© 2026</p>
+    </footer>
+  </body>
+</html>
