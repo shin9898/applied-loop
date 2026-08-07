@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LpHeroBattle } from "@/components/living-atlas/lp-hero-battle";
 
 export const dynamic = "force-static";
 
@@ -70,47 +71,6 @@ const STEPS = [
     plain: "しれんに答える → つまずきがずかんへ。朝に次の一手を見る。",
   },
 ] as const;
-
-function HeroPreview() {
-  return (
-    <div
-      className="atlas-enter relative mx-auto mt-10 w-full max-w-md border-4 border-white bg-[#001a8c] p-3 shadow-[8px_8px_0_#000] md:mt-0 md:max-w-none"
-      style={{ animationDelay: "100ms" }}
-      aria-hidden
-    >
-      <p className="m-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a]">
-        ちず · きょうのクエスト
-      </p>
-      <div className="mt-3 grid grid-cols-4 gap-1">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="aspect-square border-2 border-[#002070] bg-[#000c4a]"
-          />
-        ))}
-        <div className="relative aspect-square border-2 border-white bg-[#002070]">
-          <span className="absolute inset-0 flex items-center justify-center font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
-            ！
-          </span>
-        </div>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={`b-${i}`}
-            className="aspect-square border-2 border-[#002070] bg-[#000c4a]"
-          />
-        ))}
-      </div>
-      <div className="mt-3 border-2 border-white bg-[#000c4a] p-2">
-        <p className="m-0 font-[family-name:var(--font-jp)] text-[12px] leading-snug text-[#f7f3d9]">
-          「このキャッシュ設計、なぜ必要？」
-        </p>
-        <p className="mt-1 mb-0 font-[family-name:var(--font-jp)] text-[11px] text-[#9a9470]">
-          しれん · たたかう → 提出する
-        </p>
-      </div>
-    </div>
-  );
-}
 
 export default function LpPage() {
   return (
@@ -204,7 +164,7 @@ export default function LpPage() {
               いまはセルフホスト dogfood。SaaS / マルチユーザーはまだない。
             </p>
           </div>
-          <HeroPreview />
+          <LpHeroBattle />
         </div>
       </section>
 
