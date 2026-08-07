@@ -22,7 +22,7 @@ const PAINS = [
 
 const RESOLVES = [
   {
-    title: "わかったつもりを、あとから試せる",
+    title: "説明できるまで、あとから試せる",
     body: "コミットや会話から理解チェック（しれん）が届く。合否はあとから見られる。",
   },
   {
@@ -139,13 +139,13 @@ export default function LpPage() {
               ぼうけんのしょ — AIコーディング向けの、理解ギャップ学習ループ
             </p>
             <h1 className="mt-5 mb-0 font-[family-name:var(--font-jp)] text-[26px] leading-tight text-[#f7f3d9] md:text-[36px]">
-              AIで書いたコードの
+              「わかったつもり」を、
               <br className="hidden sm:block" />
-              「わかったつもり」を、あとから試す。
+              しっかり説明できるレベルまで。
             </h1>
             <p className="mt-4 mb-0 font-[family-name:var(--font-jp)] text-[15px] leading-relaxed text-[#c9c3a0] md:text-[16px]">
               Cursor や Claude
-              で進めた実装について、コミットのたびに理解チェックが届く。答えるとつまずきが残り、朝に次の一手が見える——手元のローカルツール。
+              で書いたコードについて、コミットのたびに理解チェックが届く。答えてつまずきを残し、レビューでも自分の言葉で話せる状態へ——手元のローカルツール。
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
