@@ -101,7 +101,9 @@ cap で材料を捨てるのは禁止。代わりに **階層と予算**で読�
 3. **日次の章数上限** — 多すぎる日は章を増やしすぎない（目安 3〜5）。残りは「今日扱わない」枠（Mastery `parked` / 翌日 Textbook）。
 4. **漏れたら検知** — Textbook 生成ログに「圧縮で落とした材料 ID」を残す。黙って消さない。
 5. **検索で戻る** — 全量コンテキストの代わりに、章外は `find_related_learnings` 等の検索で都度引く。
-6. **章コピーの多様性** — 章が2つ以上あるとき、title / oneLiner / body / BAD・OK は材料に応じて互いに異なること。共通テンプレ文だけで章を埋めてはならない（`chaptersHaveDistinctCopy` で回帰固定。UI も diagramKind 共通文面にフォールバックしない）。
+6. **章コピーの多様性** — 章が2つ以上あるとき、title / oneLiner / body / BAD・OK / why / practice は材料に応じて互いに異なること。共通テンプレ文だけで章を埋めてはならない（`chaptersHaveDistinctCopy` で回帰固定。UI も diagramKind 共通文面にフォールバックしない）。
+7. **章レッスンスロット必須** — 新規生成も再生成も同一の規則パイプラインで、各章を物語順に埋める: `work`（いま進めていた改修）→ `timing`（ナレッジが溜まったタイミング）→ `action`（とった対応）→ `why`（その理由）→ `practice` / `consequence` / `alternative`（一般化）と選定対比の BAD/OK。マーカーは `bodyDeep`（`[[WORK]]` / `[[TIMING]]` / `[[ACTION]]` / `[[WHY]]` 等）。欠落は生成失敗。
+8. **LLM 研磨は章単位オプトイン** — 「手元で再圧縮」は LLM なし。任意の「この章をLLMで磨く」だけがヘッドレスで1章分を厚くする。入力は当該章の要約・既存スロット・evidence のみ（日次全量・diff 全文禁止）。失敗時は規則文を維持。
 
 ### 7. 0019 / 0006 との関係
 
@@ -156,6 +158,7 @@ cap で材料を捨てるのは禁止。代わりに **階層と予算**で読�
 5. 移行: 既存 pending しれんの消化 UI（parked / dismiss）と説明コピー
 6. **じゅもん（AIと対話して深掘り / ADR-0015 再利用）**: 教科書の「読む」面に `TerminalPanel` を載せる。UI 表記は DQ 語＋括弧補足（例: 「じゅもんをとなえる（AIを開く）」）。注入は **開いている1章だけ**（ひとこと・一次情報 URL・深さ）。日次全量・diff 本文は入れない（§6）。確認モード中は閉じる。学びが残れば `capture_learning_candidate`
 7. **コンテキスト予算の実装**: Textbook 生成・じゅもん注入・Check 蒸留に上限と「圧縮で落とした材料」の証跡を入れる（§6）
+8. **レッスンスロット＋任意研磨**: 新規／再生成とも規則で why/practice/consequence/alternative を必須化。章単位 `polishTextbookChapter` はオプトイン（§6.7–6.8）
 
 ## 出典
 

@@ -7,11 +7,12 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { dateKeyJST } from "@/lib/date";
 import {
+  chaptersHaveLessonSlots,
   clusterMaterialsIntoChapters,
   dayRangeFromDateKey,
   distillChecks,
   isMasteryState,
-  parseDiagramCopy,
+  parseLessonSlots,
   peakHourFromMaterials,
   type EvidenceLink,
   type MaterialRow,
@@ -49,13 +50,16 @@ export async function generateDailyTextbook(
   const materials = await loadMaterialsForDate(dateKey);
   const { chapters, droppedMaterialIds } =
     clusterMaterialsIntoChapters(materials);
+  if (!chaptersHaveLessonSlots(chapters)) {
+    throw new Error("generateDailyTextbook: lesson slots missing after cluster");
+  }
   const checks = distillChecks(chapters);
   const peakHour = peakHourFromMaterials(materials);
   const title = `きょうのぼうけんのしょ — ${dateKey}`;
   const lead =
     materials.length === 0
       ? "この日の材料はまだない。実装の足跡が溜まると章が立つ。"
-      : `材料 ${materials.length} 件 → 章 ${chapters.length}。即時しれんで止められた分も材料に含む。`;
+      : `材料 ${materials.length} 件 → 章 ${chapters.length}。新規も再圧縮も同じ規則で「なぜ／型／結果／別案」を埋める。磨くのは任意。`;
 
   const existing = await prisma.dailyTextbook.findUnique({
     where: { dateKey },
@@ -160,7 +164,7 @@ export async function loadDailyTextbook(
     peakHour: row.peakHour,
     droppedMaterialIds: parseIds(row.droppedMaterialIds),
     chapters: row.chapters.map((c) => {
-      const { bad, ok } = parseDiagramCopy(c.bodyDeep);
+      const slots = parseLessonSlots(c.bodyDeep);
       return {
         id: c.id,
         index: c.index,
@@ -170,11 +174,32 @@ export async function loadDailyTextbook(
         bodyDeep: c.bodyDeep,
         diagramKind: c.diagramKind,
         diagramBad:
-          bad ??
-          `「${c.title}」を流し見して次へ進み、説明できないままにする`,
+          slots.diagramBad ??
+          `「${c.title}」を動いた事実だけで終え、選定理由を残さない`,
         diagramOk:
-          ok ??
-          `「${c.title}」の代表コミットを開き、目的を1文で書く`,
+          slots.diagramOk ??
+          `「${c.title}」について採った一手・別案・結果を1セットで書く`,
+        work:
+          slots.work ||
+          `「${c.title}」系の改修を進めていた。代表コミットから何を直していたかを復元せよ。`,
+        timing:
+          slots.timing ||
+          `この日の材料として足跡が溜まったタイミングを、件数ときっかけから復元せよ。`,
+        action:
+          slots.action ||
+          `対応: 「${c.title}」で実際に採った一手を1文で復元せよ。`,
+        why:
+          slots.why ||
+          `その対応を採った理由を、代表コミットから1文で復元せよ。`,
+        practice:
+          slots.practice ||
+          `ベストプラクティス: 代表コミットを開き、目的と採った形を固定してから次へ進む。`,
+        consequence:
+          slots.consequence ||
+          `従うと: 翌日に『なぜこうなったか』を再発明せずに済む。`,
+        alternative:
+          slots.alternative ||
+          `やりがちな別案: ログだけ残して選定は頭の中に置く。採らない理由: 根拠が消える。`,
         evidence: parseEvidence(c.evidenceJson),
         materialIds: parseIds(c.materialIds),
       };

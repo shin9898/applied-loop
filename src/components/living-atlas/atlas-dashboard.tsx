@@ -15,6 +15,7 @@ import {
 } from "@/lib/atlas-level";
 import { AtlasShell } from "./atlas-shell";
 import { AtlasReveal } from "./atlas-reveal";
+import { AtlasPageTitle } from "./atlas-page-title";
 import { AtlasWorldMap, REGION_LEGEND } from "./atlas-world-map";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { AtlasWorldIntroModal } from "./atlas-onboarding";
@@ -527,12 +528,11 @@ export function AtlasDashboard({
 
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1.6fr_0.9fr]">
         <AtlasReveal as="section" className="dq-win flex h-full flex-col gap-2.5 p-3">
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 className="dq-win-title mb-0">WORLD MAP</h2>
-            <div className="text-[13px] text-[#c9c3a0]">
-              あかるい領ほど、まち・きがふえるんじゃ
-            </div>
-          </div>
+          <AtlasPageTitle
+            title="ちず"
+            sub="あかるい領ほど、まち・きがふえるんじゃ"
+            surface="map"
+          />
           <AtlasWorldMap activeId={activeId} onSelect={setActiveId} />
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-[#c9c3a0]">
             {REGION_LEGEND.map((r) => (

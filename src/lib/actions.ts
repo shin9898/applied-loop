@@ -718,6 +718,21 @@ export async function regenerateDailyTextbookAction(dateKey: string) {
   return result;
 }
 
+/** ADR-0020: 1章だけヘッドレス LLM でスロットを磨く（失敗時は規則文維持） */
+export async function polishTextbookChapterAction(
+  chapterId: string,
+  dateKey: string,
+) {
+  await requireAuth();
+  const { polishTextbookChapter } = await import(
+    "@/lib/textbook-chapter-polish"
+  );
+  const result = await polishTextbookChapter(chapterId);
+  revalidatePath(`/retro/${dateKey}`);
+  revalidatePath("/retro");
+  return result;
+}
+
 /** ADR-0020: 確認問いの Mastery を保存 */
 export async function setTextbookMasteryAction(
   checkId: string,

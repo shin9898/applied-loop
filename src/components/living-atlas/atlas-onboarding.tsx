@@ -19,6 +19,7 @@ import {
   skipTutorialHookAction,
 } from "@/lib/actions";
 import { AtlasCloudMcpWizardSection } from "./atlas-cloud-mcp-wizard";
+import { AtlasPageTitle } from "./atlas-page-title";
 import { AtlasVoicePlain } from "./atlas-voice-plain";
 import { AtlasWatchedReposPanel } from "./atlas-watched-repos";
 
@@ -217,7 +218,7 @@ export function AtlasSetupPanel({
   return (
     <section className="dq-win space-y-4 p-3.5">
       <div>
-        <h1 className="dq-win-title mb-1">じゅんび（チュートリアル）</h1>
+        <AtlasPageTitle title="じゅんび" sub="チュートリアル" surface="setup" />
         <AtlasVoicePlain
           voice={
             progress.tutorialReady

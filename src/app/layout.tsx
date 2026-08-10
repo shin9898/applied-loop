@@ -31,6 +31,8 @@ const shippori = Shippori_Mincho({
 export const metadata: Metadata = {
   title: "ぼうけんのしょ — Applied Loop",
   description: "学びを実務適用の証跡に変えるループ",
+  applicationName: "Applied Loop",
+  // favicon / apple-touch は app/icon.svg と app/apple-icon.tsx（file convention）
 };
 
 export default function RootLayout({

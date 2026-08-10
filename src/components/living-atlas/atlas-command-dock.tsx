@@ -9,24 +9,47 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import {
+  AtlasSurfaceIcon,
+  surfaceIdFromHref,
+  type AtlasSurfaceId,
+} from "./atlas-surface-icons";
 
 /** ADR-0019: コア4面。初 CLEAR 後に証跡面を追加（B3-3） */
-const NAV_CORE = [
-  { href: "/", label: "ちず", plain: "ホーム" },
-  { href: "/gates", label: "しれん", plain: "理解チェック" },
-  { href: "/zukan", label: "ずかん", plain: "つまずき" },
-  { href: "/setup", label: "じゅんび", plain: "セットアップ" },
-] as const;
+const NAV_CORE: readonly {
+  href: string;
+  label: string;
+  plain: string;
+  surface: AtlasSurfaceId;
+}[] = [
+  { href: "/", label: "ちず", plain: "ホーム", surface: "map" },
+  { href: "/gates", label: "しれん", plain: "理解チェック", surface: "gates" },
+  { href: "/zukan", label: "ずかん", plain: "つまずき", surface: "zukan" },
+  { href: "/setup", label: "じゅんび", plain: "セットアップ", surface: "setup" },
+];
 
-const NAV_EVIDENCE = [
-  { href: "/entries", label: "にっき", plain: "学び・受信箱" },
-  { href: "/goals", label: "もくひょう", plain: "目標証跡" },
-  { href: "/harness", label: "どうぐ", plain: "ハーネス" },
-  /** P3 B12-5: requirements 復帰（初 CLEAR 後。直 URL は常時可） */
-  { href: "/requirements", label: "ようけん", plain: "要件ゲート" },
-  /** P4 ADR-0020: 日次教科書（直 URL は常時可） */
-  { href: "/retro", label: "きょうのしょ", plain: "日次教科書" },
-] as const;
+const NAV_EVIDENCE: readonly {
+  href: string;
+  label: string;
+  plain: string;
+  surface: AtlasSurfaceId;
+}[] = [
+  { href: "/entries", label: "にっき", plain: "学び・受信箱", surface: "entries" },
+  { href: "/goals", label: "もくひょう", plain: "目標証跡", surface: "goals" },
+  { href: "/harness", label: "どうぐ", plain: "ハーネス", surface: "harness" },
+  {
+    href: "/requirements",
+    label: "ようけん",
+    plain: "要件ゲート",
+    surface: "requirements",
+  },
+  {
+    href: "/retro",
+    label: "きょうのしょ",
+    plain: "日次教科書",
+    surface: "retro",
+  },
+];
 
 const STORAGE_KEY = "atlas-cmd-dock-v1";
 
@@ -100,6 +123,13 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
     moved: boolean;
   } | null>(null);
   const suppressClick = useRef(false);
+  /** 畳む／開く直後に、新しい DOM のサイズで位置を合わせる */
+  const pendingAnchor = useRef<{
+    collapsed: boolean;
+    left: number;
+    top: number;
+    height: number;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -150,17 +180,38 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
     return () => window.removeEventListener("resize", onResize);
   }, [ready, collapsed, persist]);
 
-  function setCollapsedUser(next: boolean) {
+  /**
+   * 畳む: 「たたむ」ボタン位置にタブを置く。
+   * 開く: タブ位置を下端の目安にしてメニューを上方向に展開する。
+   */
+  function setCollapsedUser(
+    next: boolean,
+    anchor?: { left: number; top: number; height: number },
+  ) {
+    if (anchor) {
+      pendingAnchor.current = { collapsed: next, ...anchor };
+    }
     setCollapsed(next);
-    // After layout, clamp; approximate with current pos
-    requestAnimationFrame(() => {
-      setPos((p) => {
-        const c = clampPos(p.left, p.top, rootRef.current);
-        persist({ collapsed: next, left: c.left, top: c.top });
-        return c;
-      });
-    });
   }
+
+  useEffect(() => {
+    const anchor = pendingAnchor.current;
+    if (!anchor || anchor.collapsed !== collapsed) return;
+    pendingAnchor.current = null;
+    // 畳み／展開後の実 DOM サイズで位置決め
+    requestAnimationFrame(() => {
+      const el = rootRef.current;
+      if (!el) return;
+      let left = anchor.left;
+      let top = anchor.top;
+      if (!collapsed) {
+        top = anchor.top + anchor.height - el.offsetHeight;
+      }
+      const c = clampPos(left, top, el);
+      persist({ collapsed, left: c.left, top: c.top });
+      setPos(c);
+    });
+  }, [collapsed, persist]);
 
   function onPointerDown(e: ReactPointerEvent) {
     if (e.button !== 0) return;
@@ -230,14 +281,29 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onClick={() => {
+        onClick={(e) => {
           if (suppressClick.current) {
             suppressClick.current = false;
             return;
           }
-          setCollapsedUser(false);
+          const r = e.currentTarget.getBoundingClientRect();
+          setCollapsedUser(false, {
+            left: r.left,
+            top: r.top,
+            height: r.height,
+          });
         }}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element -- ピクセルマーク */}
+        <img
+          src="/brand/mark.svg"
+          alt=""
+          width={16}
+          height={16}
+          className="atlas-cmd-dock__mark"
+          style={{ imageRendering: "pixelated", marginRight: 8 }}
+          decoding="async"
+        />
         メニュー
       </button>
     );
@@ -257,7 +323,17 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
       onPointerCancel={onPointerUp}
     >
       <div className="atlas-cmd-dock__title" title="ドラッグで移動">
-        コマンド
+        {/* eslint-disable-next-line @next/next/no-img-element -- ピクセルマーク */}
+        <img
+          src="/brand/mark.svg"
+          alt=""
+          width={18}
+          height={18}
+          className="atlas-cmd-dock__mark"
+          style={{ imageRendering: "pixelated" }}
+          decoding="async"
+        />
+        <span>ぼうけんのしょ</span>
       </div>
       <ul className="atlas-cmd-dock__grid">
         {navItems.map((n) => {
@@ -271,6 +347,11 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
               >
                 <span className="atlas-cmd-dock__row">
                   <span className="atlas-cmd-dock__cur" aria-hidden />
+                  <AtlasSurfaceIcon
+                    surface={n.surface ?? surfaceIdFromHref(n.href)}
+                    size={14}
+                    className="atlas-cmd-dock__icon"
+                  />
                   {n.label}
                 </span>
                 <span className="atlas-cmd-dock__plain">{n.plain}</span>
@@ -290,7 +371,14 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
       <button
         type="button"
         className="atlas-cmd-dock__fold"
-        onClick={() => setCollapsedUser(true)}
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setCollapsedUser(true, {
+            left: r.left,
+            top: r.top,
+            height: r.height,
+          });
+        }}
       >
         たたむ
       </button>

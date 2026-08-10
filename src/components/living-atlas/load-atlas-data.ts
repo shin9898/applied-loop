@@ -8,6 +8,12 @@ import { recordStreak } from "@/lib/stats";
 import { weeklyEvidenceCounts } from "@/lib/goal";
 import { repoCacheReadRates } from "@/lib/harness-stats";
 import {
+  findWatchedForHarnessRepo,
+  pickRateForWatched,
+  watchedDisplayName,
+} from "@/lib/harness-repo-match";
+import { listWatchedRepos } from "@/lib/watched-repos";
+import {
   nextRequirementCandidates,
   recentlyUnderstoodRequirements,
 } from "@/lib/requirement";
@@ -507,69 +513,165 @@ function harnessNextAction(
   return { label: "見立てを見る", href: prescriptionHref };
 }
 
+type RateRow = Awaited<ReturnType<typeof repoCacheReadRates>>[number];
+
+function mapMeasuredHarnessRepo(
+  r: RateRow,
+  tier: HarnessRepo["tier"],
+  extras?: { commitCountToday?: number; id?: string; name?: string },
+): HarnessRepo {
+  const health = harnessHealth(
+    r.declineRatio,
+    r.thisWeekRate,
+    r.insufficientThisWeek,
+  );
+  const pct = Math.round(r.thisWeekRate * 100);
+  const { criteria, uplift } = harnessCriteria(health, r);
+  const note = r.insufficientThisWeek
+    ? `今週の LLM セッション計測はまだ薄い。先週 cache ${Math.round(r.lastWeekRate * 100)}%。`
+    : health === "bad"
+      ? `cache ${pct}%・低下ぎみ。処方を確認せよ。`
+      : health === "warn"
+        ? `cache ${pct}%。様子を見つつ処方を覗け。`
+        : `cache ${pct}%。維持ラインはクリア。より良くする余地を処方で見よ。`;
+  const name = extras?.name ?? r.repo;
+  const next = harnessNextAction(health, r.repo);
+  return {
+    id: extras?.id ?? r.repo,
+    name,
+    health,
+    note,
+    tier,
+    measured: true,
+    commitCountToday: extras?.commitCountToday,
+    criteria,
+    uplift,
+    prescriptionHref: `/harness/prescriptions/${encodeURIComponent(r.repo)}`,
+    nextAction: next,
+  };
+}
+
+function mapUnmeasuredWatchedRepo(input: {
+  id: string;
+  name: string;
+  commitCountToday: number;
+}): HarnessRepo {
+  const commitNote =
+    input.commitCountToday > 0
+      ? `今日の commit ${input.commitCountToday} 件は観測済み。`
+      : "今日の commit 観測はまだない。";
+  return {
+    id: input.id,
+    name: input.name,
+    health: "ok",
+    note: `監視中・LLM セッション計測なし。${commitNote}`,
+    tier: "watched",
+    measured: false,
+    commitCountToday: input.commitCountToday,
+    criteria:
+      "判定: 安（暫定）。git hook は監視中だが、HarnessRun の週次 cache レートがまだ無い。",
+    uplift:
+      "この repo でエージェント作業を回すと計測が溜まる。％は commit 量ではなく LLM セッション計測じゃ。",
+    prescriptionHref: `/harness/prescriptions/${encodeURIComponent(input.name)}`,
+    nextAction: { label: "見立てを見る", href: `/harness/prescriptions/${encodeURIComponent(input.name)}` },
+  };
+}
+
+async function todayDevEventCountsByRepo(): Promise<Map<string, number>> {
+  const start = dayStartJST();
+  const rows = await prisma.devEvent.groupBy({
+    by: ["repo"],
+    where: { receivedAt: { gte: start } },
+    _count: { _all: true },
+  });
+  return new Map(rows.map((r) => [r.repo, r._count._all]));
+}
+
+function commitCountForWatched(
+  w: { path: string; label?: string },
+  counts: Map<string, number>,
+): number {
+  let total = 0;
+  for (const [repo, n] of counts) {
+    if (findWatchedForHarnessRepo(repo, [w])) total += n;
+  }
+  return total;
+}
+
+function sortByHealth(repos: HarnessRepo[]): HarnessRepo[] {
+  const rank = { bad: 0, warn: 1, ok: 2 } as const;
+  return [...repos].sort((a, b) => rank[a.health] - rank[b.health]);
+}
+
+/**
+ * どうぐの repo 一覧。
+ * 本線 = 監視リポジトリ（計測ゼロでも出す）。
+ * 下段 = 観測外だが HarnessRun 計測がある「計測だけで見えた」。
+ */
 export async function loadHarnessRepos(): Promise<HarnessRepo[]> {
-  const rates = await repoCacheReadRates(new Date(), { take: 12 });
-  if (rates.length === 0) {
-    const recent = await prisma.harnessRun.findMany({
+  const watched = listWatchedRepos();
+  const [rates, commitCounts, recent] = await Promise.all([
+    repoCacheReadRates(new Date(), { take: 40 }),
+    todayDevEventCountsByRepo().catch(() => new Map<string, number>()),
+    prisma.harnessRun.findMany({
       where: { repo: { not: null } },
       orderBy: { startedAt: "desc" },
-      take: 20,
+      take: 40,
       select: { repo: true },
+    }),
+  ]);
+
+  const rateByRepo = new Map(rates.map((r) => [r.repo, r]));
+  const measuredRepoNames = new Set<string>([
+    ...rates.map((r) => r.repo),
+    ...recent
+      .map((r) => r.repo?.trim())
+      .filter((n): n is string => !!n),
+  ]);
+
+  const watchedRows: HarnessRepo[] = watched.map((w) => {
+    const display = watchedDisplayName(w);
+    const commits = commitCountForWatched(w, commitCounts);
+    const rate = pickRateForWatched(w, rates);
+    if (rate) {
+      return mapMeasuredHarnessRepo(rate, "watched", {
+        id: `watched:${w.path}`,
+        name: display,
+        commitCountToday: commits,
+      });
+    }
+    return mapUnmeasuredWatchedRepo({
+      id: `watched:${w.path}`,
+      name: display,
+      commitCountToday: commits,
     });
-    const seen = new Set<string>();
-    const repos: HarnessRepo[] = [];
-    for (const r of recent) {
-      const name = r.repo?.trim();
-      if (!name || seen.has(name)) continue;
-      seen.add(name);
-      const next = harnessNextAction("ok", name);
-      repos.push({
-        id: name,
-        name,
+  });
+
+  const discoveredRows: HarnessRepo[] = [];
+  for (const repoName of measuredRepoNames) {
+    if (findWatchedForHarnessRepo(repoName, watched)) continue;
+    const rate = rateByRepo.get(repoName);
+    if (rate) {
+      discoveredRows.push(mapMeasuredHarnessRepo(rate, "discovered"));
+    } else {
+      const next = harnessNextAction("ok", repoName);
+      discoveredRows.push({
+        id: `discovered:${repoName}`,
+        name: repoName,
         health: "ok",
-        note: "観測は少ないが、いまのところ元気じゃ。",
-        criteria: "判定: 安（暫定）。有効な週次レートがまだ足りない。",
-        uplift: "観測を溜めたら処方のチェックリストで先頭を点検せよ。",
-        prescriptionHref: `/harness/prescriptions/${encodeURIComponent(name)}`,
+        note: "計測だけで見えた（未監視）。週次レートはまだ薄い。",
+        tier: "discovered",
+        measured: true,
+        criteria: "判定: 安（暫定）。HarnessRun はあるが有効な週次レートが足りない。",
+        uplift: "監視に入れるならどうぐ設定へ。％は commit 量ではなく LLM セッション計測じゃ。",
+        prescriptionHref: `/harness/prescriptions/${encodeURIComponent(repoName)}`,
         nextAction: next,
       });
-      if (repos.length >= 8) break;
     }
-    return repos;
+    if (discoveredRows.length >= 12) break;
   }
 
-  const mapped = rates.map((r) => {
-    const health = harnessHealth(
-      r.declineRatio,
-      r.thisWeekRate,
-      r.insufficientThisWeek,
-    );
-    const pct = Math.round(r.thisWeekRate * 100);
-    const { criteria, uplift } = harnessCriteria(health, r);
-    const note = r.insufficientThisWeek
-      ? `今週の観測はまだ薄い。先週 cache ${Math.round(r.lastWeekRate * 100)}%。`
-      : health === "bad"
-        ? `cache ${pct}%・低下ぎみ。処方を確認せよ。`
-        : health === "warn"
-          ? `cache ${pct}%。様子を見つつ処方を覗け。`
-          : `cache ${pct}%。維持ラインはクリア。より良くする余地を処方で見よ。`;
-    const next = harnessNextAction(health, r.repo);
-    return {
-      id: r.repo,
-      name: r.repo,
-      health,
-      note,
-      criteria,
-      uplift,
-      prescriptionHref: `/harness/prescriptions/${encodeURIComponent(r.repo)}`,
-      nextAction: next,
-    };
-  });
-  // 弱い repo を上へ
-  return mapped.sort((a, b) => {
-    const rank = { bad: 0, warn: 1, ok: 2 } as const;
-    return rank[a.health] - rank[b.health];
-  });
+  return [...sortByHealth(watchedRows), ...sortByHealth(discoveredRows)];
 }
 
 function parseFocusDomains(raw: string | null): string[] {

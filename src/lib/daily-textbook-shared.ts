@@ -2,9 +2,11 @@
  * 日次教科書の純関数・型 (クライアント可)。DB は daily-textbook.ts。
  *
  * 品質不変条件（回帰テストで固定）:
- * - 章が2つ以上あるとき、title / oneLiner / bodyPlain / diagramBad は互いに異なる
- * - UI は diagramKind 共通文面に頼らず、章固有の diagramBad/Ok を出す
- * - 生成経路は generateDailyTextbook → clusterMaterialsIntoChapters の一本化
+ * - 章が2つ以上あるとき、title / oneLiner / bodyPlain / diagramBad / work / why / practice は互いに異なる
+ * - 全章に LessonSlots（work/timing/action/why/practice/consequence/alternative）と BAD/OK が非空
+ * - 物語順: 改修 → タイミング → 対応 → 理由 → 一般化（型／結果／別案）
+ * - UI は diagramKind 共通文面に頼らず、章固有の diagramBad/Ok・スロットを出す
+ * - 生成経路は generateDailyTextbook → clusterMaterialsIntoChapters の一本化（新規＝再生成）
  */
 
 export const TEXTBOOK_MAX_CHAPTERS = 5;
@@ -33,16 +35,40 @@ export type MaterialRow = {
   receivedAt: Date;
 };
 
+/** 教科書として必須の教育学スロット（ADR-0020・物語順） */
+export type LessonSlots = {
+  /** いま進めていた改修 */
+  work: string;
+  /** ナレッジが溜まったタイミング */
+  timing: string;
+  /** とった対応 */
+  action: string;
+  /** その理由 */
+  why: string;
+  practice: string;
+  consequence: string;
+  alternative: string;
+};
+
+export type DiagramKind = "silent_gap" | "drift" | "prefix" | "generic";
+
 export type ChapterDraft = {
   index: number;
   title: string;
   oneLiner: string;
   bodyPlain: string;
   bodyDeep: string;
-  diagramKind: "silent_gap" | "drift" | "prefix" | "generic";
+  diagramKind: DiagramKind;
   /** 章固有の BAD/OK（テンプレ固定にしない） */
   diagramBad: string;
   diagramOk: string;
+  work: string;
+  timing: string;
+  action: string;
+  why: string;
+  practice: string;
+  consequence: string;
+  alternative: string;
   evidence: EvidenceLink[];
   materialIds: string[];
 };
@@ -63,6 +89,27 @@ export type TextbookGenerateResult = {
   peakHour: number | null;
 };
 
+export type TextbookChapterView = {
+  id: string;
+  index: number;
+  title: string;
+  oneLiner: string;
+  bodyPlain: string;
+  bodyDeep: string | null;
+  diagramKind: string;
+  diagramBad: string;
+  diagramOk: string;
+  work: string;
+  timing: string;
+  action: string;
+  why: string;
+  practice: string;
+  consequence: string;
+  alternative: string;
+  evidence: EvidenceLink[];
+  materialIds: string[];
+};
+
 export type TextbookView = {
   id: string;
   dateKey: string;
@@ -72,19 +119,7 @@ export type TextbookView = {
   chapterCount: number;
   peakHour: number | null;
   droppedMaterialIds: string[];
-  chapters: Array<{
-    id: string;
-    index: number;
-    title: string;
-    oneLiner: string;
-    bodyPlain: string;
-    bodyDeep: string | null;
-    diagramKind: string;
-    diagramBad: string;
-    diagramOk: string;
-    evidence: EvidenceLink[];
-    materialIds: string[];
-  }>;
+  chapters: TextbookChapterView[];
   checks: Array<{
     id: string;
     index: number;
@@ -160,7 +195,6 @@ export function extractThemes(summaries: string[]): string[] {
     }
     const issue = s.match(/issue[_-]?(\d+)/i) || s.match(/#(\d+)/);
     if (issue) bump(`#${issue[1]}`, 2);
-    // 先頭の意味塊
     bump(s.replace(/^[^:]+:\s*/, "").slice(0, 32), 1);
   }
 
@@ -192,9 +226,8 @@ function uniqueSummaries(materials: MaterialRow[], limit: number): string[] {
 function diagramFor(
   materials: MaterialRow[],
   themes: string[],
-): ChapterDraft["diagramKind"] {
+): DiagramKind {
   const text = [...themes, ...materials.map((m) => m.summary ?? "")].join(" ");
-  // 「npm cache」等の一般語は除外。prompt-cache / prefix 系だけ prefix 扱い
   if (/\bprompt[-_\s]?cache\b|\bprefix[_-]?(?:cache|form)?\b|\bharness\b/i.test(text)) {
     return "prefix";
   }
@@ -206,34 +239,208 @@ function diagramFor(
   return "generic";
 }
 
-function diagramCopy(
+/** 技術選定対比の BAD/OK（態度テンプレではない） */
+export function diagramCopy(
   title: string,
   theme: string,
-  kind: ChapterDraft["diagramKind"],
+  kind: DiagramKind,
 ): { bad: string; ok: string } {
   const focus = theme || title;
   switch (kind) {
     case "prefix":
       return {
-        bad: `「${focus}」を感覚で直し、プレフィックス／キャッシュの前提を言葉に残さない`,
-        ok: `「${focus}」の一次情報を開き、ヒット条件と無効化範囲を1行で説明する`,
+        bad: `「${focus}」を意味が近い文ならキャッシュが効く前提で直し、不一致地点以降の無効化を見ない`,
+        ok: `「${focus}」を先頭からの逐語プレフィックスとして扱い、ヒット条件と無効化範囲を1行で説明する`,
       };
     case "drift":
       return {
-        bad: `「${focus}」の変更をメタ情報だけで見たつもりになり、本番影響の境界を曖昧にする`,
+        bad: `「${focus}」を開発と本番で同じ観測・同じ設定だとみなし、境界を曖昧にしたまま進める`,
         ok: `「${focus}」で何が本番に届き何が届かないかを、根拠コミット付きで言い切る`,
       };
     case "silent_gap":
       return {
-        bad: `「${focus}」の差分を積んだまま振り返らず、明日また同じ説明詰まりをする`,
-        ok: `「${focus}」を今夜この章で一度言語化し、確認で Mastery を付ける`,
+        bad: `「${focus}」の差分を「出題が止まった＝学びが無い」とみなし、材料を捨てたつもりで翌日へ行く`,
+        ok: `「${focus}」は材料として残っているので、今夜この章で選定理由まで言語化し Mastery を付ける`,
       };
     default:
       return {
-        bad: `「${focus}」を流し見して次の実装へ行き、説明できないままにする`,
-        ok: `「${focus}」の代表コミットを1つ開き、自分の言葉で目的を書く`,
+        bad: `「${focus}」を動いた事実だけで終え、なぜその実装形にしたかを残さない`,
+        ok: `「${focus}」について、採った一手・採らなかった別案・従った結果を1セットで書く`,
       };
   }
+}
+
+function formatHourBand(materials: MaterialRow[]): string {
+  if (materials.length === 0) return "この日";
+  const peak = peakHourFromMaterials(materials);
+  if (peak == null) return "この日";
+  return `JST ${peak}時台前後`;
+}
+
+/**
+ * kind×theme×材料から必須スロットを埋める（物語順）。
+ * prefix は ADR-0016 / prompt-cache 正典に寄せる（client 安全のため種子文をここへ持つ）。
+ */
+export function lessonSlotsFor(
+  kind: DiagramKind,
+  theme: string,
+  materials: MaterialRow[],
+  summaries: string[],
+): LessonSlots {
+  const focus = theme || summaries[0]?.slice(0, 28) || "この変更";
+  const tip = summaries[0]?.slice(0, 48) ?? focus;
+  const tip2 = summaries[1]?.slice(0, 40);
+  const backlogN = materials.filter((m) => m.skipReason === "backlog").length;
+  const kinds = [...new Set(materials.map((m) => m.kind))];
+  const hourBand = formatHourBand(materials);
+  const workBase = tip2
+    ? `「${focus}」系の改修を進めていた。核は「${tip}」、あわせて「${tip2}」。`
+    : `「${focus}」系の改修を進めていた。核は「${tip}」。`;
+
+  const timingBase =
+    backlogN > 0
+      ? `${hourBand}に材料 ${materials.length} 件が溜まった。うち ${backlogN} 件は即時しれんが backlog で止まったが、ナレッジとしては残っている。`
+      : `${hourBand}に材料 ${materials.length} 件（${kinds.join(", ") || "commit"}）が足跡として溜まった。`;
+
+  switch (kind) {
+    case "prefix":
+      return {
+        work: `${workBase} ハーネス／プロンプトキャッシュの前提が実装に効く局面。`,
+        timing: timingBase,
+        action: `対応: 「${focus}」を意味類似ではなく逐語プレフィックスとして扱い、ヒット条件と無効化範囲を言葉に残す（核: ${tip}）。`,
+        why: `理由: キャッシュ再利用は先頭からの並び一致で決まる。途中削除や定義挿入で後ろが壊れる、という選定を明示しないと翌日に再現できない。`,
+        practice: `ベストプラクティス: 安定プレフィックスを前に置き、途中削除やツール定義の挿入で後ろを壊さない。キャッシュは『意味が近い』ではヒットしない。`,
+        consequence: `従うと: 不一致地点より後ろだけが再計算され、cache read 率と遅延が読みやすくなる。短くしたつもりでコストが増える事故を減らせる。`,
+        alternative: `やりがちな別案: 履歴を途中から削る／意味が近い文に寄せて節約する。採らない理由: 並びが変わると以降が全部無効化され、入力トークン減≠コスト減になる。`,
+      };
+    case "drift":
+      return {
+        work: `${workBase} 観測・環境・届く範囲の境界が論点の改修。`,
+        timing: timingBase,
+        action: `対応: 「${focus}」で何が本番に届き何が届かないかを、根拠コミット付きで言い切る（核: ${tip}）。`,
+        why: `理由: 開発と本番を同一視すると選定理由が消え、ロールアウトや監視の切り分けが翌日に持ち越される。`,
+        practice: `ベストプラクティス: 変更の影響面（誰の環境・どのフラグ・どのエンドポイント）をコミット根拠付きで固定し、メタ情報だけで『見たつもり』にしない。`,
+        consequence: `従うと: 本番に届く／届かないが説明でき、障害時に『どこから効いたか』を追える。`,
+        alternative: `やりがちな別案: 全部署・全環境に同じ設定を一気に入れる。採らない理由: 境界が曖昧なまま拡散する。`,
+      };
+    case "silent_gap":
+      return {
+        work: `${workBase} 実装は進んだが即時しれんが追いつかない局面。`,
+        timing: `${timingBase} 出題が止まったタイミング＝学びが無い、と誤認しやすい。`,
+        action: `対応: 「${focus}」を今夜の章で一度言語化し、確認で Mastery を付ける（核: ${tip}）。`,
+        why: `理由: backlog で止めても材料は残っている。日次章で選定を回収しないと、同じ説明詰まりが再発する（ADR-0020）。`,
+        practice: `ベストプラクティス: backlog で止めた差分も材料として章に載せ、改修・対応・理由をその日のうちに言語化する。`,
+        consequence: `従うと: 翌日の CTA / 確認が Mastery 付きで繋がり、『積んだまま説明できない』ループを切れる。`,
+        alternative: `やりがちな別案: 出題が無い日は振り返らず次の実装へ進む。採らない理由: 材料は溜まっているのに理解状態だけが空になる。`,
+      };
+    default:
+      return {
+        work: workBase,
+        timing: timingBase,
+        action: `対応: 「${focus}」の代表コミットを開き、採った形を1文で固定する（核: ${tip}）。`,
+        why: `理由: 動いた事実だけでは翌日に『なぜこうなったか』が消える。選定理由を残すため。`,
+        practice: `ベストプラクティス: 代表コミットを1つ開き、(1)目的 (2)採った形 (3)捨てた形 を短く固定してから次の差分に進む。`,
+        consequence: `従うと: 同僚や未来の自分が選定を再発明せず、同じテーマの次の一手が早くなる。`,
+        alternative: `やりがちな別案: 動いたコミット列だけをログとして残し、選定は頭の中に置く。採らない理由: 翌日には根拠が消える。`,
+      };
+  }
+}
+
+export function chapterHasLessonSlots(
+  ch: Pick<
+    ChapterDraft,
+    | "work"
+    | "timing"
+    | "action"
+    | "why"
+    | "practice"
+    | "consequence"
+    | "alternative"
+    | "diagramBad"
+    | "diagramOk"
+  >,
+): boolean {
+  return (
+    ch.work.trim().length > 0 &&
+    ch.timing.trim().length > 0 &&
+    ch.action.trim().length > 0 &&
+    ch.why.trim().length > 0 &&
+    ch.practice.trim().length > 0 &&
+    ch.consequence.trim().length > 0 &&
+    ch.alternative.trim().length > 0 &&
+    ch.diagramBad.trim().length > 0 &&
+    ch.diagramOk.trim().length > 0
+  );
+}
+
+export function chaptersHaveLessonSlots(chapters: ChapterDraft[]): boolean {
+  return chapters.length === 0 || chapters.every(chapterHasLessonSlots);
+}
+
+export function encodeLessonMarkers(input: {
+  work: string;
+  timing: string;
+  action: string;
+  why: string;
+  practice: string;
+  consequence: string;
+  alternative: string;
+  diagramBad: string;
+  diagramOk: string;
+}): string {
+  return [
+    `[[WORK]]${input.work}`,
+    `[[TIMING]]${input.timing}`,
+    `[[ACTION]]${input.action}`,
+    `[[WHY]]${input.why}`,
+    `[[PRACTICE]]${input.practice}`,
+    `[[CONSEQUENCE]]${input.consequence}`,
+    `[[ALT]]${input.alternative}`,
+    `[[BAD]]${input.diagramBad}`,
+    `[[OK]]${input.diagramOk}`,
+  ].join("\n");
+}
+
+/** bodyDeep に埋め込んだスロット／BAD/OK を取り出す */
+export function parseLessonSlots(bodyDeep: string | null): LessonSlots & {
+  diagramBad: string | null;
+  diagramOk: string | null;
+} {
+  if (!bodyDeep) {
+    return {
+      work: "",
+      timing: "",
+      action: "",
+      why: "",
+      practice: "",
+      consequence: "",
+      alternative: "",
+      diagramBad: null,
+      diagramOk: null,
+    };
+  }
+  const pick = (tag: string) =>
+    bodyDeep.match(new RegExp(`\\[\\[${tag}\\]\\](.+)`))?.[1]?.trim() ?? "";
+  return {
+    work: pick("WORK"),
+    timing: pick("TIMING"),
+    action: pick("ACTION"),
+    why: pick("WHY"),
+    practice: pick("PRACTICE"),
+    consequence: pick("CONSEQUENCE"),
+    alternative: pick("ALT"),
+    diagramBad: pick("BAD") || null,
+    diagramOk: pick("OK") || null,
+  };
+}
+
+/** bodyDeep 互換: BAD/OK のみ（旧データ） */
+export function parseDiagramCopy(bodyDeep: string | null): {
+  bad: string | null;
+  ok: string | null;
+} {
+  const s = parseLessonSlots(bodyDeep);
+  return { bad: s.diagramBad, ok: s.diagramOk };
 }
 
 function evidenceFrom(materials: MaterialRow[]): EvidenceLink[] {
@@ -257,6 +464,54 @@ function evidenceFrom(materials: MaterialRow[]): EvidenceLink[] {
   return out;
 }
 
+function buildBodyPlain(input: {
+  name: string;
+  kept: MaterialRow[];
+  summaries: string[];
+  theme: string;
+  lessons: LessonSlots;
+  backlogN: number;
+}): string {
+  const bullets = input.summaries.map((s) => `・${s}`).join("\n");
+  const takeaway = input.theme
+    ? `覚える一手: 「${input.theme}」を、改修→対応→理由→型 の順で1文にする。`
+    : `覚える一手: 代表コミットを1つ開き、対応と理由を自分の言葉で1文にする。`;
+
+  return [
+    `場所: ${input.name}（材料 ${input.kept.length} 件）`,
+    "",
+    "いま進めていた改修:",
+    input.lessons.work,
+    bullets ||
+      `・（要約なし）refs: ${input.kept.map((m) => m.ref.slice(0, 7)).join(", ")}`,
+    "",
+    "ナレッジが溜まったタイミング:",
+    input.lessons.timing,
+    "",
+    "とった対応:",
+    input.lessons.action,
+    "",
+    "その理由:",
+    input.lessons.why,
+    "",
+    "ベストプラクティス:",
+    input.lessons.practice,
+    "",
+    "従うとどうなる:",
+    input.lessons.consequence,
+    "",
+    "やりがちな別案:",
+    input.lessons.alternative,
+    "",
+    takeaway,
+    input.backlogN > 0
+      ? `※ うち ${input.backlogN} 件は即時しれんを止めたが、材料としては残っている。`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function draftChapterFromRepo(
   index: number,
   repo: string,
@@ -276,29 +531,17 @@ function draftChapterFromRepo(
     ? `核: ${summaries[0].slice(0, 72)}${summaries[1] ? ` ／ ついでに ${summaries[1].slice(0, 40)}` : ""}`
     : `${name} に ${kept.length} 件の足跡。`;
 
-  const bullets = summaries.map((s) => `・${s}`).join("\n");
-  const takeaway =
-    themes.length > 0
-      ? `覚える一手: 「${theme}」を、なぜ今日触ったか・何が変わったかで1文にする。`
-      : `覚える一手: 代表コミットを1つ開き、目的を自分の言葉で1文にする。`;
-
-  const bodyPlain = [
-    `場所: ${name}（材料 ${kept.length} 件）`,
-    "",
-    "今日やったこと:",
-    bullets || `・（要約なし）refs: ${kept.map((m) => m.ref.slice(0, 7)).join(", ")}`,
-    "",
-    takeaway,
-    backlogN > 0
-      ? `※ うち ${backlogN} 件は即時しれんを止めたが、材料としては残っている。`
-      : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
   const kind = diagramFor(kept, themes);
   const { bad, ok } = diagramCopy(title, theme, kind);
-
+  const lessons = lessonSlotsFor(kind, theme, kept, summaries);
+  const bodyPlain = buildBodyPlain({
+    name,
+    kept,
+    summaries,
+    theme,
+    lessons,
+    backlogN,
+  });
   const bodyDeep = [
     bodyPlain,
     "",
@@ -309,13 +552,22 @@ function draftChapterFromRepo(
       : "",
     `材料 ID: ${kept.map((m) => m.id.slice(0, 8)).join(", ")}`,
     "",
-    `[[BAD]]${bad}`,
-    `[[OK]]${ok}`,
+    encodeLessonMarkers({
+      work: lessons.work,
+      timing: lessons.timing,
+      action: lessons.action,
+      why: lessons.why,
+      practice: lessons.practice,
+      consequence: lessons.consequence,
+      alternative: lessons.alternative,
+      diagramBad: bad,
+      diagramOk: ok,
+    }),
   ]
     .filter(Boolean)
     .join("\n");
 
-  return {
+  const draft: ChapterDraft = {
     index,
     title,
     oneLiner,
@@ -324,9 +576,20 @@ function draftChapterFromRepo(
     diagramKind: kind,
     diagramBad: bad,
     diagramOk: ok,
+    work: lessons.work,
+    timing: lessons.timing,
+    action: lessons.action,
+    why: lessons.why,
+    practice: lessons.practice,
+    consequence: lessons.consequence,
+    alternative: lessons.alternative,
     evidence: evidenceFrom(kept),
     materialIds: kept.map((m) => m.id),
   };
+  if (!chapterHasLessonSlots(draft)) {
+    throw new Error(`chapter ${index} missing lesson slots`);
+  }
+  return draft;
 }
 
 /** 章コピーがテンプレ崩れしていないか（2章以上で互いに違うこと） */
@@ -337,7 +600,10 @@ export function chaptersHaveDistinctCopy(chapters: ChapterDraft[]): boolean {
     new Set(chapters.map((c) => c.title)).size === size &&
     new Set(chapters.map((c) => c.oneLiner)).size === size &&
     new Set(chapters.map((c) => c.bodyPlain)).size === size &&
-    new Set(chapters.map((c) => c.diagramBad)).size === size
+    new Set(chapters.map((c) => c.diagramBad)).size === size &&
+    new Set(chapters.map((c) => c.work)).size === size &&
+    new Set(chapters.map((c) => c.why)).size === size &&
+    new Set(chapters.map((c) => c.practice)).size === size
   );
 }
 
@@ -350,34 +616,139 @@ export function ensureChapterCopyDiversity(
   const seenOne = new Set<string>();
   const seenBody = new Set<string>();
   const seenBad = new Set<string>();
+  const seenWork = new Set<string>();
+  const seenWhy = new Set<string>();
+  const seenPractice = new Set<string>();
   return chapters.map((ch) => {
     let title = ch.title;
     let oneLiner = ch.oneLiner;
     let bodyPlain = ch.bodyPlain;
+    let bodyDeep = ch.bodyDeep;
     let diagramBad = ch.diagramBad;
     let diagramOk = ch.diagramOk;
+    let work = ch.work;
+    let timing = ch.timing;
+    let action = ch.action;
+    let why = ch.why;
+    let practice = ch.practice;
+    let consequence = ch.consequence;
+    let alternative = ch.alternative;
     if (seenTitle.has(title)) title = `${title} · ${ch.index}`;
     if (seenOne.has(oneLiner)) oneLiner = `${oneLiner}（章${ch.index}）`;
-    if (seenBody.has(bodyPlain)) {
-      bodyPlain = `${bodyPlain}\n（章${ch.index}・差別化）`;
-    }
+    if (seenWork.has(work)) work = `${work}（章${ch.index}）`;
+    if (seenWhy.has(why)) why = `${why}（章${ch.index}）`;
+    if (seenPractice.has(practice)) practice = `${practice}（章${ch.index}）`;
     if (seenBad.has(diagramBad)) {
       diagramBad = `${diagramBad}（章${ch.index}）`;
       diagramOk = `${diagramOk}（章${ch.index}）`;
+    }
+    if (
+      seenBody.has(bodyPlain) ||
+      work !== ch.work ||
+      why !== ch.why ||
+      practice !== ch.practice
+    ) {
+      const lessons = {
+        work,
+        timing,
+        action,
+        why,
+        practice,
+        consequence,
+        alternative,
+      };
+      bodyPlain = buildBodyPlain({
+        name: `章${ch.index}`,
+        kept: [],
+        summaries: [oneLiner.replace(/^核:\s*/, "").slice(0, 72)],
+        theme: title,
+        lessons,
+        backlogN: 0,
+      }).replace(
+        /場所: .*（材料 \d+ 件）/,
+        bodyPlain.match(/場所: .*（材料 \d+ 件）/)?.[0] ??
+          `場所: 章${ch.index}`,
+      );
+      bodyDeep = [
+        bodyPlain,
+        "",
+        `（章${ch.index}・差別化）`,
+        "",
+        encodeLessonMarkers({
+          work,
+          timing,
+          action,
+          why,
+          practice,
+          consequence,
+          alternative,
+          diagramBad,
+          diagramOk,
+        }),
+      ].join("\n");
     }
     seenTitle.add(title);
     seenOne.add(oneLiner);
     seenBody.add(bodyPlain);
     seenBad.add(diagramBad);
-    return { ...ch, title, oneLiner, bodyPlain, diagramBad, diagramOk };
+    seenWork.add(work);
+    seenWhy.add(why);
+    seenPractice.add(practice);
+    return {
+      ...ch,
+      title,
+      oneLiner,
+      bodyPlain,
+      bodyDeep,
+      diagramBad,
+      diagramOk,
+      work,
+      timing,
+      action,
+      why,
+      practice,
+      consequence,
+      alternative,
+    };
   });
 }
 
-/** 実務レイヤ表示用。BAD/OK マーカー行は落とす */
+/** 実務レイヤ表示用。マーカー行と重複スロット見出し本文は落とす（カード側で出す） */
 export function bodyForDisplay(body: string): string {
   return body
-    .replace(/^\[\[BAD\]\].*$/gm, "")
-    .replace(/^\[\[OK\]\].*$/gm, "")
+    .replace(
+      /^\[\[(?:WORK|TIMING|ACTION|WHY|PRACTICE|CONSEQUENCE|ALT|BAD|OK)\]\].*$/gm,
+      "",
+    )
+    .replace(
+      /^いま進めていた改修:\n[\s\S]*?(?=\nナレッジが溜まったタイミング:|\nとった対応:|\nその理由:|\nベストプラクティス:|\n覚える一手:|$)/m,
+      "",
+    )
+    .replace(
+      /^ナレッジが溜まったタイミング:\n[\s\S]*?(?=\nとった対応:|\nその理由:|\nベストプラクティス:|\n覚える一手:|$)/m,
+      "",
+    )
+    .replace(
+      /^とった対応:\n[\s\S]*?(?=\nその理由:|\nベストプラクティス:|\n覚える一手:|$)/m,
+      "",
+    )
+    .replace(
+      /^その理由:\n[\s\S]*?(?=\nベストプラクティス:|\n従うとどうなる:|\nやりがちな別案:|\n覚える一手:|$)/m,
+      "",
+    )
+    .replace(
+      /^なぜこの一手か:\n[\s\S]*?(?=\nベストプラクティス:|\n従うとどうなる:|\nやりがちな別案:|\n覚える一手:|$)/m,
+      "",
+    )
+    .replace(
+      /^ベストプラクティス:\n[\s\S]*?(?=\n従うとどうなる:|\nやりがちな別案:|\n覚える一手:|$)/m,
+      "",
+    )
+    .replace(
+      /^従うとどうなる:\n[\s\S]*?(?=\nやりがちな別案:|\n覚える一手:|$)/m,
+      "",
+    )
+    .replace(/^やりがちな別案:\n[\s\S]*?(?=\n覚える一手:|$)/m, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
@@ -418,8 +789,12 @@ export function clusterMaterialsIntoChapters(
     );
   }
 
+  const diversified = ensureChapterCopyDiversity(chapters);
+  if (!chaptersHaveLessonSlots(diversified)) {
+    throw new Error("clusterMaterialsIntoChapters: lesson slots missing");
+  }
   return {
-    chapters: ensureChapterCopyDiversity(chapters),
+    chapters: diversified,
     droppedMaterialIds,
   };
 }
@@ -433,34 +808,33 @@ function summarizeSkip(materials: MaterialRow[]): string {
   return [...counts.entries()].map(([k, n]) => `${k}:${n}`).join(", ") || "なし";
 }
 
-/** bodyDeep に埋め込んだ BAD/OK を取り出す（旧データ互換） */
-export function parseDiagramCopy(bodyDeep: string | null): {
-  bad: string | null;
-  ok: string | null;
-} {
-  if (!bodyDeep) return { bad: null, ok: null };
-  const bad = bodyDeep.match(/\[\[BAD\]\](.+)/)?.[1]?.trim() ?? null;
-  const ok = bodyDeep.match(/\[\[OK\]\](.+)/)?.[1]?.trim() ?? null;
-  return { bad, ok };
-}
-
-/** 章あたり最大1問＋横断1問。合計は 3〜7 に収める。 */
+/** 章あたりスロット連動問い＋横断。合計は 3〜7。 */
 export function distillChecks(chapters: ChapterDraft[]): CheckDraft[] {
   if (chapters.length === 0) return [];
   const checks: CheckDraft[] = [];
-  for (const ch of chapters.slice(0, 5)) {
-    const tip = ch.oneLiner.replace(/^核:\s*/, "").slice(0, 60);
+  const templates = [
+    (ch: ChapterDraft) =>
+      `「${ch.title}」で進めていた改修と、ナレッジが溜まったタイミングを1文で。とった対応も添えること。（改修: ${ch.work.slice(0, 36)}）`,
+    (ch: ChapterDraft) =>
+      `「${ch.title}」でとった対応とその理由を述べよ。別案を1つ否定せよ。（理由: ${ch.why.slice(0, 36)}）`,
+    (ch: ChapterDraft) =>
+      `「${ch.title}」のベストプラクティスを1文で言い、従った結果どうなるかを添えよ。`,
+  ];
+
+  for (let i = 0; i < chapters.length && checks.length < 5; i++) {
+    const ch = chapters[i]!;
     checks.push({
       index: checks.length + 1,
       chapterIndex: ch.index,
-      question: `「${ch.title}」について同僚に30秒で説明するなら？（ヒント: ${tip}）`,
+      question: templates[i % templates.length]!(ch),
     });
   }
-  if (checks.length < 3 && chapters[0]) {
+  while (checks.length < 3 && chapters[0]) {
+    const ch = chapters[checks.length % chapters.length]!;
     checks.push({
       index: checks.length + 1,
-      chapterIndex: chapters[0].index,
-      question: `「${chapters[0].title}」で、明日もう一度開く一次情報はどれか？理由付きで1つ。`,
+      chapterIndex: ch.index,
+      question: templates[checks.length % templates.length]!(ch),
     });
   }
   if (chapters.length >= 2) {
@@ -471,14 +845,14 @@ export function distillChecks(chapters: ChapterDraft[]): CheckDraft[] {
     checks.push({
       index: checks.length + 1,
       chapterIndex: null,
-      question: `今日の章（${names}）をまたぎ、いちばん重要な学びを1文で。根拠の章名も添えること。`,
+      question: `今日の章（${names}）をまたぎ、いちばん重要な選定とその結果を1文で。根拠の章名も添えること。`,
     });
   }
   return checks.slice(0, 7);
 }
 
 /**
- * じゅもん注入コンテキスト。開いている1章＋ひとこと＋URL/ref のみ。
+ * じゅもん注入コンテキスト。開いている1章＋ひとこと＋スロット短縮＋URL/ref。
  * 日次全量・diff 本文・他章は入れない。
  */
 export function buildJumonContext(input: {
@@ -486,9 +860,29 @@ export function buildJumonContext(input: {
   depth: "plain" | "deep";
   chapter: Pick<
     ChapterDraft,
-    "index" | "title" | "oneLiner" | "evidence"
-  > & { bodyPlain?: string; bodyDeep?: string };
+    | "index"
+    | "title"
+    | "oneLiner"
+    | "evidence"
+    | "work"
+    | "timing"
+    | "action"
+    | "why"
+    | "practice"
+    | "consequence"
+    | "alternative"
+  > & { bodyPlain?: string; bodyDeep?: string | null };
 }): string {
+  const fromDeep = input.chapter.bodyDeep
+    ? parseLessonSlots(input.chapter.bodyDeep)
+    : null;
+  const work = (input.chapter.work || fromDeep?.work || "").slice(0, 90);
+  const action = (input.chapter.action || fromDeep?.action || "").slice(0, 90);
+  const why = (input.chapter.why || fromDeep?.why || "").slice(0, 90);
+  const practice = (input.chapter.practice || fromDeep?.practice || "").slice(
+    0,
+    90,
+  );
   const urls = input.chapter.evidence
     .map((e) => e.url || e.ref || e.label)
     .filter(Boolean)
@@ -496,11 +890,15 @@ export function buildJumonContext(input: {
   const lines = [
     `【きょうのしょ】${input.dateKey} 章${input.chapter.index}: ${input.chapter.title}`,
     `ひとこと: ${input.chapter.oneLiner}`,
+    work ? `改修: ${work}` : null,
+    action ? `対応: ${action}` : null,
+    why ? `理由: ${why}` : null,
+    practice ? `型: ${practice}` : null,
     `深さ: ${input.depth === "deep" ? "実務" : "初学者"}`,
     urls.length ? `一次情報:` : null,
     ...urls.map((u) => `- ${u}`),
     "",
-    "指示: この章だけを深掘りせよ。日次の他章・diff 全文は持っていない。必要なら検索ツールで足りぬ材料を引け。",
+    "指示: この章だけを深掘りせよ。改修→タイミング→対応→理由→型の流れで説明せよ。日次の他章・diff 全文は持っていない。必要なら検索ツールで足りぬ材料を引け。",
   ].filter((x): x is string => x != null);
 
   let text = lines.join("\n");
@@ -509,4 +907,3 @@ export function buildJumonContext(input: {
   }
   return text;
 }
-

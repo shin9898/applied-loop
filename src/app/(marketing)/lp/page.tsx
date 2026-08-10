@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AtlasBrandMark } from "@/components/living-atlas/atlas-brand-mark";
 import { LpHeroBattle } from "@/components/living-atlas/lp-hero-battle";
 
 export const dynamic = "force-static";
@@ -75,7 +76,15 @@ const STEPS = [
 export default function LpPage() {
   return (
     <div className="flex min-h-full flex-1 flex-col text-[#f7f3d9]">
-      <header className="absolute top-0 right-0 left-0 z-10 flex items-center justify-end gap-4 px-5 py-4 md:px-10">
+      <header className="absolute top-0 right-0 left-0 z-10 flex items-center justify-between gap-4 px-5 py-4 md:px-10">
+        <Link
+          href="/lp"
+          className="inline-flex no-underline border-[3px] border-white bg-[#000c4a]/95 px-2.5 py-1.5 shadow-[3px_3px_0_#000]"
+          aria-label="Applied Loop"
+        >
+          <AtlasBrandMark size={36} withWordmark withSubtitle />
+        </Link>
+        <nav className="flex flex-wrap items-center justify-end gap-4">
         <a
           href="#pain"
           className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
@@ -108,6 +117,7 @@ export default function LpPage() {
         >
           じゅんびへ
         </Link>
+        </nav>
       </header>
 
       {/* Hero: 何のツールかが一視線で分かる */}
@@ -132,12 +142,17 @@ export default function LpPage() {
 
         <div className="relative z-[1] mx-auto grid w-full max-w-6xl items-center gap-8 md:grid-cols-2 md:gap-12">
           <div className="atlas-enter max-w-xl">
-            <p className="m-0 font-[family-name:var(--font-pixel)] text-[11px] leading-relaxed text-[#f0d25a] md:text-[12px]">
-              Applied Loop
-            </p>
-            <p className="mt-2 mb-0 font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#9ec0ff]">
-              ぼうけんのしょ — AIコーディング向けの、理解ギャップ学習ループ
-            </p>
+            <div className="flex items-center gap-3 border-[3px] border-white bg-[#000c4a]/90 p-3 shadow-[4px_4px_0_#000]">
+              <AtlasBrandMark size={56} />
+              <div>
+                <p className="m-0 font-[family-name:var(--font-pixel)] text-[11px] leading-relaxed text-[#f0d25a] md:text-[12px]">
+                  ぼうけんのしょ
+                </p>
+                <p className="mt-1 mb-0 font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#9ec0ff]">
+                  Applied Loop — AIコーディング向けの、理解ギャップ学習ループ
+                </p>
+              </div>
+            </div>
             <h1 className="mt-5 mb-0 font-[family-name:var(--font-jp)] text-[26px] leading-tight text-[#f7f3d9] md:text-[36px]">
               「わかったつもり」を、
               <br className="hidden sm:block" />
