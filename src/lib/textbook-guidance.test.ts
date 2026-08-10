@@ -4,7 +4,7 @@ import {
   countMastery,
   formatMasteryBriefingLine,
   resolveTextbookGuidance,
-} from "./textbook-guidance";
+} from "./textbook-guidance-shared";
 
 describe("resolveTextbookGuidance", () => {
   it("prioritizes stuck to zukan", () => {

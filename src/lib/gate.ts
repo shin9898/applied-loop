@@ -22,7 +22,8 @@ export const GATE_DAILY_CAP = 3;
  * DevEvent（材料）自体は常に保存する — ADR-0020 / P4 C1-1。
  * 日次教科書は backlog 分も含めて材料化する。
  */
-export const GATE_BACKLOG_CAP = 5;
+export { GATE_BACKLOG_CAP } from "@/lib/gate-limits";
+import { GATE_BACKLOG_CAP } from "@/lib/gate-limits";
 /** request_gate / generateGate が LLM に渡す diff 上限（超分は切り捨て。DB には保存しない） */
 export const DIFF_MAX_CHARS = 8000;
 

@@ -4,7 +4,7 @@ import {
   placeFrom,
   type SystemKind,
 } from "@/lib/atlas-taxonomy";
-import { GATE_BACKLOG_CAP } from "@/lib/gate";
+import { GATE_BACKLOG_CAP } from "@/lib/gate-limits";
 import type { GatesSupplyState } from "@/lib/gates-supply";
 import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";

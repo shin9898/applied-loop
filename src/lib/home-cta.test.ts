@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolveHomeCta } from "./home-cta";
-import type { TextbookGuidance } from "./textbook-guidance";
+import type { TextbookGuidance } from "./textbook-guidance-shared";
 
 const stuckGuidance: TextbookGuidance = {
   kind: "stuck",

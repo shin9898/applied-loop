@@ -29,6 +29,7 @@ export function TerminalPanel({
   gateId,
   wsToken,
   cmd: initialCmd = "codex",
+  model: initialModel = null,
   session,
   intent,
   context,
@@ -38,6 +39,8 @@ export function TerminalPanel({
   gateId?: string;
   wsToken: string;
   cmd?: TerminalCmd;
+  /** CLI モデル（claude --model / codex -m）。null なら CLI 既定 */
+  model?: string | null;
   session?: "atlas";
   intent?: string;
   context?: string;
@@ -49,7 +52,12 @@ export function TerminalPanel({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [restartCmd, setRestartCmd] = useState<TerminalCmd>(initialCmd);
-  const restartRef = useRef<(nextCmd: TerminalCmd) => void>(() => {});
+  const [restartModel, setRestartModel] = useState<string | null>(
+    initialModel ?? null,
+  );
+  const restartRef = useRef<
+    (nextCmd: TerminalCmd, nextModel?: string | null) => void
+  >(() => {});
   const ptyAliveRef = useRef(false);
 
   useEffect(() => {
@@ -125,6 +133,7 @@ export function TerminalPanel({
           token: wsToken,
           cmd: initialCmd,
         };
+        if (initialModel?.trim()) auth.model = initialModel.trim();
         if (session === "atlas") {
           auth.session = "atlas";
           if (intent) auth.intent = intent;
@@ -142,6 +151,7 @@ export function TerminalPanel({
           message?: string;
           restartable?: boolean;
           cmd?: string;
+          model?: string | null;
         };
         try {
           msg = JSON.parse(typeof ev.data === "string" ? ev.data : String(ev.data));
@@ -155,9 +165,14 @@ export function TerminalPanel({
             authenticated = true;
             ptyAliveRef.current = true;
             setConnState("ready");
-            setStatusMessage(null);
+            setStatusMessage(
+              msg.model ? `model: ${msg.model}` : null,
+            );
             if (msg.cmd === "claude" || msg.cmd === "codex") {
               setRestartCmd(msg.cmd);
+            }
+            if (typeof msg.model === "string") {
+              setRestartModel(msg.model);
             }
             fit();
             term?.focus();
@@ -229,16 +244,22 @@ export function TerminalPanel({
         return true;
       });
 
-      restartRef.current = (nextCmd) => {
+      restartRef.current = (nextCmd, nextModel) => {
         if (!ws || ws.readyState !== WebSocket.OPEN || !authenticated) return;
+        const modelLabel = nextModel?.trim() ? ` / ${nextModel.trim()}` : "";
         term?.clear();
         term?.writeln(
-          `\x1b[33m── ${nextCmd} を再起動します（ゲート文脈を再注入）──\x1b[0m\r\n`
+          `\x1b[33m── ${nextCmd}${modelLabel} を再起動します（文脈を再注入）──\x1b[0m\r\n`
         );
         setConnState("connecting");
         setStatusMessage(null);
         ptyAliveRef.current = false;
-        ws.send(JSON.stringify({ type: "restart", cmd: nextCmd }));
+        const payload: Record<string, string> = {
+          type: "restart",
+          cmd: nextCmd,
+        };
+        if (nextModel?.trim()) payload.model = nextModel.trim();
+        ws.send(JSON.stringify(payload));
       };
 
       resizeObserver = new ResizeObserver(() => fit());
@@ -258,12 +279,12 @@ export function TerminalPanel({
       }
       term?.dispose();
     };
-    // initialCmd はマウント時のみ使う。終了後の切替は restart UI 側。
+    // cmd/model は親の key 再マウント、または restart UI で切替。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gateId, wsToken, session, intent, context]);
+  }, [gateId, wsToken, session, intent, context, initialCmd, initialModel]);
 
   const handleRestart = () => {
-    restartRef.current(restartCmd);
+    restartRef.current(restartCmd, restartModel);
   };
 
   return (

@@ -94,7 +94,7 @@ wss.on("connection", (ws) => {
   ws.on("close", cleanup);
   ws.on("error", cleanup);
 
-  const startPty = (shellCmd) => {
+  const startPty = (shellCmd, model = null) => {
     if (!sessionGate) {
       sendJson(ws, { type: "error", message: "セッションにゲートがありません" });
       return;
@@ -110,6 +110,7 @@ wss.on("connection", (ws) => {
       ptyProcess = spawnPty(ws, sessionGate, shellCmd, {
         cols: lastCols,
         rows: lastRows,
+        model,
         onExit: () => {
           // CLI 終了後も WS は維持。再起動 UI から restart を受ける。
           ptyProcess = null;
@@ -132,14 +133,14 @@ wss.on("connection", (ws) => {
     const text = typeof raw === "string" ? raw : raw.toString("utf8");
 
     if (!authenticated) {
-      handleAuth(ws, text, (ok, gate, shellCmd) => {
+      handleAuth(ws, text, (ok, gate, shellCmd, model) => {
         if (!ok || !gate || !shellCmd) {
           ws.close();
           return;
         }
         authenticated = true;
         sessionGate = gate;
-        startPty(shellCmd);
+        startPty(shellCmd, model ?? null);
       });
       return;
     }
@@ -165,9 +166,13 @@ wss.on("connection", (ws) => {
           return;
         }
       }
+      const model =
+        typeof msg.model === "string" && msg.model.trim()
+          ? sanitizeModel(msg.model)
+          : null;
       // 実行中なら一度殺してから再起動（ユーザー明示操作）
       killPty();
-      startPty(shellCmd);
+      startPty(shellCmd, model);
       return;
     }
 
@@ -267,19 +272,47 @@ function handleAuth(ws, text, done) {
     }
   }
 
-  done(true, gate, shellCmd);
+  const model =
+    typeof msg.model === "string" && msg.model.trim()
+      ? sanitizeModel(msg.model)
+      : null;
+
+  done(true, gate, shellCmd, model);
+}
+
+/** モデル名は CLI 引数に渡すだけ。シェル注入を避ける */
+function sanitizeModel(raw) {
+  const m = String(raw).trim();
+  if (!m || m.length > 64) return null;
+  if (!/^[a-zA-Z0-9._:+/-]+$/.test(m)) return null;
+  return m;
+}
+
+/**
+ * @param {string} cmdName
+ * @param {string | null} model
+ */
+function cliArgsForModel(cmdName, model) {
+  if (!model) return [];
+  if (cmdName === "claude") return ["--model", model];
+  if (cmdName === "codex") return ["-m", model];
+  return [];
 }
 
 /**
  * @param {import("ws").WebSocket} ws
  * @param {Record<string, unknown>} gate
  * @param {string} shellCmd
- * @param {{ cols: number, rows: number, onExit: () => void }} opts
+ * @param {{ cols: number, rows: number, model?: string | null, onExit: () => void }} opts
  */
 function spawnPty(ws, gate, shellCmd, opts) {
-  const { cols, rows, onExit } = opts;
+  const { cols, rows, onExit, model = null } = opts;
   const childEnv = buildChildEnv();
-  const ptyProcess = pty.spawn(shellCmd, [], {
+  const cmdName = shellCmd.includes("/")
+    ? shellCmd.split("/").pop()
+    : shellCmd;
+  const args = cliArgsForModel(cmdName, model);
+  const ptyProcess = pty.spawn(shellCmd, args, {
     name: "xterm-256color",
     cols,
     rows,
@@ -287,10 +320,12 @@ function spawnPty(ws, gate, shellCmd, opts) {
     env: childEnv,
   });
 
-  const cmdName = shellCmd.includes("/")
-    ? shellCmd.split("/").pop()
-    : shellCmd;
-  sendJson(ws, { type: "ready", gateId: gate.id, cmd: cmdName });
+  sendJson(ws, {
+    type: "ready",
+    gateId: gate.id,
+    cmd: cmdName,
+    model: model ?? null,
+  });
 
   // ゲートコンテキストの注入は TUI の起動完了を待つ。
   // CLI によって初期化時間が大きく異なる (codex は MCP 接続待ちで数秒)

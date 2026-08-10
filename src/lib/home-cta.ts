@@ -3,7 +3,7 @@
  * どの状態でも「いま押すボタン」は1個。
  */
 
-import type { TextbookGuidance } from "@/lib/textbook-guidance";
+import type { TextbookGuidance } from "@/lib/textbook-guidance-shared";
 
 export type HomeCtaKind =
   | "setup"

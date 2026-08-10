@@ -21,7 +21,7 @@ import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
 import { pickTaskMapDisplay } from "@/lib/task-map-display";
 import { resolveHomeCta } from "@/lib/home-cta";
-import type { TextbookGuidance } from "@/lib/textbook-guidance";
+import type { TextbookGuidance } from "@/lib/textbook-guidance-shared";
 
 export type TaskMapView = {
   dateKey: string;

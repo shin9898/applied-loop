@@ -50,7 +50,7 @@ export default async function RetroIndexPage() {
               }}
             >
               <button type="submit" className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]">
-                きょうを生成
+                手元で生成（LLMなし）
               </button>
             </form>
           </div>
@@ -60,7 +60,7 @@ export default async function RetroIndexPage() {
           <h2 className="dq-win-title mb-3">これまでのしょ</h2>
           {dates.length === 0 ? (
             <p className="m-0 text-[14px] text-[#c9c3a0]">
-              まだ生成されていない。材料がある日に「きょうを生成」せよ。
+              まだ生成されていない。材料がある日に「手元で生成（LLMなし）」せよ。
             </p>
           ) : (
             <ul className="m-0 list-none space-y-2 p-0">

@@ -162,14 +162,24 @@
   animation: dq-defeat 0.8s steps(4) forwards;
 }
 
-/* When atlas shell is active, paint the page navy (kill paper-ledger ambient) */
+/* When atlas shell is active, paint the page navy (kill paper-ledger ambient).
+   Gradients must not tile: default background-repeat:repeat on a tall body
+   shows a hard seam every viewport height. Keep the DQ navy glow fixed to
+   the viewport so long pages (きょうのしょ etc.) stay seamless. */
+html:has(body.atlas-dq) {
+  background: var(--atlas-navy-deep);
+}
+
 body.atlas-dq {
-  background: var(--atlas-navy-deep) !important;
+  background-color: #00061f !important;
   color: var(--atlas-cream);
   font-family: var(--font-jp);
   background-image:
-    radial-gradient(ellipse at 50% 0%, #0026b8 0%, transparent 55%),
-    linear-gradient(#000c4a, #000832) !important;
+    radial-gradient(ellipse 110% 60% at 50% -8%, #0026b8 0%, transparent 68%),
+    linear-gradient(180deg, #000c4a 0%, #000832 42%, #00061f 100%) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+  background-size: 100% 100% !important;
 }
 
 body.atlas-dq::before,

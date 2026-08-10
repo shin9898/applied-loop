@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TerminalSquare } from "lucide-react";
 import { TerminalPanel } from "@/components/terminal-panel";
-
-type TerminalCmd = "claude" | "codex";
+import {
+  defaultJumonPrefs,
+  loadJumonPrefs,
+  resolveModelValue,
+  saveJumonPrefs,
+  TERMINAL_MODEL_OPTIONS,
+  type JumonCliPrefs,
+  type TerminalCmd,
+} from "@/lib/terminal-models";
 
 /** ゲート詳細の「ターミナルで回答」展開 UI (ADR-0015) */
 export function GateTerminalSection({
@@ -17,15 +24,30 @@ export function GateTerminalSection({
   defaultCmd?: TerminalCmd;
 }) {
   const [open, setOpen] = useState(false);
-  const [cmd, setCmd] = useState<TerminalCmd>(defaultCmd);
+  const [prefs, setPrefs] = useState<JumonCliPrefs>(() =>
+    defaultJumonPrefs(defaultCmd),
+  );
+  const [customModel, setCustomModel] = useState("");
 
-  const toggle = (next: TerminalCmd) => {
-    if (open && next !== cmd) {
-      // 実行中の切替は終了後の再起動 UI で行う。親側では一度閉じて次回起動に反映
-      setOpen(false);
+  useEffect(() => {
+    const loaded = loadJumonPrefs(defaultCmd);
+    setPrefs(loaded);
+    if (loaded.modelId === "custom" && loaded.modelValue) {
+      setCustomModel(loaded.modelValue);
     }
-    setCmd(next);
-  };
+  }, [defaultCmd]);
+
+  const modelValue = resolveModelValue(
+    prefs.cmd,
+    prefs.modelId,
+    prefs.modelId === "custom" ? customModel : prefs.modelValue,
+  );
+
+  function updatePrefs(next: JumonCliPrefs) {
+    setPrefs(next);
+    saveJumonPrefs(next);
+    if (open) setOpen(false);
+  }
 
   return (
     <section className="space-y-4 rounded-lg bg-surface p-6">
@@ -33,18 +55,20 @@ export function GateTerminalSection({
         <div className="space-y-1">
           <p className="text-sm font-bold text-ink">AI と一緒に考える</p>
           <p className="text-xs leading-5 text-ink-secondary">
-            契約 LLM を理解チェックの文脈付きで起動し、対話しながら回答を組み立てます。
+            サービスとモデルを選んでから起動する。対話しながら回答を組み立てる。
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex overflow-hidden rounded-[10px] border border-border text-xs font-bold">
             {(["claude", "codex"] as const).map((c) => (
               <button
                 key={c}
                 type="button"
-                onClick={() => toggle(c)}
+                onClick={() =>
+                  updatePrefs({ cmd: c, modelId: "default", modelValue: null })
+                }
                 className={
-                  cmd === c
+                  prefs.cmd === c
                     ? "bg-accent px-3 py-2 text-surface"
                     : "bg-surface px-3 py-2 text-ink-secondary transition-colors hover:bg-accent-muted"
                 }
@@ -53,17 +77,63 @@ export function GateTerminalSection({
               </button>
             ))}
           </div>
+          <select
+            className="rounded-[10px] border border-border bg-surface px-2 py-2 text-xs font-bold text-ink"
+            value={prefs.modelId}
+            onChange={(e) => {
+              const modelId = e.target.value;
+              updatePrefs({
+                cmd: prefs.cmd,
+                modelId,
+                modelValue: resolveModelValue(prefs.cmd, modelId, customModel),
+              });
+            }}
+          >
+            {TERMINAL_MODEL_OPTIONS[prefs.cmd].map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+            <option value="custom">カスタム…</option>
+          </select>
+          {prefs.modelId === "custom" ? (
+            <input
+              type="text"
+              value={customModel}
+              placeholder="model id"
+              className="w-28 rounded-[10px] border border-border bg-surface px-2 py-2 text-xs text-ink"
+              onChange={(e) => {
+                const v = e.target.value;
+                setCustomModel(v);
+                updatePrefs({
+                  cmd: prefs.cmd,
+                  modelId: "custom",
+                  modelValue: v.trim() || null,
+                });
+              }}
+            />
+          ) : null}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             className="inline-flex items-center gap-2 rounded-[10px] bg-accent px-5 py-3 text-sm font-bold text-surface transition-opacity hover:opacity-90"
           >
             <TerminalSquare className="h-4 w-4" strokeWidth={2.2} />
-            {open ? "ターミナルを閉じる" : "AI と考える"}
+            {open
+              ? "ターミナルを閉じる"
+              : `AI と考える（${prefs.cmd}${modelValue ? ` · ${modelValue}` : ""}）`}
           </button>
         </div>
       </div>
-      {open && <TerminalPanel gateId={gateId} wsToken={wsToken} cmd={cmd} />}
+      {open ? (
+        <TerminalPanel
+          key={`${prefs.cmd}:${modelValue ?? "default"}`}
+          gateId={gateId}
+          wsToken={wsToken}
+          cmd={prefs.cmd}
+          model={modelValue}
+        />
+      ) : null}
     </section>
   );
 }
