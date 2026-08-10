@@ -67,6 +67,16 @@ Fable 再レビューで、証跡ナビが `hasFirstClear` 単一フラグで同
 
 これにより実装と完了定義の嘘をやめ、個人開発の検証コストを抑える。
 
+## 追記 (2026-08-10) — コア一文と本線の更新（ADR-0020）
+
+AI 実装速度下で「commit のたびにしれん」＋ backlog cap は供給沈黙を起こす（実測: `skipReason=backlog` 多発）。
+
+**決定（追記）:**
+
+1. 第三者向けコア一文は [ADR-0020](./0020-daily-retro-knowledge-loop.md) の定義に**更新**する（材料無制限 → 日次教科書 → 確認 → 4状態）。
+2. P0–P3 の成果物（初回完走・MCP・監視・ずかん等）は維持。重心移動は **P4**（`docs/phase-progress.md`）で進める。
+3. `GATE_BACKLOG_CAP` による材料損失は 0020 に従い解消する。即時しれんは過渡の互換経路。
+
 ## 出典
 
 - Fable 提案全文（ローカル作業ログ `/tmp/claude-fable-full-out.txt`、2026-08-06）

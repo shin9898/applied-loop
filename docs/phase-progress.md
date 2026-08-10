@@ -15,6 +15,9 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | P1 | 供給と検証 | 同僚1名無介入完走＋詰まり全クローズ | doing |
 | P2 | 翌日以降 | D2以降自発回答＋再出題発火 | doing |
 | P3 | 周辺復帰 | 一つずつ戻し指標悪化なし | doing |
+| P4 | 日次振り返り型へ | 材料無制限＋教科書HTML＋Mastery4状態で翌日導線 | todo |
+
+ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-knowledge-loop.md)
 
 ---
 
@@ -122,6 +125,32 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 
 ---
 
+## P4 — 日次振り返り型ナレッジループ（ADR-0020）
+
+重心: commit 即時しれん → **材料蓄積 → 日次教科書 → 確認 → Mastery 振り分け**。
+
+| ID | 項目 | Status | 完了条件（要約） | メモ |
+|---|---|---|---|---|
+| C0-1 | ADR-0020 採択 | done | ADR 存在＋0019 追記 | 本セクションとセット |
+| C1-1 | Material を backlog で落とさない | todo | DevEvent は常に材料化。`skipReason=backlog` で生成スキップしても材料は残る／即時生成と分離 | 現行 cap は「即時しれん」のみに閉じる |
+| C1-2 | 既存 pending しれんの退避 UI | todo | parked / dismiss で pending を5未満にもできる | 移行期の呼吸 |
+| C2-1 | 日次 Textbook 生成 | todo | 指定日の材料→章立てデータ＋HTML 1本 | HTML はビュー、正本は DB |
+| C2-2 | Textbook 閲覧面 | todo | Web でその日の教科書を開ける | Living Atlas トーン |
+| C3-1 | Check 蒸留（3〜7問） | todo | 教科書から少数確認を生成 | 無制限同時出題は禁止 |
+| C3-2 | Mastery 4状態 | todo | clear / partial / stuck / parked を保存・表示 | 生の pass/fail は内部可 |
+| C3-3 | ステータス別翌日導線 | todo | briefing / ちず CTA が状態で変わる | stuck→ずかん、partial→再問 |
+| C4-1 | コアループ説明の更新 | todo | onboarding / README / LP を 0020 一文に合わせる | 即時しれん偏重をやめる |
+| C4-2 | セルフラン（実装多めの1日） | todo | 材料が増えても沈黙せず、夜に教科書→確認→振り分けまで完走 | dogfood |
+
+### P4 完了チェック
+
+- [ ] C1〜C3 の Must が `done`
+- [ ] 実装の多い日でも `backlog` 沈黙が起きない
+- [ ] 教科書 HTML が1日分生成され、Mastery 振り分け後に翌日 CTA が変わる
+- [ ] C4-2 セルフラン成功
+
+---
+
 ## Should / Could（Phase 任意枠・忘れ防止）
 
 | ID | Phase 目安 | Status | 項目 |
@@ -137,10 +166,12 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 
 | 内容 | 理由 |
 |---|---|
-| request_gate 以外の供給乱立 | 初週は hook＋会話の2本で十分 |
+| request_gate 以外の供給乱立 | 初週は hook＋会話の2本で十分（P4 でも材料入口は増やしすぎない） |
 | ツール物理削除 | 隠すだけ。本人運用を壊さない |
 | SaaS / マルチユーザー | 各自ローカル clone |
-| サンプル複数問・コース化 | 学習コンテンツ非作成 |
+| サンプル複数問・コース化 | 学習コンテンツ非作成（Textbook は自分の材料の圧縮） |
+| 確認問いの無制限同時提示 | また backlog 化する（ADR-0020） |
+| HTML だけを正典にする | DB 材料が正本（ADR-0020） |
 | DQ 演出強化 | コア完走を助けない |
 | Obsidian 初回必須 | 前提が重い |
 | ルールベース採点 fallback | NSM 汚染防止 |
@@ -164,4 +195,4 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | 2026-08-06 | クリーンclone実測: 欠落migration補完・prisma generate・postinstall-node-pty 復元 |
 | 2026-08-06 | Fable G2/G3/G4: 空list診断応答・initial再出題予約・scheduleDueGates 経路拡大 |
 | 2026-08-06 | Fable G5/G7/G8/G10: P3一括定義明記・採点dry-run・ファネル正本7点・prefix_fix誤字 |
-| 2026-08-06 | Fable G5/G7/G8/G10: P3一括定義明記・採点dry-run・ファネル正本7点・prefix_fix誤字 |
+| 2026-08-10 | ADR-0020 採択。P4（日次振り返り型）を追加。コア一文を材料→教科書→Mastery へ更新 |

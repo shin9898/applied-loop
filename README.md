@@ -5,7 +5,7 @@ AI に書かせたコードについて、**自分の理解を試す出題（し
 UI は Living Atlas。操作の正典は **MCP**（Web は地図・診断・提出入口）。
 
 **紹介 LP:** ローカル `/lp` · GitHub Pages 用静的版 [docs/lp/](docs/lp/)（repo Settings → Pages → Deploy from branch → `/docs`）  
-**進捗正本（Phase）:** [docs/phase-progress.md](docs/phase-progress.md) · [ADR-0019](docs/adr/0019-core-loop-phases.md)  
+**進捗正本（Phase）:** [docs/phase-progress.md](docs/phase-progress.md) · [ADR-0019](docs/adr/0019-core-loop-phases.md) · P4 日次振り返り [ADR-0020](docs/adr/0020-daily-retro-knowledge-loop.md)  
 初回セットアップ詳細: [docs/onboarding.md](docs/onboarding.md)  
 同僚ウォークスルー: [docs/walkthrough-checklist.md](docs/walkthrough-checklist.md)  
 運用ログ・再出題/queue: [docs/ops-logs.md](docs/ops-logs.md)  
