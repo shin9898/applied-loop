@@ -12,6 +12,8 @@
   --atlas-hp: #3ecf5a;
   --atlas-danger: #e84848;
   --font-pixel: var(--font-press-start), "DotGothic16", monospace;
+  --font-handwriting: var(--font-hand), "Yomogi", "Hiragino Maru Gothic ProN",
+    cursive;
   --font-jp: var(--font-dotgothic), "Press Start 2P", sans-serif;
 }
 
@@ -406,12 +408,1668 @@ body.atlas-dq [class*="scroll-pt"] {
   padding-top: 0 !important;
 }
 
+/* ちしきの4つのくに（デフォルト閉じ） */
+.atlas-zukan-quadrant {
+  padding: 0;
+}
+
+.atlas-zukan-quadrant__details {
+  margin: 0;
+}
+
+.atlas-zukan-quadrant__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 14px;
+  user-select: none;
+}
+
+.atlas-zukan-quadrant__summary::-webkit-details-marker {
+  display: none;
+}
+
+.atlas-zukan-quadrant__summary-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.atlas-zukan-quadrant__summary-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.atlas-zukan-quadrant__title {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--atlas-gold);
+  letter-spacing: 0.04em;
+}
+
+.atlas-zukan-quadrant__sub {
+  font-size: 12px;
+  color: #c9c3a0;
+}
+
+.atlas-zukan-quadrant__chevron {
+  flex-shrink: 0;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: #9ec0ff;
+  transition: transform 0.15s steps(2);
+}
+
+.atlas-zukan-quadrant__details[open] .atlas-zukan-quadrant__chevron {
+  transform: rotate(90deg);
+}
+
+.atlas-zukan-quadrant__body {
+  padding: 0 14px 14px;
+  border-top: 2px solid #002070;
+}
+
+/* —— ずかん（本に収めた等寸ポケット） —— */
+/* StPageFlip ずかん */
+.atlas-zukan-flip {
+  display: grid;
+  gap: 12px;
+}
+
+.atlas-zukan-flip__chrome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 4px 0;
+}
+
+.atlas-zukan-flip__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.atlas-zukan-flip__title {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: #f0d25a;
+  letter-spacing: 0.06em;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.atlas-zukan-flip__sub,
+.atlas-zukan-flip__hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #c9c3a0;
+}
+
+.atlas-zukan-flip__hint {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: #9ec0ff;
+}
+
+.atlas-zukan-flip__stage {
+  /* 見開き時: 赤ケース。表紙・うら表紙時: 机色にして本体を浮かせる */
+  position: relative;
+  padding: 6px;
+  border: 4px solid #1a1000;
+  outline: 4px solid #3a080c;
+  box-shadow: 8px 8px 0 #000;
+  overflow: hidden;
+  /* めくり中の赤残りを目立たせないよう、背景切替は即時 */
+  transition: none;
+}
+
+.atlas-zukan-flip__stage.is-open-spread {
+  outline-color: #3a080c;
+  background:
+    linear-gradient(90deg, #3a080c 0 10px, transparent 10px),
+    linear-gradient(180deg, #8a1820, #6a1018 55%, #4a0c12);
+}
+
+.atlas-zukan-flip__stage.is-hard-cover {
+  outline-color: #002070;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(240, 210, 90, 0.1), transparent 55%),
+    linear-gradient(180deg, #001a8c, #00081f 65%, #000c4a);
+}
+
+.atlas-zukan-flip__mount {
+  width: 100%;
+}
+
+.atlas-zukan-flip__book {
+  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/*
+  PageFlip 初期化前は子が縦積みになる。
+  その間は表紙だけ中央に見せて「閉じた図鑑」にする。
+*/
+.atlas-zukan-flip__book:not(.stf__parent) {
+  position: relative;
+  min-height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.atlas-zukan-flip__book:not(.stf__parent) .atlas-zukan-flip-page {
+  display: none;
+}
+
+.atlas-zukan-flip__book:not(.stf__parent) .atlas-zukan-flip-page--cover {
+  display: block;
+  width: min(340px, 72vw);
+  height: min(460px, 62vh);
+  box-shadow: 10px 10px 0 #000;
+}
+
+/* showCover は右ページに出るので、閉じたときは中央へ寄せる */
+.atlas-zukan-flip__mount.is-showing-cover .atlas-zukan-flip__book.stf__parent {
+  transform: translateX(-25%);
+}
+
+.atlas-zukan-flip__mount.is-showing-spread .atlas-zukan-flip__book.stf__parent {
+  transform: translateX(0);
+}
+
+@media (max-width: 720px) {
+  .atlas-zukan-flip__mount.is-showing-cover .atlas-zukan-flip__book.stf__parent {
+    transform: none;
+  }
+}
+
+.atlas-zukan-flip-page {
+  background: #f3e6c0;
+  color: #1a1000;
+}
+
+.atlas-zukan-flip-page--paper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 12px 10px 10px;
+  background:
+    linear-gradient(90deg, rgba(106, 16, 24, 0.08), transparent 18px),
+    repeating-linear-gradient(
+      180deg,
+      #fff8e0 0 14px,
+      #f3e6c0 14px 28px
+    );
+  box-shadow: inset 0 0 0 3px #fff8e0;
+}
+
+.atlas-zukan-flip-page__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: #6a1018;
+  flex-shrink: 0;
+}
+
+.atlas-zukan-flip-page__head small {
+  font-size: 7px;
+  opacity: 0.75;
+}
+
+.atlas-zukan-flip-page__head.is-cat-start {
+  padding: 6px 8px;
+  border: 2px solid #6a1018;
+  background: rgba(106, 16, 24, 0.08);
+  font-size: 9px;
+}
+
+.atlas-zukan-flip-page--cover,
+.atlas-zukan-flip-page--back {
+  background: linear-gradient(165deg, #8a1820, #6a1018 50%, #3a080c);
+  color: #f7f3d9;
+}
+
+.atlas-zukan-cover-face {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+  border: 4px solid #1a1000;
+  outline: 3px solid #f0d25a;
+  outline-offset: -14px;
+}
+
+.atlas-zukan-cover-face__rivet {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #1a1000;
+  background: #f0d25a;
+  box-shadow: inset 1px 1px 0 #fff8e0;
+}
+
+.atlas-zukan-cover-face__rivet--tl {
+  top: 14px;
+  left: 14px;
+}
+.atlas-zukan-cover-face__rivet--tr {
+  top: 14px;
+  right: 14px;
+}
+.atlas-zukan-cover-face__rivet--bl {
+  bottom: 14px;
+  left: 14px;
+}
+.atlas-zukan-cover-face__rivet--br {
+  bottom: 14px;
+  right: 14px;
+}
+
+.atlas-zukan-cover-face__title {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 22px;
+  color: #f0d25a;
+  text-shadow: 3px 3px 0 #000;
+  letter-spacing: 0.12em;
+}
+
+.atlas-zukan-cover-face__sub {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #f7f3d9;
+}
+
+.atlas-zukan-cover-face__meta {
+  margin: 8px 0 0;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: #c9c3a0;
+}
+
+.atlas-zukan-cover-face__clasp {
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  width: 18px;
+  height: 52px;
+  transform: translateY(-50%);
+  border: 2px solid #1a1000;
+  border-right: none;
+  background: linear-gradient(180deg, #f0d25a, #b8922e);
+}
+
+.atlas-zukan-flip-page__endpaper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+}
+
+.atlas-zukan-flip-page__endpaper p {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  line-height: 1.6;
+  color: #6a1018;
+}
+
+.atlas-zukan-flip-page__back-title {
+  margin: 0;
+  padding-top: 40%;
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: 16px;
+  color: #f0d25a;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.atlas-zukan-flip-page__back-sub {
+  margin: 10px 0 0;
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #f7f3d9;
+}
+
+.atlas-zukan-book__empty {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+
+.atlas-zukan-book__empty-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.atlas-zukan-pocket-band__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.atlas-zukan-pocket-band--fog {
+  border: 3px dashed #6a7a9a;
+  background: rgba(158, 192, 255, 0.12);
+  padding: 10px;
+}
+
+.atlas-zukan-pocket-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 720px) {
+  .atlas-zukan-pocket-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .atlas-zukan-pocket-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 等寸ポケット枠（見開き片側・2行に収まる） */
+.atlas-zukan-slot {
+  min-height: 0;
+  height: 100%;
+  padding: 6px;
+  border: 3px solid #1a1000;
+  background:
+    linear-gradient(180deg, #c9b48a 0 8px, transparent 8px),
+    #b89a68;
+  box-shadow: inset 0 3px 0 rgba(0, 0, 0, 0.25);
+  animation: atlas-zukan-pocket-in 0.35s steps(3) both;
+  animation-delay: calc(var(--pocket-i, 0) * 45ms);
+}
+
+.atlas-zukan-slot.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.atlas-zukan-slot__label {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: rgba(26, 16, 0, 0.35);
+}
+
+@keyframes atlas-zukan-pocket-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 等寸カード本体 */
+.atlas-zukan-card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border: 3px solid #fff;
+  background: #001a8c;
+  box-shadow: 3px 3px 0 #000;
+  overflow: hidden;
+}
+
+.atlas-zukan-card--clear {
+  border-color: #3ecf5a;
+}
+.atlas-zukan-card--open {
+  border-color: #f0d25a;
+}
+.atlas-zukan-card--fog {
+  border-color: #9ec0ff;
+  background: #00081f;
+}
+
+.atlas-zukan-card__hit {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.atlas-zukan-card__hit:hover .atlas-zukan-card__title {
+  text-decoration: underline;
+}
+
+.atlas-zukan-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.atlas-zukan-card__no {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: #9ec0ff;
+}
+
+.atlas-zukan-card__badge {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  padding: 2px 4px;
+  border: 2px solid #223;
+  background: #000;
+}
+
+.atlas-zukan-card__badge--clear {
+  color: #3ecf5a;
+}
+.atlas-zukan-card__badge--open {
+  color: #f0d25a;
+}
+.atlas-zukan-card__badge--fog {
+  color: #9ec0ff;
+}
+
+.atlas-zukan-card__art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 44px;
+  margin-top: 6px;
+  border: 2px solid #002070;
+  background: #000c4a;
+}
+
+.atlas-zukan-card__title {
+  margin: 8px 0 0;
+  flex: 1;
+  min-height: 0;
+  font-size: 13px;
+  line-height: 1.3;
+  color: #f7f3d9;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.atlas-zukan-card__meta {
+  margin: 6px 0 0;
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1.3;
+  color: #c9c3a0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.atlas-zukan-card__fight {
+  display: block;
+  flex-shrink: 0;
+  border-top: 2px solid #002070;
+  padding: 7px 8px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: #f0d25a;
+  text-align: center;
+  text-decoration: none;
+  background: #000c4a;
+}
+
+.atlas-zukan-card__fight:hover {
+  background: #001a8c;
+}
+
+.atlas-zukan-card__fight--ghost {
+  color: #9ec0ff;
+  cursor: default;
+}
+
+.atlas-zukan-pocket-grid--paged {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.atlas-zukan-flip-page--paper .atlas-zukan-pocket-grid--paged {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.atlas-zukan-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 3px solid #1a1000;
+  background: #000c4a;
+  box-shadow: 4px 4px 0 #000;
+}
+
+.atlas-zukan-pager__btn {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #1a1000;
+  background: #f0d25a;
+  border: 3px solid #1a1000;
+  padding: 8px 12px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 #000;
+}
+
+.atlas-zukan-pager__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.atlas-zukan-pager__status {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #f0d25a;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .atlas-enter,
   .dq-enemy-idle,
   .dq-enemy-appear,
   .dq-enemy-hit,
-  .dq-enemy-defeat {
+  .dq-enemy-defeat,
+  .atlas-zukan-slot {
     animation: none !important;
   }
+}
+
+/* —— グランドクエスト（もくひょう / 羊皮紙掲示） —— */
+/* 素材は白抜き透過 PNG。clip-path は使わず輪郭は画像のアルファに任せる */
+.atlas-gq-board {
+  position: relative;
+  isolation: isolate;
+  margin-top: 8px;
+  padding: 56px 36px 36px;
+  color: #2a1c10;
+  /* 透過部はページ紺と同じ色にして白矩形を出さない */
+  background-color: #000c4a;
+  background-image: url("/atlas/parchment-board.png");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  border: none;
+  box-shadow: 5px 7px 0 #000;
+  filter: none;
+}
+
+.atlas-gq-board--detail {
+  padding-bottom: 28px;
+}
+
+.atlas-gq-board__head {
+  text-align: center;
+  margin: -8px 0 18px;
+  padding: 8px 12px 4px;
+  /* 素材上部の装飾文字の上に載せてドット見出しを優先 */
+  background: linear-gradient(
+    180deg,
+    rgba(232, 213, 176, 0.96),
+    rgba(232, 213, 176, 0.88) 70%,
+    transparent
+  );
+}
+
+.atlas-gq-board__title {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: clamp(18px, 4vw, 22px);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: #1a1000;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.5);
+}
+
+.atlas-gq-board__rule {
+  position: relative;
+  width: min(280px, 70%);
+  height: 2px;
+  margin: 10px auto 12px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #3a2a18 12%,
+    #3a2a18 88%,
+    transparent
+  );
+}
+
+.atlas-gq-board__rule::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: #3a2a18;
+}
+
+.atlas-gq-board__blurb,
+.atlas-gq-board__empty {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  line-height: 1.7;
+  color: #3a2a18;
+}
+
+.atlas-gq-board__empty {
+  text-align: center;
+  padding: 12px 8px 4px;
+}
+
+.atlas-gq-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 18px;
+  margin: 0;
+  padding: 4px 0 0;
+  list-style: none;
+}
+
+.atlas-gq-card {
+  position: relative;
+  background: transparent;
+}
+
+/* 各 Grand Quest も掲示板と同じ羊皮紙テクスチャ */
+.atlas-gq-card__paper {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  min-height: 360px;
+  padding: 20px 22px 18px;
+  color: #2a1c10;
+  background-color: #e8d5b0;
+  background-image:
+    radial-gradient(ellipse at 18% 12%, rgba(90, 50, 20, 0.14), transparent 42%),
+    radial-gradient(ellipse at 82% 88%, rgba(60, 30, 10, 0.2), transparent 48%),
+    url("/atlas/parchment-card-tex.png");
+  background-size: auto, auto, cover;
+  background-position: center;
+  border: 3px solid #2a1c10;
+  outline: 3px solid #6a4a28;
+  box-shadow:
+    inset 0 0 48px rgba(80, 40, 10, 0.16),
+    4px 4px 0 #000;
+}
+
+.atlas-gq-card--thin .atlas-gq-card__paper {
+  outline-color: #c48a20;
+}
+
+.atlas-gq-card--clear .atlas-gq-card__paper {
+  outline-color: #3a8a48;
+}
+
+.atlas-gq-card__head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 8px;
+}
+
+.atlas-gq-card__swords {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.atlas-gq-card__head-text {
+  min-width: 0;
+}
+
+.atlas-gq-card__kind {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: #1a1000;
+}
+
+.atlas-gq-card__code,
+.atlas-gq-detail__meta {
+  margin: 2px 0 0;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #5a4020;
+}
+
+.atlas-gq-card__clear {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #3a2a18;
+}
+
+.atlas-gq-card__clear i {
+  display: block;
+  width: 38px;
+  height: 38px;
+  border: 2px solid #3a2a18;
+  background: rgba(255, 248, 220, 0.45);
+  font-style: normal;
+  font-size: 11px;
+  line-height: 34px;
+  text-align: center;
+  color: transparent;
+}
+
+.atlas-gq-card__clear.is-on i {
+  background: rgba(62, 140, 70, 0.25);
+  color: #1f5a28;
+  box-shadow: inset 0 0 0 1px #1f5a28;
+}
+
+.atlas-gq-card__title,
+.atlas-gq-detail__title {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: #1a1000;
+}
+
+.atlas-gq-card__conditions {
+  margin-top: 2px;
+}
+
+.atlas-gq-card__cond-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.atlas-gq-card__cond-list li {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  align-items: end;
+  min-height: 26px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  line-height: 1.55;
+  color: #2a1c10;
+}
+
+.atlas-gq-card__cond-list li.is-blank {
+  opacity: 0.55;
+}
+
+.atlas-gq-card__check {
+  flex-shrink: 0;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: #3a2a18;
+  line-height: 1.4;
+}
+
+.atlas-gq-card__line {
+  border-bottom: 1px solid rgba(58, 42, 24, 0.55);
+  padding-bottom: 2px;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.atlas-gq-card__cond-empty {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  line-height: 1.6;
+  color: #5a4020;
+}
+
+.atlas-gq-card__progress {
+  margin-top: 4px;
+}
+
+.atlas-gq-card__progress-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #5a4020;
+}
+
+.atlas-gq-card__bar {
+  height: 10px;
+  border: 2px solid #3a2a18;
+  background: rgba(40, 24, 10, 0.2);
+}
+
+.atlas-gq-card__bar i {
+  display: block;
+  height: 100%;
+}
+
+.atlas-gq-card__bar i.is-thin {
+  background: #c48a20;
+}
+
+.atlas-gq-card__bar i.is-ok {
+  background: #3a8a48;
+}
+
+.atlas-gq-card__focus {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #5a4020;
+}
+
+.atlas-gq-card__foot {
+  margin-top: 2px;
+}
+
+.atlas-gq-card__next {
+  display: grid;
+  gap: 8px;
+}
+
+.atlas-gq-card__next p {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  line-height: 1.6;
+  color: #5a4020;
+}
+
+.atlas-gq-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.atlas-gq-card__btn {
+  display: inline-block;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #f7f3d9;
+  text-decoration: none;
+  background: #3a2a18;
+  border: 2px solid #1a1000;
+  padding: 10px 12px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.atlas-gq-card__btn:hover {
+  background: #5a4020;
+}
+
+.atlas-gq-card__detail {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #5a4020;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(90, 64, 32, 0.45);
+}
+
+.atlas-gq-card__detail:hover {
+  color: #1a1000;
+  border-bottom-color: #1a1000;
+}
+
+@media (max-width: 640px) {
+  .atlas-gq-board {
+    padding: 44px 22px 28px;
+  }
+
+  .atlas-gq-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* —— ずかん カテゴリ導線 —— */
+.atlas-zukan-cats {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 4px;
+  padding: 12px;
+  border: 3px solid #f0d25a;
+  background:
+    linear-gradient(180deg, rgba(240, 210, 90, 0.12), transparent 55%),
+    #000c4a;
+  box-shadow: 4px 4px 0 #000;
+}
+
+.atlas-zukan-cats__label {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #f0d25a;
+  letter-spacing: 0.06em;
+}
+
+.atlas-zukan-cats__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.atlas-zukan-cats__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #f7f3d9;
+  background: #001868;
+  border: 3px solid #fff;
+  padding: 10px 12px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 #000;
+}
+
+.atlas-zukan-cats__name {
+  letter-spacing: 0.04em;
+}
+
+.atlas-zukan-cats__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border: 2px solid #1a1000;
+  background: #f7f3d9;
+  color: #1a1000;
+  font-size: 9px;
+}
+
+.atlas-zukan-cats__btn:hover:not(:disabled) {
+  color: #f0d25a;
+  border-color: #f0d25a;
+}
+
+.atlas-zukan-cats__btn.is-active {
+  color: #1a1000;
+  background: #f0d25a;
+  border-color: #1a1000;
+}
+
+.atlas-zukan-cats__btn.is-active .atlas-zukan-cats__count {
+  background: #1a1000;
+  color: #f0d25a;
+  border-color: #f0d25a;
+}
+
+.atlas-zukan-cats__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* —— にっき本棚 —— */
+.atlas-nikki-shelf {
+  display: grid;
+  gap: 14px;
+}
+
+.atlas-nikki-shelf__hint,
+.atlas-nikki-shelf__empty {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  line-height: 1.7;
+  color: #c9c3a0;
+}
+
+.atlas-nikki-shelf__case {
+  position: relative;
+  padding: 18px 16px 28px;
+  border: 3px solid #1a1000;
+  background:
+    linear-gradient(180deg, rgba(0, 12, 74, 0.35), transparent 40%),
+    #001868;
+  box-shadow: 5px 5px 0 #000;
+}
+
+.atlas-nikki-shelf__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0 0 8px;
+  list-style: none;
+}
+
+.atlas-nikki-shelf__plank {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 10px;
+  height: 12px;
+  border: 2px solid #1a1000;
+  background: linear-gradient(180deg, #8a5a28, #5a3818);
+  box-shadow: 0 3px 0 #000;
+}
+
+.atlas-nikki-book-spine {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+  min-height: 168px;
+  padding: 14px 8px 12px;
+  border: 3px solid #102018;
+  outline: 3px solid #1a3a28;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 6px,
+      rgba(0, 0, 0, 0.08) 6px,
+      rgba(0, 0, 0, 0.08) 7px
+    ),
+    linear-gradient(165deg, #3a7a58, #245a40 55%, #143828);
+  box-shadow: 4px 4px 0 #000;
+  color: #d8f0c8;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  transition: transform 120ms ease;
+}
+
+.atlas-nikki-book-spine__band {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: linear-gradient(180deg, #c8e090, #8aaa48);
+  border-top: 2px solid #102018;
+  border-bottom: 2px solid #102018;
+  opacity: 0.9;
+}
+
+.atlas-nikki-book-spine:hover {
+  outline-color: #c8e090;
+  transform: translateY(-4px);
+}
+
+.atlas-nikki-book-spine__title {
+  position: relative;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.atlas-nikki-book-spine__meta,
+.atlas-nikki-book-spine__cta {
+  position: relative;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  color: #f7f3d9;
+}
+
+.atlas-nikki-book-spine__cta {
+  color: #d8f0c8;
+  border: 2px solid #d8f0c8;
+  padding: 3px 6px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.atlas-nikki-flip {
+  margin-top: 0;
+  gap: 10px;
+}
+
+.atlas-nikki-flip .atlas-zukan-flip__title {
+  color: #c8e090;
+}
+
+.atlas-nikki-flip__hint {
+  color: #9ed0b0 !important;
+}
+
+/* ずかん(赤)と差別化: インク緑の机 + 革表紙 */
+.atlas-nikki-flip__stage.is-open-spread {
+  outline-color: #143828 !important;
+  background:
+    linear-gradient(90deg, #143828 0 10px, transparent 10px),
+    linear-gradient(180deg, #3a6a4e, #245038 55%, #1a3a28) !important;
+}
+
+.atlas-nikki-flip__stage.is-hard-cover {
+  outline-color: #2a4838 !important;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(200, 224, 144, 0.12), transparent 55%),
+    linear-gradient(180deg, #1a4030, #0c2018 65%, #081410) !important;
+}
+
+.atlas-nikki-cover {
+  background: linear-gradient(165deg, #3a7a58, #245a40 50%, #143828) !important;
+  color: #d8f0c8 !important;
+}
+
+.atlas-nikki-cover-face .atlas-zukan-cover-face__title {
+  color: #e8f8d0;
+}
+
+.atlas-nikki-cover-face .atlas-zukan-cover-face__sub {
+  color: #b8d8a8;
+}
+
+.atlas-nikki-paper {
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent,
+      transparent 27px,
+      rgba(60, 100, 80, 0.12) 27px,
+      rgba(60, 100, 80, 0.12) 28px
+    ),
+    linear-gradient(180deg, #f4efe0, #ebe2cc) !important;
+  color: #203028 !important;
+  box-shadow: inset 0 0 0 3px #fff8e8 !important;
+}
+
+.atlas-nikki-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  width: min(300px, 92%);
+  margin: 12px auto 0;
+}
+
+.atlas-nikki-calendar__day {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  border: 2px solid #143828;
+  background: #eef6e8;
+  color: #143828;
+  cursor: pointer;
+  padding: 0;
+}
+
+.atlas-nikki-calendar__day:disabled {
+  opacity: 0.25;
+  cursor: default;
+  background: #d0dcc8;
+}
+
+.atlas-nikki-calendar__day.has-entry {
+  background: #c8e090;
+}
+
+.atlas-nikki-calendar__day.is-today {
+  outline: 2px solid #9ec0ff;
+  outline-offset: 1px;
+}
+
+.atlas-nikki-calendar__day.is-active {
+  outline: 2px solid #245a40;
+  outline-offset: 1px;
+}
+
+.atlas-nikki-day-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 18px 20px 16px;
+  background: transparent;
+  color: #203028;
+}
+
+.atlas-nikki-day-page.is-blank {
+  justify-content: center;
+  text-align: center;
+  opacity: 0.85;
+}
+
+.atlas-nikki-day-page__date {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #245a40;
+}
+
+.atlas-nikki-day-page__title {
+  margin: 0;
+  font-family: var(--font-handwriting);
+  font-size: clamp(18px, 2.4vw, 24px);
+  line-height: 1.45;
+  color: #1a3024;
+}
+
+.atlas-nikki-day-page__lead,
+.atlas-nikki-day-page__lines,
+.atlas-nikki-day-page__blank,
+.atlas-nikki-day-page__meta {
+  margin: 0;
+  font-family: var(--font-handwriting);
+  font-size: clamp(15px, 1.8vw, 18px);
+  line-height: 1.75;
+  color: #2a4034;
+}
+
+.atlas-nikki-day-page__lines {
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  flex: 1;
+}
+
+.atlas-nikki-day-page__lines li {
+  position: relative;
+  padding-left: 1.1em;
+}
+
+.atlas-nikki-day-page__lines li::before {
+  content: "・";
+  position: absolute;
+  left: 0;
+  color: #3a6a4e;
+}
+
+.atlas-nikki-day-page__open {
+  margin-top: auto;
+  align-self: flex-start;
+}
+
+.atlas-nikki-flip .atlas-zukan-flip__mount.is-showing-cover .atlas-zukan-flip__book.stf__parent {
+  transform: scale(1.02);
+}
+
+.atlas-nikki-flip .atlas-zukan-flip__book:not(.stf__parent) {
+  min-height: min(72vh, 640px);
+}
+
+.atlas-nikki-flip .atlas-zukan-flip__book:not(.stf__parent) .atlas-zukan-flip-page--cover {
+  width: min(420px, 78vw);
+  height: min(560px, 70vh);
+}
+
+/* —— にっき台紙（一覧・詳細共通） —— */
+.atlas-journal {
+  border: 4px solid #102018;
+  outline: 4px solid #1a3a28;
+  background: linear-gradient(165deg, #3a7a58, #245a40 55%, #143828);
+  box-shadow: 6px 6px 0 #000;
+  overflow: hidden;
+}
+
+.atlas-journal--chapter.is-active {
+  outline-color: #c8e090;
+}
+
+.atlas-journal__masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 3px solid #102018;
+  background:
+    linear-gradient(180deg, rgba(200, 224, 144, 0.12), transparent 70%),
+    #1a4030;
+}
+
+.atlas-journal__eyebrow {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #9ed0b0;
+}
+
+.atlas-journal__heading {
+  margin: 4px 0 0;
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  color: #d8f0c8;
+  letter-spacing: 0.04em;
+}
+
+.atlas-journal__page {
+  margin: 10px;
+  padding: 18px 18px 16px;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      transparent,
+      transparent 27px,
+      rgba(60, 100, 80, 0.1) 27px,
+      rgba(60, 100, 80, 0.1) 28px
+    ),
+    linear-gradient(180deg, #f4efe0, #ebe2cc);
+  color: #203028;
+  box-shadow: inset 0 0 0 3px #fff8e8;
+}
+
+.atlas-journal .atlas-nikki-shelf__hint {
+  display: none;
+}
+
+.atlas-journal .atlas-nikki-shelf__case {
+  border-color: #143828;
+  background:
+    linear-gradient(180deg, rgba(36, 90, 64, 0.35), transparent 40%),
+    #1a4030;
+}
+
+.atlas-journal__lead {
+  margin: 0;
+  font-family: var(--font-handwriting);
+  font-size: clamp(16px, 2vw, 19px);
+  line-height: 1.7;
+  color: #1a3024;
+}
+
+.atlas-journal__meta,
+.atlas-journal__note {
+  margin: 10px 0 0;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  line-height: 1.7;
+  color: #3a6a4e;
+}
+
+.atlas-journal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.atlas-journal__divider {
+  margin: 18px 0 14px;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #245a40 12%,
+    #245a40 88%,
+    transparent
+  );
+}
+
+.atlas-journal__chapter-no {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  color: #245a40;
+}
+
+.atlas-journal__chapter-title {
+  margin: 6px 0 0;
+  font-family: var(--font-handwriting);
+  font-size: clamp(20px, 2.4vw, 26px);
+  line-height: 1.4;
+  color: #1a3024;
+}
+
+.atlas-journal__body {
+  margin: 14px 0 0;
+  padding: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-handwriting);
+  font-size: clamp(15px, 1.8vw, 18px);
+  line-height: 1.75;
+  color: #2a4034;
+  background: transparent;
+  border: none;
+}
+
+.atlas-journal__lesson {
+  border-left: 3px solid #245a40;
+  background: rgba(36, 90, 64, 0.08);
+  padding: 8px 12px;
+}
+
+.atlas-journal__lesson-label {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #245a40;
+}
+
+.atlas-journal__lesson-body {
+  margin: 6px 0 0;
+  font-family: var(--font-handwriting);
+  font-size: 16px;
+  line-height: 1.65;
+  color: #203028;
+}
+
+.atlas-journal__callout {
+  border: 2px solid #245a40;
+  padding: 10px;
+  background: rgba(255, 248, 232, 0.65);
+}
+
+.atlas-journal__callout--bad {
+  border-color: #a04040;
+  background: rgba(180, 60, 60, 0.08);
+}
+
+.atlas-journal__callout--ok {
+  border-color: #2a7a48;
+  background: rgba(40, 120, 70, 0.08);
+}
+
+.atlas-journal__callout-label {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #245a40;
+}
+
+.atlas-journal__callout--bad .atlas-journal__callout-label {
+  color: #a04040;
+}
+
+.atlas-journal__callout--ok .atlas-journal__callout-label {
+  color: #2a7a48;
+}
+
+.atlas-journal__callout-body {
+  margin: 6px 0 0;
+  font-family: var(--font-handwriting);
+  font-size: 15px;
+  line-height: 1.6;
+  color: #203028;
+}
+
+.atlas-journal__chip {
+  display: inline-block;
+  border: 2px solid #245a40;
+  padding: 4px 8px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: #245a40;
+  text-decoration: none;
+  background: rgba(255, 248, 232, 0.7);
+}
+
+.atlas-journal__chip.is-muted {
+  border-color: #7a8a70;
+  color: #5a6a58;
+}
+
+.atlas-journal__footer-actions {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 2px solid rgba(36, 90, 64, 0.35);
+  display: grid;
+  gap: 8px;
+}
+
+/* —— ずかん詳細ケース —— */
+.atlas-dex-sheet {
+  border: 4px solid #1a1000;
+  outline: 4px solid #3a080c;
+  background: linear-gradient(165deg, #8a1820, #6a1018 55%, #3a080c);
+  box-shadow: 6px 6px 0 #000;
+  overflow: hidden;
+}
+
+.atlas-dex-sheet--clear {
+  outline-color: #3ecf5a;
+}
+
+.atlas-dex-sheet--fog {
+  outline-color: #9ec0ff;
+}
+
+.atlas-dex-sheet__masthead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 3px solid #1a1000;
+  background:
+    linear-gradient(180deg, rgba(240, 210, 90, 0.12), transparent 70%),
+    #4a0c12;
+}
+
+.atlas-dex-sheet__eyebrow {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #f0d25a;
+}
+
+.atlas-dex-sheet__status {
+  margin: 4px 0 0;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: #f7f3d9;
+}
+
+.atlas-dex-sheet__page {
+  margin: 10px;
+  padding: 18px;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(106, 16, 24, 0.08), transparent 50%),
+    #f3e6c0;
+  color: #1a1000;
+  box-shadow: inset 0 0 0 3px #fff8e0;
+}
+
+.atlas-dex-sheet__meta {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #6a1018;
+}
+
+.atlas-dex-sheet__title {
+  margin: 12px 0 0;
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  line-height: 1.55;
+  color: #1a1000;
+}
+
+.atlas-dex-sheet__body {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #3a2a18;
+}
+
+.atlas-dex-sheet__gate {
+  margin-top: 16px;
+  padding: 12px;
+  border-left: 3px solid #6a1018;
+  background: rgba(106, 16, 24, 0.06);
+}
+
+.atlas-dex-sheet__gate-label {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: #6a1018;
+}
+
+.atlas-dex-sheet__gate-q {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #3a2a18;
+}
+
+.atlas-dex-sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
 }

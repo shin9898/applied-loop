@@ -46,7 +46,7 @@ function groupByDay(items: EntryItem[]): { key: string; label: string; items: En
     });
 }
 
-/** /entries — にっき（日付主軸） */
+/** /entries — うけばこ（学び・受信箱） */
 export function AtlasEntries({
   items,
   streakDays,

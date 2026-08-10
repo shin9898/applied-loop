@@ -8,6 +8,7 @@ import {
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasShell } from "./atlas-shell";
+import { AtlasSurfaceIcon } from "./atlas-surface-icons";
 
 export type AtlasZukanDetailProps = {
   item: {
@@ -25,11 +26,15 @@ export type AtlasZukanDetailProps = {
   streakDays?: number;
 };
 
-/** /zukan/[id] — つまずき（誤解）詳細 */
+/** /zukan/[id] — ずかんの1枚カード詳細（図鑑ケースUI） */
 export function AtlasZukanDetail({ item, streakDays }: AtlasZukanDetailProps) {
   const place = placeFrom(item.repo, item.domain);
   const statusLabel =
-    item.status === "clear" ? "CLEAR" : item.status === "fog" ? "ふたたびもや" : "未クリア";
+    item.status === "clear"
+      ? "CLEAR"
+      : item.status === "fog"
+        ? "ふたたびもや"
+        : "未クリア";
   const cause = parseRootCause(item.rootCause);
   const causeLabel = rootCauseLabel(cause);
   const causeLine = rootCauseOneLiner(cause);
@@ -37,7 +42,7 @@ export function AtlasZukanDetail({ item, streakDays }: AtlasZukanDetailProps) {
   return (
     <AtlasChrome active="/zukan" streakDays={streakDays}>
       <AtlasShell>
-        <AtlasReveal as="section" className="dq-win p-3.5">
+        <AtlasReveal as="section">
           <div className="mb-3">
             <Link
               href="/zukan"
@@ -46,40 +51,53 @@ export function AtlasZukanDetail({ item, streakDays }: AtlasZukanDetailProps) {
               ← ずかんにもどる
             </Link>
           </div>
-          <AtlasPageTitle title="ずかん詳細" sub={statusLabel} />
-          <p className="m-0 text-[12px] text-[#9ec0ff]">
-            {[place.label, systemLabel(item.system), causeLabel]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-          <h2 className="mt-3 mb-0 text-[18px] font-normal leading-relaxed text-[#f7f3d9]">
-            {item.concept}
-          </h2>
-          {causeLine ? (
-            <p className="mt-2 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-              {causeLine}
-            </p>
-          ) : null}
-          {item.gateQuestion ? (
-            <div className="mt-3 border-l-[3px] border-[#9ec0ff] pl-2.5">
-              <p className="m-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
-                ◆ 関連しれん
+          <AtlasPageTitle title="ずかん" sub={statusLabel} />
+
+          <article
+            className={`atlas-dex-sheet atlas-dex-sheet--${item.status}`}
+          >
+            <header className="atlas-dex-sheet__masthead">
+              <AtlasSurfaceIcon surface="zukan" size={28} color="#f0d25a" />
+              <div>
+                <p className="atlas-dex-sheet__eyebrow">ぼうけんのずかん</p>
+                <p className="atlas-dex-sheet__status">{statusLabel}</p>
+              </div>
+            </header>
+
+            <div className="atlas-dex-sheet__page">
+              <p className="atlas-dex-sheet__meta">
+                {[place.label, systemLabel(item.system), causeLabel]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
-              <p className="mt-1 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-                {item.gateQuestion}
-              </p>
+              <h2 className="atlas-dex-sheet__title">{item.concept}</h2>
+              {causeLine ? (
+                <p className="atlas-dex-sheet__body">{causeLine}</p>
+              ) : null}
+              {item.gateQuestion ? (
+                <div className="atlas-dex-sheet__gate">
+                  <p className="atlas-dex-sheet__gate-label">◆ 関連しれん</p>
+                  <p className="atlas-dex-sheet__gate-q">{item.gateQuestion}</p>
+                </div>
+              ) : null}
+              <div className="atlas-dex-sheet__actions">
+                {item.gateId && item.status !== "clear" ? (
+                  <Link
+                    href={`/gates/${item.gateId}`}
+                    className="dq-btn !px-3 !py-2 text-[8px]"
+                  >
+                    たたかう
+                  </Link>
+                ) : null}
+                <Link
+                  href="/zukan"
+                  className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]"
+                >
+                  一覧へ
+                </Link>
+              </div>
             </div>
-          ) : null}
-          <div className="mt-4 flex flex-wrap gap-2">
-            {item.gateId && item.status !== "clear" ? (
-              <Link href={`/gates/${item.gateId}`} className="dq-btn !px-3 !py-2 text-[8px]">
-                たたかう
-              </Link>
-            ) : null}
-            <Link href="/zukan" className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]">
-              一覧へ
-            </Link>
-          </div>
+          </article>
         </AtlasReveal>
       </AtlasShell>
     </AtlasChrome>

@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
-import { DotGothic16, Noto_Sans_JP, Press_Start_2P, Shippori_Mincho } from "next/font/google";
+import {
+  DotGothic16,
+  Noto_Sans_JP,
+  Press_Start_2P,
+  Shippori_Mincho,
+  Yomogi,
+} from "next/font/google";
 import "./globals.css";
 import "./atlas-living.css";
 
@@ -28,6 +34,14 @@ const shippori = Shippori_Mincho({
   weight: ["400", "700"],
 });
 
+/** にっき本文用の手書き風 */
+const yomogi = Yomogi({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-hand",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "ぼうけんのしょ — Applied Loop",
   description: "学びを実務適用の証跡に変えるループ",
@@ -43,7 +57,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${notoSans.variable} ${pressStart.variable} ${dotGothic.variable} ${shippori.variable} h-full antialiased`}
+      className={`${notoSans.variable} ${pressStart.variable} ${dotGothic.variable} ${shippori.variable} ${yomogi.variable} h-full antialiased`}
     >
       <body className="atlas-dq flex min-h-full flex-col">{children}</body>
     </html>

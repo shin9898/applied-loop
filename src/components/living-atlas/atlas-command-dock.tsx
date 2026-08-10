@@ -34,7 +34,8 @@ const NAV_EVIDENCE: readonly {
   plain: string;
   surface: AtlasSurfaceId;
 }[] = [
-  { href: "/entries", label: "にっき", plain: "学び・受信箱", surface: "entries" },
+  { href: "/retro", label: "にっき", plain: "ぼうけん日記", surface: "retro" },
+  { href: "/entries", label: "うけばこ", plain: "学び・受信箱", surface: "entries" },
   { href: "/goals", label: "もくひょう", plain: "目標証跡", surface: "goals" },
   { href: "/harness", label: "どうぐ", plain: "ハーネス", surface: "harness" },
   {
@@ -42,12 +43,6 @@ const NAV_EVIDENCE: readonly {
     label: "ようけん",
     plain: "要件ゲート",
     surface: "requirements",
-  },
-  {
-    href: "/retro",
-    label: "きょうのしょ",
-    plain: "日次教科書",
-    surface: "retro",
   },
 ];
 

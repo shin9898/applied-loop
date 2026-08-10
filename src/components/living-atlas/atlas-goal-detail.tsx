@@ -3,6 +3,7 @@ import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
+import { kdiConditions } from "@/lib/kdi-conditions";
 
 export type GoalEvidenceItem = {
   id: string;
@@ -28,7 +29,7 @@ export type AtlasGoalDetailProps = {
   wsToken?: string | null;
 };
 
-/** /goals/[id] — 証跡の見方と「残し方」（アクションは MCP） */
+/** /goals/[id] — グランドクエスト詳細 */
 export function AtlasGoalDetail({
   goal,
   evidenceCount,
@@ -38,6 +39,8 @@ export function AtlasGoalDetail({
   wsToken = null,
 }: AtlasGoalDetailProps) {
   const thin = evidenceCount < evidenceTarget;
+  const cleared = evidenceCount >= evidenceTarget;
+  const conditions = kdiConditions(goal.kdi);
   const assistContext = [
     `goalId: ${goal.id}`,
     `title: ${goal.title}`,
@@ -46,54 +49,71 @@ export function AtlasGoalDetail({
   ]
     .filter(Boolean)
     .join("\n");
+
   return (
     <AtlasChrome active="/goals" streakDays={streakDays}>
       <AtlasShell>
-        <AtlasReveal as="section" className="dq-win p-3.5">
+        <AtlasReveal as="section">
           <div className="mb-3">
             <Link
               href="/goals"
               className="font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a] no-underline"
             >
-              ← もくひょうにもどる
+              ← グランドクエスト一覧
             </Link>
           </div>
-          <AtlasPageTitle
-            title="もくひょう"
-            sub={`${goal.period ?? "—"} · ${goal.status}`}
-          />
-          <h2 className="m-0 text-[18px] font-normal leading-relaxed text-[#f7f3d9]">
-            {goal.title}
-          </h2>
-          {goal.kdi ? (
-            <p className="mt-2 mb-0 text-[14px] leading-relaxed text-[#c9c3a0]">
-              KDI: {goal.kdi}
-            </p>
-          ) : null}
-          {goal.focusDomains && goal.focusDomains.length > 0 ? (
-            <p className="mt-1 mb-0 text-[11px] text-[#9ec0ff]">
-              focus: {goal.focusDomains.join(" · ")}
-            </p>
-          ) : null}
-          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2">
-            <span className="text-[13px] text-[#c9c3a0]">
-              今週の証跡 {evidenceCount}/{evidenceTarget}
-            </span>
-            <span
-              className={`font-[family-name:var(--font-pixel)] text-[9px] ${
-                thin ? "text-[#f0d25a]" : "text-[#3ecf5a]"
-              }`}
-            >
-              {thin ? "うすい" : "足りておる"}
-            </span>
-          </div>
-          <div className="mt-2 h-2.5 border-2 border-[#223] bg-black">
-            <i
-              className={`block h-full ${thin ? "bg-[#f0d25a]" : "bg-[#3ecf5a]"}`}
-              style={{
-                width: `${Math.min(100, Math.round((evidenceCount / evidenceTarget) * 100))}%`,
-              }}
-            />
+          <AtlasPageTitle title="もくひょう" sub="大きな使命の詳細" />
+          <div className="atlas-gq-board atlas-gq-board--detail">
+            <header className="atlas-gq-board__head">
+              <h2 className="atlas-gq-board__title">Grand Quest</h2>
+              <p className="atlas-gq-board__rule" aria-hidden />
+              <p className="atlas-gq-detail__meta">
+                {goal.period ?? "—"} · {goal.status}
+              </p>
+            </header>
+            <h3 className="atlas-gq-detail__title">{goal.title}</h3>
+
+            <section className="atlas-gq-card__conditions" aria-label="クリア条件">
+              {conditions.length > 0 ? (
+                <ul className="atlas-gq-card__cond-list">
+                  {conditions.map((c) => (
+                    <li key={c}>
+                      <span className="atlas-gq-card__check" aria-hidden>
+                        {cleared ? "☑" : "☐"}
+                      </span>
+                      <span className="atlas-gq-card__line">{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="atlas-gq-card__cond-empty">
+                  クリア条件（KDI）未設定。じゅもんで掲げよ。
+                </p>
+              )}
+            </section>
+
+            {goal.focusDomains && goal.focusDomains.length > 0 ? (
+              <p className="atlas-gq-card__focus">
+                戦場: {goal.focusDomains.join(" · ")}
+              </p>
+            ) : null}
+
+            <section className="atlas-gq-card__progress" aria-label="討伐進捗">
+              <div className="atlas-gq-card__progress-row">
+                <span>討伐進捗（今週の証跡）</span>
+                <span>
+                  {evidenceCount}/{evidenceTarget} · {thin ? "うすい" : "足りておる"}
+                </span>
+              </div>
+              <div className="atlas-gq-card__bar">
+                <i
+                  className={thin ? "is-thin" : "is-ok"}
+                  style={{
+                    width: `${Math.min(100, Math.round((evidenceCount / evidenceTarget) * 100))}%`,
+                  }}
+                />
+              </div>
+            </section>
           </div>
         </AtlasReveal>
 
@@ -114,13 +134,13 @@ export function AtlasGoalDetail({
         <AtlasReveal as="section" delayIndex={2} className="dq-win p-3.5">
           <h2 className="dq-win-title">証跡の残し方</h2>
           <p className="mt-0 mb-2 text-[13px] leading-relaxed text-[#c9c3a0]">
-            聞け。証跡は紙の帳面ではなく、じゅもんの道で残すのじゃ。上でとなえるか、外の賢者に頼むか——扉は同じ。
+            クリア条件を満たす足跡は、じゅもんの道で残すのじゃ。
           </p>
           <p className="mt-0 mb-3 border-l-[3px] border-[#9ec0ff] pl-2 text-[12px] leading-relaxed text-[#f7f3d9]">
             <span className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
               つまり{" "}
             </span>
-            アプリに登録フォームはない。MCP ツールで書き込み、にっき／タイムラインは結果の表示。
+            アプリに登録フォームはない。MCP ツールで書き込み、タイムラインは結果の表示。
           </p>
           <ol className="m-0 list-none space-y-3 p-0">
             <li className="border-l-[3px] border-[#f0d25a] pl-2.5">
@@ -163,10 +183,10 @@ export function AtlasGoalDetail({
         </AtlasReveal>
 
         <AtlasReveal as="section" delayIndex={3} className="dq-win p-3.5">
-          <h2 className="dq-win-title">最近の証跡</h2>
+          <h2 className="dq-win-title">討伐記録（最近の証跡）</h2>
           {timeline.length === 0 ? (
             <p className="m-0 text-[14px] text-[#c9c3a0]">
-              まだこのもくひょうに紐づく足跡はない。上の教えから始めよ。
+              まだこのクエストに紐づく足跡はない。上の教えから始めよ。
             </p>
           ) : (
             <ul className="m-0 list-none p-0">

@@ -121,35 +121,43 @@ export function AtlasDailyTextbook({
     return (
       <AtlasChrome active="/retro" streakDays={streakDays}>
         <main className="mx-auto max-w-3xl px-4 py-6 pb-28">
-          <AtlasPageTitle title="きょうのしょ" sub="日次教科書" />
-          <section className="dq-win p-4">
-            <p className="m-0 text-[15px] leading-relaxed text-[#f7f3d9]">
-              この日の教科書はまだない。材料（実装の足跡）が溜まっていれば生成できる。
-            </p>
-            <p className="mt-2 mb-0 text-[13px] text-[#9ec0ff]">{dateKey}</p>
-            {typeof materialCountToday === "number" ? (
-              <p className="mt-2 mb-0 text-[13px] text-[#c9c3a0]">
-                材料: {materialCountToday} 件
-                {materialCountToday === 0
-                  ? "（commit 等を受け取ると増える）"
-                  : ""}
+          <AtlasPageTitle title="にっき" sub="日次のぼうけんにっき" />
+          <div className="atlas-journal">
+            <div className="atlas-journal__page">
+              <p className="atlas-journal__lead">
+                この日のページはまだない。材料（実装の足跡）が溜まっていれば生成できる。
               </p>
-            ) : null}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <GenerateButton
-                dateKey={dateKey}
-                pending={pending}
-                startTransition={startTransition}
-                label="手元で生成（LLMなし）"
-              />
-              <Link href="/retro" className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]">
-                一覧へ
-              </Link>
-              <Link href="/gates" className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]">
-                しれんへ
-              </Link>
+              <p className="atlas-journal__meta">{dateKey}</p>
+              {typeof materialCountToday === "number" ? (
+                <p className="atlas-journal__meta">
+                  材料: {materialCountToday} 件
+                  {materialCountToday === 0
+                    ? "（commit 等を受け取ると増える）"
+                    : ""}
+                </p>
+              ) : null}
+              <div className="atlas-journal__actions">
+                <GenerateButton
+                  dateKey={dateKey}
+                  pending={pending}
+                  startTransition={startTransition}
+                  label="手元で生成（LLMなし）"
+                />
+                <Link
+                  href="/retro"
+                  className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]"
+                >
+                  ほんだなへ
+                </Link>
+                <Link
+                  href="/gates"
+                  className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]"
+                >
+                  しれんへ
+                </Link>
+              </div>
             </div>
-          </section>
+          </div>
         </main>
       </AtlasChrome>
     );
@@ -159,10 +167,10 @@ export function AtlasDailyTextbook({
     <AtlasChrome active="/retro" streakDays={streakDays}>
       <main className="mx-auto max-w-3xl px-4 py-6 pb-28">
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-          <AtlasPageTitle title="きょうのしょ" sub={textbook.dateKey} />
+          <AtlasPageTitle title="にっき" sub={textbook.dateKey} />
           <div className="flex flex-wrap items-center gap-2">
             <ModeToggle mode={mode} onChange={setMode} />
-            <span className="text-[11px] text-[#9a9470]">深さ</span>
+            <span className="text-[11px] text-[#9ed0b0]">深さ</span>
             <button
               type="button"
               className={`dq-btn !px-2 !py-1.5 text-[7px] ${depth === "plain" ? "" : "dq-btn-ghost"}`}
@@ -182,31 +190,44 @@ export function AtlasDailyTextbook({
           </div>
         </div>
 
-        <section className="dq-win mb-4 p-4">
-          <h2 className="dq-win-title mb-2">{textbook.title}</h2>
-          <p className="m-0 text-[14px] leading-relaxed text-[#c9c3a0]">
-            {textbook.lead}
-          </p>
-          <p className="mt-2 mb-0 text-[12px] text-[#9ec0ff]">
-            材料 {textbook.materialCount} · 章 {textbook.chapterCount}
-            {textbook.peakHour != null ? ` · ピーク ${textbook.peakHour}時台` : ""}
-            {textbook.droppedMaterialIds.length > 0
-              ? ` · 圧縮で畳んだ材料 ${textbook.droppedMaterialIds.length}`
-              : ""}
-          </p>
-          <div className="mt-3 space-y-2">
-            <p className="m-0 text-[12px] leading-relaxed text-[#9a9470]">
+        <div className="atlas-journal mb-4">
+          <header className="atlas-journal__masthead">
+            <div>
+              <p className="atlas-journal__eyebrow">きょうのしょ</p>
+              <h2 className="atlas-journal__heading">{textbook.title}</h2>
+            </div>
+            <Link
+              href="/retro"
+              className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]"
+            >
+              ほんだなへ
+            </Link>
+          </header>
+          <div className="atlas-journal__page">
+            <p className="atlas-journal__lead">{textbook.lead}</p>
+            <p className="atlas-journal__meta">
+              材料 {textbook.materialCount} · 章 {textbook.chapterCount}
+              {textbook.peakHour != null
+                ? ` · ピーク ${textbook.peakHour}時台`
+                : ""}
+              {textbook.droppedMaterialIds.length > 0
+                ? ` · 圧縮で畳んだ材料 ${textbook.droppedMaterialIds.length}`
+                : ""}
+            </p>
+            <p className="atlas-journal__note">
               新規も再圧縮も同じ規則で「なぜ／型／結果／別案」を埋める（LLMなし）。
               各章の「LLMで磨く」は任意。深掘りは章末導線から最下部のじゅもんへ。
             </p>
-            <GenerateButton
-              dateKey={textbook.dateKey}
-              pending={pending}
-              startTransition={startTransition}
-              label="手元で再圧縮（LLMなし）"
-            />
+            <div className="atlas-journal__actions">
+              <GenerateButton
+                dateKey={textbook.dateKey}
+                pending={pending}
+                startTransition={startTransition}
+                label="手元で再圧縮（LLMなし）"
+              />
+            </div>
           </div>
-        </section>
+        </div>
 
         {mode === "read" ? (
           <div className="space-y-4">
@@ -219,18 +240,21 @@ export function AtlasDailyTextbook({
                 <article
                   key={ch.id}
                   id={`chapter-${ch.index}`}
-                  className={`dq-win p-4 ${active ? "ring-2 ring-[#f0d25a]" : ""}`}
+                  className={`atlas-journal atlas-journal--chapter ${
+                    active ? "is-active" : ""
+                  }`}
                 >
-                  <p className="m-0 text-[10px] tracking-wide text-[#f0d25a]">
+                  <div className="atlas-journal__page">
+                  <p className="atlas-journal__chapter-no">
                     第{ch.index}章
                   </p>
-                  <h3 className="mt-1 mb-2 text-[18px] text-[#f7f3d9]">
+                  <h3 className="atlas-journal__chapter-title">
                     {ch.title}
                   </h3>
-                  <p className="m-0 text-[15px] leading-relaxed text-[#f7f3d9]">
+                  <p className="atlas-journal__lead">
                     {ch.oneLiner}
                   </p>
-                  <pre className="mt-3 mb-0 whitespace-pre-wrap font-[inherit] text-[13px] leading-relaxed text-[#c9c3a0]">
+                  <pre className="atlas-journal__body">
                     {body}
                   </pre>
                   <div className="mt-3 space-y-2">
@@ -246,15 +270,15 @@ export function AtlasDailyTextbook({
                     <LessonBlock label="やりがちな別案" text={ch.alternative} />
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <div className="border-[2px] border-[#e84848]/60 bg-[#2a0008] p-2.5">
-                      <p className="m-0 text-[10px] text-[#e84848]">BAD</p>
-                      <p className="mt-1 mb-0 text-[13px] text-[#c9c3a0]">
+                    <div className="atlas-journal__callout atlas-journal__callout--bad">
+                      <p className="atlas-journal__callout-label">BAD</p>
+                      <p className="atlas-journal__callout-body">
                         {ch.diagramBad}
                       </p>
                     </div>
-                    <div className="border-[2px] border-[#3ecf5a]/60 bg-[#002a10] p-2.5">
-                      <p className="m-0 text-[10px] text-[#3ecf5a]">OK</p>
-                      <p className="mt-1 mb-0 text-[13px] text-[#c9c3a0]">
+                    <div className="atlas-journal__callout atlas-journal__callout--ok">
+                      <p className="atlas-journal__callout-label">OK</p>
+                      <p className="atlas-journal__callout-body">
                         {ch.diagramOk}
                       </p>
                     </div>
@@ -266,14 +290,14 @@ export function AtlasDailyTextbook({
                           {e.url ? (
                             <a
                               href={e.url}
-                              className="inline-block border-2 border-white px-2 py-1 text-[11px] text-[#9ec0ff]"
+                              className="atlas-journal__chip"
                               target="_blank"
                               rel="noreferrer"
                             >
                               {e.kind.toUpperCase()} · {e.label}
                             </a>
                           ) : (
-                            <span className="inline-block border-2 border-[#665] px-2 py-1 text-[11px] text-[#c9c3a0]">
+                            <span className="atlas-journal__chip is-muted">
                               {e.kind.toUpperCase()} · {e.label}
                             </span>
                           )}
@@ -281,7 +305,7 @@ export function AtlasDailyTextbook({
                       ))}
                     </ul>
                   ) : null}
-                  <div className="mt-4 space-y-2 border-t-2 border-[#002070] pt-3">
+                  <div className="atlas-journal__footer-actions">
                     <div className="flex flex-wrap gap-2">
                       {wsToken ? (
                         <button
@@ -329,9 +353,10 @@ export function AtlasDailyTextbook({
                           : "この章をLLMで磨く"}
                       </button>
                     </div>
-                    <p className="m-0 text-[11px] text-[#9a9470]">
+                    <p className="atlas-journal__note">
                       深掘りはじゅもんへ。LLM研磨は章スロットだけを厚くする（失敗時は規則文のまま）。
                     </p>
+                  </div>
                   </div>
                 </article>
               );
@@ -340,10 +365,12 @@ export function AtlasDailyTextbook({
               <p className="m-0 text-[12px] text-[#e84848]">{polishError}</p>
             ) : null}
             {textbook.chapters.length === 0 ? (
-              <section className="dq-win p-4">
-                <p className="m-0 text-[14px] text-[#c9c3a0]">
-                  章が立たなかった。材料ゼロか、生成前じゃ。
-                </p>
+              <section className="atlas-journal">
+                <div className="atlas-journal__page">
+                  <p className="atlas-journal__lead">
+                    章が立たなかった。材料ゼロか、生成前じゃ。
+                  </p>
+                </div>
               </section>
             ) : null}
 
@@ -393,16 +420,17 @@ export function AtlasDailyTextbook({
             ) : null}
           </div>
         ) : (
-          <section className="dq-win space-y-4 p-4">
-            <p className="m-0 text-[13px] text-[#c9c3a0]">
+          <section className="atlas-journal">
+            <div className="atlas-journal__page space-y-4">
+            <p className="atlas-journal__note">
               確認モード。じゅもんは閉じている。Mastery で翌日の導線を決める。
             </p>
             {textbook.checks.map((ck) => {
               const mastery = localMastery[ck.id] ?? ck.mastery;
               return (
-                <div key={ck.id} className="border-t-2 border-[#002070] pt-3">
-                  <p className="m-0 text-[10px] text-[#f0d25a]">問 {ck.index}</p>
-                  <p className="mt-1 mb-2 text-[15px] text-[#f7f3d9]">{ck.question}</p>
+                <div key={ck.id} className="border-t-2 border-[#245a40]/40 pt-3">
+                  <p className="atlas-journal__chapter-no">問 {ck.index}</p>
+                  <p className="atlas-journal__lead">{ck.question}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {MASTERY_STATES.map((m) => (
                       <button
@@ -431,8 +459,9 @@ export function AtlasDailyTextbook({
               );
             })}
             {textbook.checks.length === 0 ? (
-              <p className="m-0 text-[14px] text-[#c9c3a0]">確認問いがまだない。</p>
+              <p className="atlas-journal__lead">確認問いがまだない。</p>
             ) : null}
+            </div>
           </section>
         )}
       </main>
@@ -442,9 +471,9 @@ export function AtlasDailyTextbook({
 
 function LessonBlock({ label, text }: { label: string; text: string }) {
   return (
-    <div className="border-l-[3px] border-[#f0d25a] bg-[#001a8c] px-3 py-2">
-      <p className="m-0 text-[10px] tracking-wide text-[#f0d25a]">{label}</p>
-      <p className="mt-1 mb-0 text-[13px] leading-relaxed text-[#f7f3d9]">{text}</p>
+    <div className="atlas-journal__lesson">
+      <p className="atlas-journal__lesson-label">{label}</p>
+      <p className="atlas-journal__lesson-body">{text}</p>
     </div>
   );
 }

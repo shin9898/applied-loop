@@ -226,7 +226,14 @@ export async function setCheckMastery(
 }
 
 export async function listTextbookDates(limit = 14): Promise<
-  Array<{ dateKey: string; chapterCount: number; materialCount: number }>
+  Array<{
+    dateKey: string;
+    chapterCount: number;
+    materialCount: number;
+    title: string;
+    lead: string | null;
+    lines: string[];
+  }>
 > {
   const rows = await prisma.dailyTextbook.findMany({
     orderBy: { dateKey: "desc" },
@@ -235,7 +242,21 @@ export async function listTextbookDates(limit = 14): Promise<
       dateKey: true,
       chapterCount: true,
       materialCount: true,
+      title: true,
+      lead: true,
+      chapters: {
+        orderBy: { index: "asc" },
+        take: 5,
+        select: { title: true, oneLiner: true },
+      },
     },
   });
-  return rows;
+  return rows.map((r) => ({
+    dateKey: r.dateKey,
+    chapterCount: r.chapterCount,
+    materialCount: r.materialCount,
+    title: r.title,
+    lead: r.lead,
+    lines: r.chapters.map((c) => c.oneLiner?.trim() || c.title).filter(Boolean),
+  }));
 }

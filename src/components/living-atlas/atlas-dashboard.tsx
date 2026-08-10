@@ -245,7 +245,7 @@ function StatusCommandPanel({
 
             <div className="flex flex-col border-t-2 border-[#002070] pt-3">
               <h3 className="m-0 mb-2 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
-                ◆ いまのクエスト
+                ◆ デイリークエスト
               </h3>
               <ul className="m-0 list-none p-0">
                 {todos.map((t, i) => (
