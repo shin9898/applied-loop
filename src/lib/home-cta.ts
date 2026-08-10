@@ -1,9 +1,16 @@
 /**
- * ホームの単一プライマリ CTA（B3-2）。
+ * ホームの単一プライマリ CTA（B3-2 / ADR-0020 C3-3）。
  * どの状態でも「いま押すボタン」は1個。
  */
 
-export type HomeCtaKind = "setup" | "fight" | "hook" | "wait";
+import type { TextbookGuidance } from "@/lib/textbook-guidance";
+
+export type HomeCtaKind =
+  | "setup"
+  | "textbook"
+  | "fight"
+  | "hook"
+  | "wait";
 
 export type HomeCta = {
   kind: HomeCtaKind;
@@ -20,6 +27,8 @@ export function resolveHomeCta(input: {
   pendingGateId: string | null;
   pendingGateTitle?: string | null;
   gitHookInstalled: boolean;
+  /** 昨日 Mastery / きょうのしょ からの導線（tutorial 後・しれんより優先） */
+  textbookGuidance?: TextbookGuidance | null;
 }): HomeCta {
   if (!input.essentialsReady) {
     return {
@@ -45,6 +54,18 @@ export function resolveHomeCta(input: {
     };
   }
 
+  // C3-3: Mastery 導線は pending しれんより先（日次ループが本線）
+  if (input.textbookGuidance) {
+    const g = input.textbookGuidance;
+    return {
+      kind: "textbook",
+      href: g.href,
+      label: g.label,
+      title: g.title,
+      body: g.body,
+    };
+  }
+
   if (input.pendingGateId) {
     return {
       kind: "fight",
@@ -67,9 +88,9 @@ export function resolveHomeCta(input: {
 
   return {
     kind: "wait",
-    href: "/gates",
-    label: "しれんを見る",
+    href: "/retro",
+    label: "きょうのしょ",
     title: "いま挑めるしれんはない",
-    body: "監視はかかっておる。次のコミットを待つ、またはしれん一覧で CLEAR 済みを見返せ。",
+    body: "監視はかかっておる。夜はきょうのしょで材料を圧縮し、Mastery で翌日を決めよ。",
   };
 }

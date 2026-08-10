@@ -21,6 +21,7 @@ import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
 import { pickTaskMapDisplay } from "@/lib/task-map-display";
 import { resolveHomeCta } from "@/lib/home-cta";
+import type { TextbookGuidance } from "@/lib/textbook-guidance";
 
 export type TaskMapView = {
   dateKey: string;
@@ -56,6 +57,8 @@ export type AtlasDashboardProps = {
   /** UI→LLM→MCP。未設定ならじゅもん案内のみ */
   wsToken?: string | null;
   setupDiagnosis?: SetupDiagnosis | null;
+  /** ADR-0020 C3-3: 昨日 Mastery / きょうのしょ 導線 */
+  textbookGuidance?: TextbookGuidance | null;
 };
 
 type StatusTab = "status" | "tasks" | "weak";
@@ -444,6 +447,7 @@ export function AtlasDashboard({
   weaknesses = null,
   wsToken = null,
   setupDiagnosis = null,
+  textbookGuidance = null,
 }: AtlasDashboardProps) {
   const [activeId, setActiveId] = useState(pendingGate ? "quest-1" : "you");
   const adventurer =
@@ -465,8 +469,12 @@ export function AtlasDashboard({
     pendingGateId: pendingGate?.id ?? null,
     pendingGateTitle: pendingGate?.title ?? null,
     gitHookInstalled: setupDiagnosis?.gitHookInstalled ?? false,
+    textbookGuidance,
   });
   const assistContext = [
+    textbookGuidance
+      ? `きょうのしょ導線: ${textbookGuidance.briefingLine}`
+      : "",
     pendingGate
       ? `次のしれん id: ${pendingGate.id}\n${pendingGate.title ?? ""}\n${pendingGate.question}`
       : "次のしれん: なし",

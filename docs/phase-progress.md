@@ -140,7 +140,7 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 | C2-4 | じゅもん（AI対話）深掘り | done | 読む面に TerminalPanel。章コンテキスト注入 | 確認モードでは非表示。表記に括弧補足 |
 | C3-1 | Check 蒸留（3〜7問） | done | 教科書から少数確認を生成 | `distillChecks`（規則）。材料件数に比例しない |
 | C3-2 | Mastery 4状態 | done | clear / partial / stuck / parked を保存・表示 | `DailyTextbookCheck.mastery` |
-| C3-3 | ステータス別翌日導線 | todo | briefing / ちず CTA が状態で変わる | stuck→ずかん、partial→再問 |
+| C3-3 | ステータス別翌日導線 | done | briefing / ちず CTA が状態で変わる | `textbook-guidance`＋home CTA。stuck→ずかん、partial/未確認→/retro、しれんより優先 |
 | C4-1 | コアループ説明の更新 | todo | onboarding / README / LP を 0020 一文に合わせる | 即時しれん偏重をやめる |
 | C4-2 | セルフラン（実装多めの1日） | todo | 材料が増えても沈黙せず、夜に教科書→確認→振り分けまで完走 | dogfood |
 
@@ -199,3 +199,4 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 | 2026-08-06 | Fable G5/G7/G8/G10: P3一括定義明記・採点dry-run・ファネル正本7点・prefix_fix誤字 |
 | 2026-08-10 | ADR-0020 採択。P4（日次振り返り型）を追加。コア一文を材料→教科書→Mastery へ更新 |
 | 2026-08-10 | P4 縦スライス: Textbook スキーマ・生成・`/retro`・じゅもん1章注入・Mastery。C1-1/C2-1〜4/C3-1〜2 done |
+| 2026-08-10 | C3-3: Mastery→翌日導線（home CTA / morning_briefing）。教科書導線をしれんより優先 |

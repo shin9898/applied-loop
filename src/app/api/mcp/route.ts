@@ -1024,11 +1024,36 @@ const handler = createMcpHandler(
 
         const lines: string[] = ["# おはようございます — Applied Loop", ""];
 
-        // P2: 冒頭は「今日のしれん1件＋昨日の判定」に固定（単一推奨）
+        // P2/P4: 冒頭は単一推奨。Textbook Mastery 導線があればしれんより先（C3-3）
         {
+          let textbookGuide: Awaited<
+            ReturnType<
+              typeof import("@/lib/textbook-guidance").loadTextbookGuidanceForToday
+            >
+          > | null = null;
+          try {
+            const { loadTextbookGuidanceForToday } = await import(
+              "@/lib/textbook-guidance"
+            );
+            textbookGuide = await loadTextbookGuidanceForToday(
+              dateKeyJST(now),
+            );
+          } catch {
+            textbookGuide = null;
+          }
+
           const focus = pendingGates[0] ?? null;
           lines.push("## 今日の一手");
-          if (focus) {
+          if (textbookGuide?.guidance) {
+            lines.push(`- ${textbookGuide.guidance.briefingLine}`);
+            lines.push(
+              `  → Web: http://localhost:3100${textbookGuide.guidance.href}`,
+            );
+          }
+          if (textbookGuide?.yesterdayBriefingLine) {
+            lines.push(`- ${textbookGuide.yesterdayBriefingLine}`);
+          }
+          if (focus && !textbookGuide?.guidance) {
             const q =
               focus.question.length > 120
                 ? `${focus.question.slice(0, 117)}…`
@@ -1037,9 +1062,16 @@ const handler = createMcpHandler(
             lines.push(
               "  → list_pending_gates で詳細 → ユーザーが提出を明示したら answer_gate",
             );
-          } else {
+          } else if (focus && textbookGuide?.guidance) {
+            lines.push(
+              `- （控え）しれん pending あり: gateId ${focus.id} — Mastery 導線のあと list_pending_gates`,
+            );
+          } else if (!textbookGuide?.guidance) {
             lines.push(
               "- 今日のしれん: なし（監視中 repo へのコミット or request_gate で供給せよ）",
+            );
+            lines.push(
+              "- きょうのしょ: /retro で材料を教科書にし、確認→Mastery で翌日導線を決めよ",
             );
           }
           try {

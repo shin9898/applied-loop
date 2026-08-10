@@ -140,6 +140,10 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
   const { resolveTaskMapForDisplay } = await import("@/lib/task-map");
   const { getWeaknessPatternsForDashboard } = await import("@/lib/weakness");
 
+  const { loadTextbookGuidanceForToday } = await import(
+    "@/lib/textbook-guidance"
+  );
+
   const [
     growth,
     streakDays,
@@ -151,6 +155,7 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     taskMap,
     yesterdayTaskMap,
     weaknesses,
+    textbookGuide,
   ] = await Promise.all([
     resolvedGrowthStats(now),
     recordStreak(now),
@@ -175,12 +180,19 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
       dateKeyJST(new Date(dayStartJST(now).getTime() - 24 * 60 * 60 * 1000)),
     ),
     getWeaknessPatternsForDashboard(),
+    loadTextbookGuidanceForToday(dateKeyJST(now)),
   ]);
 
   const todos: { title: string; meta: string }[] = [];
+  if (textbookGuide.guidance) {
+    todos.push({
+      title: `① ${textbookGuide.guidance.title}`,
+      meta: textbookGuide.guidance.label,
+    });
+  }
   if (pendingGate) {
     todos.push({
-      title: "① 未クリアゲートを1つ解く",
+      title: `${todos.length === 0 ? "①" : "②"} 未クリアゲートを1つ解く`,
       meta: "『たたかう』→ じゅもん（LLM）で回答",
     });
   }
@@ -253,6 +265,7 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
         }
       : null,
     todos,
+    textbookGuidance: textbookGuide.guidance,
   };
 }
 
