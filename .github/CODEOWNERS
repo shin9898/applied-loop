@@ -1,0 +1,3 @@
+# 同僚 PR は code owner（shin9898）の approve が必要
+# （main の branch protection: Require review from Code Owners）
+* @shin9898
