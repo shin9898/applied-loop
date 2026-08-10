@@ -17,6 +17,11 @@ import { readTutorialState } from "@/lib/tutorial-state";
 // 発火抑制ルール (ADR-0006 §2)。チューニングはここを変えるだけでよい
 export const GATE_THROTTLE_HOURS = 4;
 export const GATE_DAILY_CAP = 3;
+/**
+ * 未回答しれん件数の上限。超えると **即時しれん生成だけ** を skip（skipReason=backlog）。
+ * DevEvent（材料）自体は常に保存する — ADR-0020 / P4 C1-1。
+ * 日次教科書は backlog 分も含めて材料化する。
+ */
 export const GATE_BACKLOG_CAP = 5;
 /** request_gate / generateGate が LLM に渡す diff 上限（超分は切り捨て。DB には保存しない） */
 export const DIFF_MAX_CHARS = 8000;
@@ -55,8 +60,10 @@ export type RecordEventResult =
   | { outcome: "duplicate" };
 
 /**
- * イベントを記録し発火判定する (ADR-0006 §2)。
- * fired の場合、呼び出し元は generateGate を非同期で実行すること。
+ * イベントを記録し発火判定する (ADR-0006 §2 / ADR-0020)。
+ * - 材料 (DevEvent) は throttle/backlog でも常に作成する（C1-1）。
+ * - fired の場合のみ、呼び出し元は generateGate を非同期で実行すること。
+ * - skipped は「即時しれんを作らない」だけで、日次 Textbook の材料には残る。
  */
 export async function recordEvent(input: EventInput): Promise<RecordEventResult> {
   const key = { kind: input.kind, repo: input.repo, ref: input.ref };
@@ -75,6 +82,7 @@ export async function recordEvent(input: EventInput): Promise<RecordEventResult>
       skipReason: skip ?? null,
     },
   });
+  // materialAccepted: DevEvent 行が作られた時点で true（outcome に関わらず）
   if (skip) return { outcome: "skipped", eventId: event.id, reason: skip };
   return { outcome: "fired", eventId: event.id };
 }

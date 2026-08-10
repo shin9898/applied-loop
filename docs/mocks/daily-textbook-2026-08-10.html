@@ -1,0 +1,1596 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>きょうのぼうけんのしょ — 2026-08-10（モック）</title>
+    <meta
+      name="description"
+      content="ADR-0020 日次教科書 HTML の視覚合意モック。実装前の見た目確認用。"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --navy: #001a8c;
+        --deep: #000c4a;
+        --cream: #f7f3d9;
+        --dim: #c9c3a0;
+        --gold: #f0d25a;
+        --blue: #9ec0ff;
+        --mute: #9a9470;
+        --hp: #3ecf5a;
+        --danger: #e84848;
+        --partial: #f0a030;
+        --parked: #7a78a0;
+        --font-px: "Press Start 2P", monospace;
+        --font-jp: "DotGothic16", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--deep);
+        color: var(--cream);
+        font-family: var(--font-jp);
+      }
+      a {
+        color: var(--blue);
+      }
+
+      /* mock chrome */
+      .mock-bar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.65rem 1rem;
+        background: #1a1000;
+        border-bottom: 3px solid var(--gold);
+        font-size: 12px;
+      }
+      .mock-bar strong {
+        font-family: var(--font-px);
+        font-size: 8px;
+        color: var(--gold);
+      }
+      .mock-bar .modes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        align-items: center;
+      }
+      .mock-bar .sep {
+        width: 1px;
+        height: 1.2rem;
+        background: #665;
+        margin: 0 0.15rem;
+      }
+      .mock-bar .lbl {
+        font-size: 11px;
+        color: var(--mute);
+        margin-right: 0.15rem;
+      }
+      .mock-bar button {
+        font-family: var(--font-px);
+        font-size: 8px;
+        padding: 0.55rem 0.7rem;
+        border: 2px solid #fff;
+        background: var(--deep);
+        color: var(--cream);
+        cursor: pointer;
+      }
+      .mock-bar button[aria-pressed="true"] {
+        background: var(--gold);
+        color: #1a1000;
+      }
+
+      .page {
+        max-width: 52rem;
+        margin: 0 auto;
+        padding: 1.25rem 1rem 7.5rem;
+      }
+
+      /* じゅもん（既存 TerminalPanel 相当のモック） */
+      .jumon-dock {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 30;
+        border-top: 4px solid #fff;
+        background: var(--navy);
+        box-shadow: 0 -6px 0 #000;
+      }
+      body[data-mode="check"] .jumon-dock {
+        display: none;
+      }
+      .jumon-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.65rem 1rem;
+      }
+      .jumon-bar .t {
+        margin: 0;
+        font-family: var(--font-px);
+        font-size: 9px;
+        color: var(--gold);
+      }
+      .jumon-bar .s {
+        margin: 0.2rem 0 0;
+        font-size: 12px;
+        color: var(--dim);
+        line-height: 1.45;
+      }
+      .jumon-panel {
+        display: none;
+        border-top: 3px solid #002070;
+        padding: 0.75rem 1rem 1rem;
+        max-width: 52rem;
+        margin: 0 auto;
+      }
+      .jumon-dock.open .jumon-panel {
+        display: block;
+      }
+      .jumon-term {
+        border: 3px solid #fff;
+        background: #0a0a12;
+        min-height: 180px;
+        padding: 0.65rem 0.75rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        line-height: 1.55;
+        color: #d8d4b8;
+        box-shadow: inset 0 0 0 2px #222;
+        white-space: pre-wrap;
+      }
+      .jumon-term .dim {
+        color: #7a7860;
+      }
+      .jumon-term .hi {
+        color: var(--gold);
+      }
+      .chapter-jumon {
+        margin: 0.75rem 0 0;
+      }
+      .chapter-jumon button {
+        font-family: var(--font-px);
+        font-size: 8px;
+        padding: 0.5rem 0.65rem;
+        border: 2px solid var(--gold);
+        background: transparent;
+        color: var(--gold);
+        cursor: pointer;
+      }
+
+      /* cover: 上=観測（グラフ＋一次情報） / 下=今日の題 */
+      .cover {
+        position: relative;
+        display: grid;
+        gap: 1rem;
+        padding: 1.15rem;
+        border: 4px solid #fff;
+        outline: 4px solid var(--deep);
+        box-shadow: 8px 8px 0 #000;
+        background: var(--navy);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+      }
+      @media (min-width: 800px) {
+        .cover {
+          grid-template-columns: 1.15fr 0.95fr;
+          align-items: stretch;
+        }
+        .cover-title {
+          grid-column: 1 / -1;
+        }
+      }
+      .cover::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        opacity: 0.28;
+        background-image: linear-gradient(#002070 1px, transparent 1px),
+          linear-gradient(90deg, #002070 1px, transparent 1px);
+        background-size: 28px 28px;
+        pointer-events: none;
+      }
+      .cover > * {
+        position: relative;
+        z-index: 1;
+      }
+      .panel {
+        border: 3px solid #fff;
+        background: var(--deep);
+        padding: 0.75rem 0.85rem;
+        box-shadow: 4px 4px 0 #000;
+      }
+      .panel h2 {
+        margin: 0 0 0.65rem;
+        font-family: var(--font-px);
+        font-size: 8px;
+        color: var(--gold);
+        letter-spacing: 0.04em;
+      }
+      .bars {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 4px;
+        align-items: end;
+        height: 88px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .bars li {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 3px;
+        height: 100%;
+      }
+      .bars .bar {
+        width: 100%;
+        min-height: 4px;
+        background: linear-gradient(180deg, var(--gold), #b88818);
+        border: 1px solid #fff;
+        box-shadow: 1px 1px 0 #000;
+      }
+      .bars .h {
+        font-family: var(--font-px);
+        font-size: 6px;
+        color: var(--mute);
+      }
+      .repo-split {
+        margin: 0.75rem 0 0;
+        display: grid;
+        gap: 0.35rem;
+      }
+      .repo-split .row {
+        display: grid;
+        grid-template-columns: 7.5rem 1fr 2rem;
+        gap: 0.4rem;
+        align-items: center;
+        font-size: 11px;
+        color: var(--dim);
+      }
+      .repo-split .track {
+        height: 10px;
+        border: 2px solid #223;
+        background: #000;
+      }
+      .repo-split .track > i {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #3a6ad4, var(--blue));
+      }
+      .repo-split .n {
+        font-family: var(--font-px);
+        font-size: 7px;
+        color: var(--cream);
+        text-align: right;
+      }
+      .primary-list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 0.45rem;
+        max-height: 168px;
+        overflow: auto;
+      }
+      .primary-list li {
+        border-top: 1px solid #002070;
+        padding-top: 0.4rem;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .primary-list li:first-child {
+        border-top: none;
+        padding-top: 0;
+      }
+      .primary-list .kind {
+        font-family: var(--font-px);
+        font-size: 7px;
+        color: var(--blue);
+        display: block;
+        margin-bottom: 0.15rem;
+      }
+      .primary-list .sum {
+        color: var(--cream);
+      }
+      .primary-list .meta {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 11px;
+        color: var(--mute);
+        word-break: break-all;
+      }
+      .primary-list code {
+        color: var(--gold);
+        font-size: 11px;
+      }
+      .primary-list a.sum {
+        color: var(--cream);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .primary-list a.sum:hover {
+        color: var(--gold);
+      }
+      .link-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.25rem;
+      }
+      .link-pill {
+        display: inline-flex;
+        align-items: center;
+        font-family: var(--font-px);
+        font-size: 7px;
+        line-height: 1.4;
+        padding: 0.35rem 0.45rem;
+        border: 2px solid var(--blue);
+        color: var(--blue);
+        text-decoration: none;
+        background: rgba(158, 192, 255, 0.08);
+      }
+      .link-pill:hover {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+      .link-pill.doc {
+        border-color: var(--hp);
+        color: var(--hp);
+      }
+      .link-pill.blog {
+        border-color: var(--partial);
+        color: var(--partial);
+      }
+      .cover-title {
+        border-top: 3px solid #002070;
+        padding-top: 0.85rem;
+      }
+      .eyebrow {
+        margin: 0;
+        font-family: var(--font-px);
+        font-size: 9px;
+        color: var(--gold);
+        text-shadow: 2px 2px 0 #000;
+      }
+      .cover h1 {
+        margin: 0.65rem 0 0;
+        font-size: clamp(24px, 4.5vw, 34px);
+        font-weight: 400;
+        line-height: 1.25;
+      }
+      .cover .lead {
+        margin: 0.65rem 0 0;
+        max-width: 40rem;
+        font-size: 14px;
+        line-height: 1.7;
+        color: var(--dim);
+      }
+      .cover-meta {
+        margin-top: 0.85rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 1rem;
+        font-size: 12px;
+        color: var(--mute);
+      }
+      .cover-meta b {
+        color: var(--blue);
+        font-weight: 400;
+      }
+
+      /* toc */
+      .win {
+        background: var(--navy);
+        border: 4px solid #fff;
+        outline: 4px solid var(--deep);
+        box-shadow: 6px 6px 0 #000;
+        padding: 1rem 1.1rem;
+        margin-bottom: 1.25rem;
+      }
+      .win h2 {
+        margin: 0 0 0.75rem;
+        font-family: var(--font-px);
+        font-size: 11px;
+        color: var(--gold);
+        letter-spacing: 0.06em;
+        text-shadow: 2px 2px 0 #000;
+      }
+      .toc {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .toc li {
+        display: grid;
+        grid-template-columns: 2.5rem 1fr auto;
+        gap: 0.5rem;
+        align-items: baseline;
+        padding: 0.55rem 0;
+        border-top: 1px solid #002070;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .toc li:first-child {
+        border-top: none;
+      }
+      .toc .n {
+        font-family: var(--font-px);
+        font-size: 9px;
+        color: var(--gold);
+      }
+      .toc .count {
+        font-size: 11px;
+        color: var(--mute);
+      }
+
+      /* chapter */
+      .chapter {
+        margin-bottom: 1.75rem;
+        scroll-margin-top: 4rem;
+      }
+      .chapter-head {
+        display: flex;
+        align-items: baseline;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+      }
+      .chapter-head .n {
+        font-family: var(--font-px);
+        font-size: 10px;
+        color: var(--gold);
+      }
+      .chapter-head h3 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 400;
+      }
+      .chapter .plain {
+        margin: 0 0 0.85rem;
+        font-size: 15px;
+        line-height: 1.75;
+        color: var(--cream);
+      }
+      .chapter .one-liner {
+        margin: 0 0 0.85rem;
+        padding: 0.65rem 0.75rem;
+        border-left: 4px solid var(--gold);
+        background: rgba(0, 12, 74, 0.65);
+        font-size: 14px;
+        line-height: 1.65;
+        color: var(--dim);
+      }
+      .diagram {
+        margin: 0 0 0.9rem;
+        border: 3px solid #fff;
+        background: var(--deep);
+        padding: 0.75rem;
+        box-shadow: 4px 4px 0 #000;
+      }
+      .diagram .cap {
+        margin: 0 0 0.55rem;
+        font-family: var(--font-px);
+        font-size: 8px;
+        color: var(--gold);
+      }
+      .flow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .flow .box {
+        border: 2px solid #fff;
+        background: var(--navy);
+        padding: 0.45rem 0.55rem;
+        font-size: 12px;
+        line-height: 1.4;
+        min-width: 4.5rem;
+        text-align: center;
+      }
+      .flow .box.bad {
+        border-color: var(--danger);
+        color: #ffb0b0;
+      }
+      .flow .box.ok {
+        border-color: var(--hp);
+        color: #b8f0c4;
+      }
+      .flow .box.warn {
+        border-color: var(--partial);
+        color: #ffd19a;
+      }
+      .flow .arrow {
+        font-family: var(--font-px);
+        font-size: 8px;
+        color: var(--mute);
+      }
+      .flow-note {
+        margin: 0.55rem 0 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--mute);
+      }
+      .vs {
+        display: grid;
+        gap: 0.5rem;
+      }
+      @media (min-width: 640px) {
+        .vs {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .vs .col {
+        border: 2px solid #445;
+        padding: 0.55rem 0.65rem;
+        background: #000818;
+      }
+      .vs .col.ok {
+        border-color: var(--hp);
+      }
+      .vs .col.bad {
+        border-color: var(--danger);
+      }
+      .vs .t {
+        margin: 0 0 0.35rem;
+        font-family: var(--font-px);
+        font-size: 8px;
+      }
+      .vs .col.ok .t {
+        color: var(--hp);
+      }
+      .vs .col.bad .t {
+        color: var(--danger);
+      }
+      .vs p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--dim);
+      }
+      .bullet {
+        margin: 0;
+        padding: 0 0 0 1.1rem;
+        font-size: 14px;
+        line-height: 1.7;
+        color: var(--dim);
+      }
+      .bullet li {
+        margin: 0.35rem 0;
+      }
+      .deep {
+        margin-top: 0.9rem;
+        border: 3px dashed #3a3a6a;
+        padding: 0.75rem 0.85rem;
+        background: rgba(0, 0, 0, 0.25);
+      }
+      .deep > .tag {
+        margin: 0 0 0.5rem;
+        font-family: var(--font-px);
+        font-size: 8px;
+        color: #b8b6d8;
+      }
+      .deep .plain {
+        font-size: 13px;
+        color: var(--dim);
+      }
+      .deep .bullet {
+        font-size: 13px;
+      }
+      /* 深さ: 初学者では deep を隠す */
+      body[data-depth="beginner"] .deep {
+        display: none;
+      }
+      body[data-depth="beginner"] .depth-hint-mid {
+        display: none;
+      }
+      body[data-depth="middle"] .depth-hint-beg {
+        display: none;
+      }
+      .evidence {
+        margin: 0.9rem 0 0;
+        border: 3px solid #002070;
+        background: var(--deep);
+        padding: 0.7rem 0.8rem;
+      }
+      .evidence h4 {
+        margin: 0 0 0.45rem;
+        font-family: var(--font-px);
+        font-size: 8px;
+        color: var(--gold);
+      }
+      .evidence ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 0.4rem;
+      }
+      .evidence li {
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--dim);
+      }
+      .evidence .k {
+        font-family: var(--font-px);
+        font-size: 7px;
+        color: var(--blue);
+        margin-right: 0.35rem;
+      }
+      .evidence code {
+        color: var(--cream);
+        font-size: 11px;
+      }
+      .evidence a:not(.link-pill) {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .evidence .why {
+        display: block;
+        margin-top: 0.15rem;
+        font-size: 11px;
+        color: var(--mute);
+      }
+
+      /* check mode */
+      .check-intro {
+        margin: 0 0 1rem;
+        font-size: 14px;
+        line-height: 1.7;
+        color: var(--dim);
+      }
+      .q {
+        border: 3px solid #002070;
+        background: var(--deep);
+        padding: 0.9rem 1rem;
+        margin-bottom: 0.85rem;
+      }
+      .q .label {
+        margin: 0;
+        font-family: var(--font-px);
+        font-size: 8px;
+        color: var(--blue);
+      }
+      .q .ask {
+        margin: 0.5rem 0 0;
+        font-size: 15px;
+        line-height: 1.65;
+      }
+      .status-row {
+        margin-top: 0.75rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .chip {
+        font-family: var(--font-px);
+        font-size: 8px;
+        line-height: 1.4;
+        padding: 0.5rem 0.55rem;
+        border: 2px solid #445;
+        background: transparent;
+        color: var(--mute);
+        cursor: pointer;
+      }
+      .chip[data-s="clear"].on {
+        border-color: var(--hp);
+        color: var(--hp);
+        background: rgba(62, 207, 90, 0.12);
+      }
+      .chip[data-s="partial"].on {
+        border-color: var(--partial);
+        color: var(--partial);
+        background: rgba(240, 160, 48, 0.12);
+      }
+      .chip[data-s="stuck"].on {
+        border-color: var(--danger);
+        color: var(--danger);
+        background: rgba(232, 72, 72, 0.12);
+      }
+      .chip[data-s="parked"].on {
+        border-color: var(--parked);
+        color: #b8b6d8;
+        background: rgba(122, 120, 160, 0.15);
+      }
+
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-top: 1.25rem;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--font-px);
+        font-size: 10px;
+        line-height: 1.45;
+        padding: 12px 16px;
+        border: 3px solid #fff;
+        box-shadow: 4px 4px 0 #000;
+        text-decoration: none;
+        background: var(--gold);
+        color: #1a1000;
+        cursor: pointer;
+      }
+      .btn-ghost {
+        background: var(--deep);
+        color: var(--cream);
+      }
+
+      .legend {
+        display: grid;
+        gap: 0.45rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--dim);
+      }
+      .legend b {
+        font-family: var(--font-px);
+        font-size: 8px;
+        font-weight: 400;
+        margin-right: 0.4rem;
+      }
+      .legend b.clear {
+        color: var(--hp);
+      }
+      .legend b.partial {
+        color: var(--partial);
+      }
+      .legend b.stuck {
+        color: var(--danger);
+      }
+      .legend b.parked {
+        color: #b8b6d8;
+      }
+
+      [data-mode="read"] .only-check {
+        display: none;
+      }
+      [data-mode="check"] .only-read {
+        display: none;
+      }
+
+      .note {
+        margin: 1rem 0 0;
+        font-size: 11px;
+        color: var(--mute);
+        line-height: 1.6;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body data-mode="read" data-depth="beginner">
+    <div class="mock-bar">
+      <div>
+        <strong>MOCK · ADR-0020</strong>
+        <span style="color: var(--mute); margin-left: 0.5rem"
+          >深さの既定は初学者。同じHTMLのまま実務層を開く。</span
+        >
+      </div>
+      <div class="modes">
+        <span class="lbl">儀式</span>
+        <div role="group" aria-label="表示モード" style="display: flex; gap: 0.4rem">
+          <button type="button" id="mode-read" aria-pressed="true">読む</button>
+          <button type="button" id="mode-check" aria-pressed="false">確認する</button>
+        </div>
+        <span class="sep" aria-hidden="true"></span>
+        <span class="lbl">深さ</span>
+        <div role="group" aria-label="説明の深さ" style="display: flex; gap: 0.4rem">
+          <button type="button" id="depth-beg" aria-pressed="true">初学者</button>
+          <button type="button" id="depth-mid" aria-pressed="false">実務</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page">
+      <!-- COVER: 上=観測（空欄にしない） / 下=今日の題 -->
+      <header class="cover">
+        <section class="panel" aria-label="今日の材料タイムライン">
+          <h2>きょうの材料 · 時刻別</h2>
+          <ul class="bars" aria-hidden="true">
+            <!-- 9時〜20時の架空カウント -->
+            <li><span class="bar" style="height: 18%"></span><span class="h">9</span></li>
+            <li><span class="bar" style="height: 35%"></span><span class="h">10</span></li>
+            <li><span class="bar" style="height: 55%"></span><span class="h">11</span></li>
+            <li><span class="bar" style="height: 42%"></span><span class="h">12</span></li>
+            <li><span class="bar" style="height: 22%"></span><span class="h">13</span></li>
+            <li><span class="bar" style="height: 70%"></span><span class="h">14</span></li>
+            <li><span class="bar" style="height: 88%"></span><span class="h">15</span></li>
+            <li><span class="bar" style="height: 64%"></span><span class="h">16</span></li>
+            <li><span class="bar" style="height: 48%"></span><span class="h">17</span></li>
+            <li><span class="bar" style="height: 30%"></span><span class="h">18</span></li>
+            <li><span class="bar" style="height: 12%"></span><span class="h">19</span></li>
+            <li><span class="bar" style="height: 8%"></span><span class="h">20</span></li>
+          </ul>
+          <div class="repo-split" aria-label="repo別材料数">
+            <div class="row">
+              <span>onboarding</span>
+              <div class="track"><i style="width: 62%"></i></div>
+              <span class="n">15</span>
+            </div>
+            <div class="row">
+              <span>workbench</span>
+              <div class="track"><i style="width: 29%"></i></div>
+              <span class="n">7</span>
+            </div>
+            <div class="row">
+              <span>capture</span>
+              <div class="track"><i style="width: 9%"></i></div>
+              <span class="n">2</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-label="一次情報（手元根拠＋公式doc）">
+          <h2>一次情報 · いま開く</h2>
+          <ul class="primary-list">
+            <li>
+              <span class="kind">COMMIT · 手元</span>
+              <a
+                class="sum"
+                href="https://github.com/triple-three-inc/triple-onboarding/commit/14f73709"
+                target="_blank"
+                rel="noreferrer"
+                >表示用フィールドを両経路の変換へ追加</a
+              >
+              <span class="meta"><code>14f73709</code> · onboarding</span>
+              <span class="link-row">
+                <a
+                  class="link-pill"
+                  href="https://github.com/triple-three-inc/triple-onboarding/commit/14f73709"
+                  target="_blank"
+                  rel="noreferrer"
+                  >DIFF</a
+                >
+                <a
+                  class="link-pill doc"
+                  href="https://go.dev/wiki/TableDrivenTests"
+                  target="_blank"
+                  rel="noreferrer"
+                  >DOC Go table tests</a
+                >
+              </span>
+            </li>
+            <li>
+              <span class="kind">DOC · 公式/定番</span>
+              <a
+                class="sum"
+                href="https://martinfowler.com/articles/consumerDrivenContracts.html"
+                target="_blank"
+                rel="noreferrer"
+                >Consumer-Driven Contract Testing</a
+              >
+              <span class="meta">契約の欠落を「誰が検知するか」の定番解説</span>
+              <span class="link-row">
+                <a
+                  class="link-pill doc"
+                  href="https://martinfowler.com/articles/consumerDrivenContracts.html"
+                  target="_blank"
+                  rel="noreferrer"
+                  >OPEN</a
+                >
+                <a
+                  class="link-pill blog"
+                  href="https://martinfowler.com/articles/practical-test-pyramid.html"
+                  target="_blank"
+                  rel="noreferrer"
+                  >関連 Test Pyramid</a
+                >
+              </span>
+            </li>
+            <li>
+              <span class="kind">DOC · 公式</span>
+              <a
+                class="sum"
+                href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"
+                target="_blank"
+                rel="noreferrer"
+                >Anthropic Prompt caching</a
+              >
+              <span class="meta">プレフィックス一致とキャッシュの公式説明</span>
+              <span class="link-row">
+                <a
+                  class="link-pill doc"
+                  href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"
+                  target="_blank"
+                  rel="noreferrer"
+                  >OPEN</a
+                >
+              </span>
+            </li>
+            <li>
+              <span class="kind">FILE · 手元</span>
+              <span class="sum">安定プレフィックス ADR（ローカル）</span>
+              <span class="meta"
+                ><code>docs/adr/0017-stable-prompt-cache-prefix.md</code>（repo 内）</span
+              >
+            </li>
+          </ul>
+        </section>
+
+        <div class="cover-title">
+          <p class="eyebrow">Applied Loop · きょうのぼうけんのしょ</p>
+          <h1>2026年8月10日 — 実装のあとで残ったこと</h1>
+          <p class="lead">
+            上は今日の材料の見え方（グラフと一次情報）。下の章で説明できる単位に圧縮し、確認で理解状態を振り分ける。
+          </p>
+          <div class="cover-meta">
+            <span>材料 <b>24</b></span>
+            <span>章 <b>3</b></span>
+            <span>確認 <b>4</b> 問</span>
+            <span>ピーク <b>15時台</b></span>
+          </div>
+        </div>
+      </header>
+
+      <!-- READ: 目次 + 章 -->
+      <section class="win only-read" id="toc">
+        <h2>もくじ</h2>
+        <ol class="toc">
+          <li>
+            <span class="n">01</span>
+            <a href="#ch1">契約の沈黙する欠落</a>
+            <span class="count">材料 9</span>
+          </li>
+          <li>
+            <span class="n">02</span>
+            <a href="#ch2">正典と配布物のドリフト</a>
+            <span class="count">材料 7</span>
+          </li>
+          <li>
+            <span class="n">03</span>
+            <a href="#ch3">安定プレフィックスと一時メモ</a>
+            <span class="count">材料 8</span>
+          </li>
+        </ol>
+      </section>
+
+      <article class="chapter only-read" id="ch1">
+        <div class="chapter-head">
+          <span class="n">01</span>
+          <h3>契約の沈黙する欠落</h3>
+        </div>
+        <p class="one-liner">
+          ひとことで言うと: 「型が同じ」≠「どっちの組み立て経路も、その値を載せている」。
+          片方だけ直すと、もう一方は空のまま通ってしまう。
+        </p>
+        <p class="plain">
+          画面に出す1つの項目（例: 職種名）は、DB取得 → 変換 → API/画面、と何段も通る。
+          途中のどこかで詰め忘れても例外は出ず、空文字のまま「動いているように」見える。今日の材料は、その穴を両経路に塞いだ日。
+        </p>
+
+        <figure class="diagram">
+          <p class="cap">図 · 同じ契約なのに経路が2本</p>
+          <div class="vs">
+            <div class="col bad">
+              <p class="t">BAD · 片方だけ更新</p>
+              <div class="flow">
+                <span class="box">取得</span><span class="arrow">→</span>
+                <span class="box ok">変換A<br />値あり</span><span class="arrow">→</span>
+                <span class="box ok">画面A</span>
+              </div>
+              <div class="flow" style="margin-top: 0.4rem">
+                <span class="box">取得</span><span class="arrow">→</span>
+                <span class="box bad">変換B<br />詰め忘れ</span><span class="arrow">→</span>
+                <span class="box bad">画面B 空</span>
+              </div>
+              <p class="flow-note">型は共有。CI も green。本番の片方だけ欠ける。</p>
+            </div>
+            <div class="col ok">
+              <p class="t">OK · 境界で固定</p>
+              <div class="flow">
+                <span class="box">取得<br />値あり/なし</span><span class="arrow">→</span>
+                <span class="box ok">変換は1か所</span><span class="arrow">→</span>
+                <span class="box ok">両画面</span>
+              </div>
+              <p class="flow-note">
+                もしくは変換が2本でも、「値ありを最後まで運ぶテスト」を両方に置く。
+              </p>
+            </div>
+          </div>
+        </figure>
+
+        <ul class="bullet">
+          <li>初学者が覚える一手: フィールドを足したら「同じ契約を組み立てている関数」を全部探す。</li>
+          <li>テストは空だけ通すと足りない。「実値が最後まで残る」ケースを1本は書く。</li>
+        </ul>
+        <p class="chapter-jumon">
+          <button type="button" data-jumon-chapter="01" data-jumon-title="契約の沈黙する欠落">
+            この章をじゅもん（AIと対話）で深掘り
+          </button>
+        </p>
+
+        <div class="deep">
+          <p class="tag">実務レイヤ · ミドル以上</p>
+          <p class="plain">
+            失敗モードは false negative: ゼロ値と詰め忘れが区別できない。Consumer-Driven Contract や
+            OpenAPI required、経路一元化（生成）のどれに担い手を置くかを選ぶ。コメント相互参照は再発防止としては弱い。
+          </p>
+          <ul class="bullet">
+            <li>担い手候補: 契約スナップショット / 変換の単一関数 / 必須の型表現</li>
+            <li>残るリスク: E2E や本番観測でしか見えない分岐（権限別レスポンスなど）</li>
+          </ul>
+        </div>
+
+        <aside class="evidence">
+          <h4>一次情報（手元の根拠 → 公式/定番）</h4>
+          <ul>
+            <li>
+              <span class="k">COMMIT</span>
+              <a
+                href="https://github.com/triple-three-inc/triple-onboarding/commit/14f73709"
+                target="_blank"
+                rel="noreferrer"
+                >14f73709 · 両経路へフィールド追加</a
+              >
+              <span class="link-row">
+                <a
+                  class="link-pill"
+                  href="https://github.com/triple-three-inc/triple-onboarding/commit/14f73709"
+                  target="_blank"
+                  rel="noreferrer"
+                  >DIFF</a
+                >
+              </span>
+              <span class="why">今日の実装そのもの。まずここを見る。</span>
+            </li>
+            <li>
+              <span class="k">DOC</span>
+              <a
+                href="https://go.dev/wiki/TableDrivenTests"
+                target="_blank"
+                rel="noreferrer"
+                >Go Wiki: Table-driven tests</a
+              >
+              <span class="link-row">
+                <a
+                  class="link-pill doc"
+                  href="https://go.dev/wiki/TableDrivenTests"
+                  target="_blank"
+                  rel="noreferrer"
+                  >OPEN</a
+                >
+              </span>
+              <span class="why">公式に近い定番。「値あり/なし」を表で固定する型。</span>
+            </li>
+            <li>
+              <span class="k">DOC</span>
+              <a
+                href="https://martinfowler.com/articles/practical-test-pyramid.html"
+                target="_blank"
+                rel="noreferrer"
+                >Martin Fowler: Test Pyramid</a
+              >
+              <span class="link-row">
+                <a
+                  class="link-pill blog"
+                  href="https://martinfowler.com/articles/practical-test-pyramid.html"
+                  target="_blank"
+                  rel="noreferrer"
+                  >OPEN</a
+                >
+                <a
+                  class="link-pill blog"
+                  href="https://martinfowler.com/articles/consumerDrivenContracts.html"
+                  target="_blank"
+                  rel="noreferrer"
+                  >CDC</a
+                >
+              </span>
+              <span class="why">公式HPというより定番技術解説。層ごとの検証点の置き方。</span>
+            </li>
+            <li>
+              <span class="k">DOC</span>
+              <a
+                href="https://learn.openapis.org/specification/"
+                target="_blank"
+                rel="noreferrer"
+                >OpenAPI — specification / required</a
+              >
+              <span class="link-row">
+                <a
+                  class="link-pill doc"
+                  href="https://learn.openapis.org/specification/"
+                  target="_blank"
+                  rel="noreferrer"
+                  >OPEN</a
+                >
+              </span>
+              <span class="why">契約で「必須」をどう表すかの公式側。</span>
+            </li>
+          </ul>
+        </aside>
+      </article>
+
+      <article class="chapter only-read" id="ch2">
+        <div class="chapter-head">
+          <span class="n">02</span>
+          <h3>正典と配布物のドリフト</h3>
+        </div>
+        <p class="one-liner">
+          ひとことで言うと: 「ドキュメントが正しいと言っているもの」と「いま動いているもの」と「配られたコピー」は、放置すると別物になる。
+        </p>
+        <p class="plain">
+          ルールに「正典は A」と書いてあっても、A が止まっていることがある。さらに配布用のコピーを手で直していると、再生成した瞬間に直した内容が消える。どちらも、上書きや障害のときまで気づきにくい。
+        </p>
+
+        <figure class="diagram">
+          <p class="cap">図 · 3者がズレる構造</p>
+          <div class="flow">
+            <span class="box warn">ルール文<br />「Aが正典」</span>
+            <span class="arrow">≠</span>
+            <span class="box bad">実体A<br />停止中</span>
+            <span class="arrow">≠</span>
+            <span class="box warn">配布コピー<br />手編集</span>
+          </div>
+          <p class="flow-note">
+            人の記憶で同期しない。動いているかのシグナルと、編集の上流→下流の順番を仕組みにする。
+          </p>
+          <div class="flow" style="margin-top: 0.65rem">
+            <span class="box ok">1 上流を直す</span>
+            <span class="arrow">→</span>
+            <span class="box ok">2 再生成</span>
+            <span class="arrow">→</span>
+            <span class="box ok">3 配布</span>
+          </div>
+        </figure>
+
+        <ul class="bullet">
+          <li>初学者が覚える一手: コピーを直したくなったら、まず本家（生成元）を探す。</li>
+          <li>暫定で切り替えたら、「いつ・何を条件に戻すか」を切替場所に1行残す。</li>
+        </ul>
+        <p class="chapter-jumon">
+          <button type="button" data-jumon-chapter="02" data-jumon-title="正典と配布物のドリフト">
+            この章をじゅもん（AIと対話）で深掘り
+          </button>
+        </p>
+
+        <div class="deep">
+          <p class="tag">実務レイヤ · ミドル以上</p>
+          <p class="plain">
+            検知は最終稼働時刻・滞留件数・完了率などの閾値。下流編集を拒否するなら差分チェックやマーカー検証。IaC の drift detection と同型の問題。
+          </p>
+          <ul class="bullet">
+            <li>還流: 下流の加筆を先に本家へ取り込み、その後に再生成</li>
+            <li>可逆性: フラグや日付付きの復帰条件を、切替コミットに同居させる</li>
+          </ul>
+        </div>
+
+        <aside class="evidence">
+          <h4>一次情報（手元の根拠 → 公式/定番）</h4>
+          <ul>
+            <li>
+              <span class="k">COMMIT</span>
+              <a
+                href="https://github.com/shin9898/workbench/commit/21fdd90"
+                target="_blank"
+                rel="noreferrer"
+                >21fdd90 · 起票先切替（Hermes dormant）</a
+              >
+              <span class="link-row">
+                <a
+                  class="link-pill"
+                  href="https://github.com/shin9898/workbench/commit/21fdd90"
+                  target="_blank"
+                  rel="noreferrer"
+                  >DIFF</a
+                >
+              </span>
+              <span class="why">手元の変更。本家と配布の関係を追う入口。</span>
+            </li>
+            <li>
+              <span class="k">DOC</span>
+              <a
+                href="https://developer.hashicorp.com/terraform/cli/commands/plan"
+                target="_blank"
+                rel="noreferrer"
+                >Terraform: plan（drift 検知の一般形）</a
+              >
+              <span class="link-row">
+                <a
+                  class="link-pill doc"
+                  href="https://developer.hashicorp.com/terraform/cli/commands/plan"
+                  target="_blank"
+                  rel="noreferrer"
+                  >OPEN</a
+                >
+              </span>
+              <span class="why">公式doc。「宣言と実態の差分を機械で見る」の型。</span>
+            </li>
+            <li>
+              <span class="k">DOC</span>
+              <a
+                href="https://en.wikipedia.org/wiki/Single_source_of_truth"
+                target="_blank"
+                rel="noreferrer"
+                >Single source of truth</a
+              >
+              <span class="link-row">
+                <a
+                  class="link-pill blog"
+                  href="https://en.wikipedia.org/wiki/Single_source_of_truth"
+                  target="_blank"
+                  rel="noreferrer"
+                  >OPEN</a
+                >
+              </span>
+              <span class="why">正典を一つに決める、という一般概念の入口。</span>
+            </li>
+          </ul>
+        </aside>
+      </article>
+
+      <article class="chapter only-read" id="ch3">
+        <div class="chapter-head">
+          <span class="n">03</span>
+          <h3>安定プレフィックスと一時メモ</h3>
+        </div>
+        <p class="one-liner">
+          ひとことで言うと: キャッシュが効く系では「前半を変えにくい」。だから一時メモを先頭に書くと、得するはずが損しやすい。
+        </p>
+        <p class="plain">
+          プロンプトキャッシュなどは、先頭から同じ文字列が続いている範囲だけ再利用できる、と思っておくとわかりやすい。
+          「今週のメモ」を一番上に足すと、その後ろまで再計算になりやすい。禁止するだけだと現場は破るので、逃がし先を用意する。
+        </p>
+
+        <figure class="diagram">
+          <p class="cap">図 · 先頭が壊れると後ろも高い</p>
+          <div class="vs">
+            <div class="col bad">
+              <p class="t">BAD · 一時メモが先頭</p>
+              <div class="flow">
+                <span class="box bad">今週メモ</span>
+                <span class="arrow">→</span>
+                <span class="box">不変ルール</span>
+                <span class="arrow">→</span>
+                <span class="box">本文</span>
+              </div>
+              <p class="flow-note">先頭が毎回変わる → 再利用しづらい</p>
+            </div>
+            <div class="col ok">
+              <p class="t">OK · 安定→可変</p>
+              <div class="flow">
+                <span class="box ok">Identity</span>
+                <span class="arrow">→</span>
+                <span class="box ok">不変</span>
+                <span class="arrow">→</span>
+                <span class="box warn">可変・日付</span>
+              </div>
+              <p class="flow-note">一時情報は後ろ（または別ファイル）へ</p>
+            </div>
+          </div>
+        </figure>
+
+        <ul class="bullet">
+          <li>初学者が覚える一手: 毎回読む共通ファイルの「上半分」に日付付きメモを足さない。</li>
+          <li>逃がし先例: 「可変」節の下、または条件付きで読む別ノート。</li>
+        </ul>
+        <p class="chapter-jumon">
+          <button type="button" data-jumon-chapter="03" data-jumon-title="安定プレフィックスと一時メモ">
+            この章をじゅもん（AIと対話）で深掘り
+          </button>
+        </p>
+
+        <div class="deep">
+          <p class="tag">実務レイヤ · ミドル以上</p>
+          <p class="plain">
+            境界は見出しマーカーやファイル分割で機械可読にする。lint / CI / 週次の先頭ハッシュ比較で検知。観測は cache read 率や先頭領域の変更頻度。今日の材料では workbench の read 率が前週比で低下している。
+          </p>
+          <ul class="bullet">
+            <li>規約だけより、壊れたときに赤くなる地点を1つ置く</li>
+            <li>OBS: workbench 今週 48.6% / 先週 55.0%</li>
+          </ul>
+        </div>
+
+        <aside class="evidence">
+          <h4>一次情報（手元の根拠 → 公式/定番）</h4>
+          <ul>
+            <li>
+              <span class="k">DOC</span>
+              <a
+                href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"
+                target="_blank"
+                rel="noreferrer"
+                >Anthropic: Prompt caching</a
+              >
+              <span class="link-row">
+                <a
+                  class="link-pill doc"
+                  href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"
+                  target="_blank"
+                  rel="noreferrer"
+                  >OPEN</a
+                >
+              </span>
+              <span class="why">公式。先頭一致で再利用される、という性質の正本。</span>
+            </li>
+            <li>
+              <span class="k">ADR</span>
+              <span>手元の方針</span>
+              <span class="meta" style="display:block;font-size:11px;color:var(--mute)"
+                ><code>docs/adr/0017-stable-prompt-cache-prefix.md</code> ·
+                <code>docs/harness-pack/README.md</code></span
+              >
+              <span class="why">自分たちの運用規約。公式をどう現場に落としたか。</span>
+            </li>
+            <li>
+              <span class="k">OBS</span>
+              workbench cache read 今週 48.6% / 先週 55.0%
+              <span class="why">計測一次情報。規約が効いているかの結果側。</span>
+            </li>
+          </ul>
+        </aside>
+      </article>
+
+      <section class="win only-read">
+        <h2>つぎにやること</h2>
+        <p class="check-intro" style="margin: 0">
+          読むだけならここまで。理解を残すなら「確認する」へ。今日の確認は 4
+          問。全部 clear である必要はない。
+        </p>
+        <div class="cta-row">
+          <button type="button" class="btn" id="goto-check">確認する（4問）</button>
+          <a class="btn btn-ghost" href="#toc">もくじへ</a>
+        </div>
+        <p class="note depth-hint-beg">
+          いまは初学者深さ: ひとこと → 図 → 覚える一手。上の「実務」でミドル向け層が各章に開く。
+        </p>
+        <p class="note depth-hint-mid">
+          いまは実務深さ: 各章の破線枠が追加表示。別HTMLに分けず、同じ章の第2レイヤ。
+        </p>
+      </section>
+
+      <!-- CHECK -->
+      <section class="win only-check">
+        <h2>きょうの確認</h2>
+        <p class="check-intro">
+          教科書から蒸留した少数問。各問に理解状態を付ける。合否2値ではなく、翌日の進め方を選ぶ。
+        </p>
+        <ul class="legend">
+          <li><b class="clear">CLEAR</b> 説明でき、別状況にも転用できる → 間隔を空ける</li>
+          <li><b class="partial">PARTIAL</b> だいたい分かるが穴がある → 該当節を再読＋小問</li>
+          <li><b class="stuck">STUCK</b> つまずきが残る → ずかん本線</li>
+          <li><b class="parked">PARKED</b> 今日は扱わない → 翌日候補</li>
+        </ul>
+      </section>
+
+      <div class="only-check">
+        <div class="q" data-qid="1">
+          <p class="label">Q1 · 章01</p>
+          <p class="ask">
+            共有型があるのに片方の画面だけ空値になる「沈黙する欠落」を、次に防ぐなら、防止の担い手をどこに置く？コメント以外で答えよ。
+          </p>
+          <div class="status-row" role="group" aria-label="理解状態">
+            <button type="button" class="chip" data-s="clear">CLEAR</button>
+            <button type="button" class="chip" data-s="partial">PARTIAL</button>
+            <button type="button" class="chip" data-s="stuck">STUCK</button>
+            <button type="button" class="chip" data-s="parked">PARKED</button>
+          </div>
+        </div>
+        <div class="q" data-qid="2">
+          <p class="label">Q2 · 章02</p>
+          <p class="ask">
+            正典が止まっているのにルール文がそれを指し続けるドリフトを、人の定期見直し以外で検知するなら、何のシグナルを閾値にする？
+          </p>
+          <div class="status-row" role="group" aria-label="理解状態">
+            <button type="button" class="chip" data-s="clear">CLEAR</button>
+            <button type="button" class="chip" data-s="partial">PARTIAL</button>
+            <button type="button" class="chip" data-s="stuck">STUCK</button>
+            <button type="button" class="chip" data-s="parked">PARKED</button>
+          </div>
+        </div>
+        <div class="q" data-qid="3">
+          <p class="label">Q3 · 章03</p>
+          <p class="ask">
+            安定プレフィックス規約が「気をつける」だけで崩れる理由と、逃がし先を同時に用意すべき理由を、自分の言葉で述べよ。
+          </p>
+          <div class="status-row" role="group" aria-label="理解状態">
+            <button type="button" class="chip" data-s="clear">CLEAR</button>
+            <button type="button" class="chip" data-s="partial">PARTIAL</button>
+            <button type="button" class="chip" data-s="stuck">STUCK</button>
+            <button type="button" class="chip" data-s="parked">PARKED</button>
+          </div>
+        </div>
+        <div class="q" data-qid="4">
+          <p class="label">Q4 · 横断</p>
+          <p class="ask">
+            今日の3章に共通する「静かに壊れる」構造を一文で言え。明日の自分への注意ではなく、仕組みの言葉で。
+          </p>
+          <div class="status-row" role="group" aria-label="理解状態">
+            <button type="button" class="chip" data-s="clear">CLEAR</button>
+            <button type="button" class="chip" data-s="partial">PARTIAL</button>
+            <button type="button" class="chip" data-s="stuck">STUCK</button>
+            <button type="button" class="chip" data-s="parked">PARKED</button>
+          </div>
+        </div>
+
+        <section class="win">
+          <h2>ふりわけ結果（モック）</h2>
+          <p class="check-intro" id="summary">
+            まだ未選択。各問に状態を付けるとここに集計される。
+          </p>
+          <div class="cta-row">
+            <button type="button" class="btn" id="finish">きょうの振り返りをおえる</button>
+            <button type="button" class="btn btn-ghost" id="back-read">教科書に戻る</button>
+          </div>
+          <p class="note">
+            判断ポイント: 4状態のチップは見分けやすいか。確認モードは「テスト用紙」ではなく「翌日の分岐選択」に見えるか。
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <!-- じゅもんドック（本番は TerminalPanel / ADR-0015。ここは見た目＋注入文の合意用） -->
+    <div class="jumon-dock only-read" id="jumon-dock">
+      <div class="jumon-bar">
+        <div>
+          <p class="t">◆ じゅもん（AIと対話して深掘り）</p>
+          <p class="s" id="jumon-sub">
+            アプリ内ターミナルで契約LLMを開く。注入は開いている1章＋URLだけ（日次全量は載せない＝読み切れ漏れ防止）
+          </p>
+        </div>
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap">
+          <button type="button" class="btn btn-ghost" id="jumon-cmd" style="padding: 10px 12px">
+            codex
+          </button>
+          <button type="button" class="btn" id="jumon-toggle" style="padding: 10px 12px">
+            じゅもんをとなえる（AIを開く）
+          </button>
+        </div>
+      </div>
+      <div class="jumon-panel">
+        <div class="jumon-term" id="jumon-term" aria-hidden="true">
+<span class="dim"># MOCK — 本番は xterm + claude/codex CLI</span>
+<span class="dim"># 注入コンテキスト例（章01）:</span>
+<span class="hi">きょうのぼうけんのしょ 2026-08-10 / 章01 契約の沈黙する欠落</span>
+深さ: 初学者（必要なら実務レイヤも要約に含める）
+
+一次情報:
+- DIFF https://github.com/triple-three-inc/triple-onboarding/commit/14f73709
+- DOC  https://go.dev/wiki/TableDrivenTests
+- DOC  https://martinfowler.com/articles/consumerDrivenContracts.html
+
+質問の例:
+「画面Bだけ空になる理由を、初学者向けに図で説明して。そのあと予防のテストを1本提案して」
+        </div>
+        <p class="note" style="margin-top: 0.65rem">
+          本番: 開いた1章の title / ひとこと / 一次情報URL / 深さだけプリロード（diff本文や他章は入れない）。
+          学びが残れば capture_learning_candidate。確認モード中はじゅもん（AI対話）を閉じる。
+        </p>
+      </div>
+    </div>
+
+    <script>
+      const body = document.body;
+      const readBtn = document.getElementById("mode-read");
+      const checkBtn = document.getElementById("mode-check");
+      const depthBeg = document.getElementById("depth-beg");
+      const depthMid = document.getElementById("depth-mid");
+      function setMode(mode) {
+        body.dataset.mode = mode;
+        readBtn.setAttribute("aria-pressed", mode === "read" ? "true" : "false");
+        checkBtn.setAttribute("aria-pressed", mode === "check" ? "true" : "false");
+        if (mode === "check") window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      function setDepth(depth) {
+        body.dataset.depth = depth;
+        depthBeg.setAttribute("aria-pressed", depth === "beginner" ? "true" : "false");
+        depthMid.setAttribute("aria-pressed", depth === "middle" ? "true" : "false");
+        try {
+          localStorage.setItem("al-textbook-depth", depth);
+        } catch (_) {}
+      }
+      readBtn.addEventListener("click", () => setMode("read"));
+      checkBtn.addEventListener("click", () => setMode("check"));
+      depthBeg.addEventListener("click", () => setDepth("beginner"));
+      depthMid.addEventListener("click", () => setDepth("middle"));
+      document.getElementById("goto-check").addEventListener("click", () => setMode("check"));
+      document.getElementById("back-read").addEventListener("click", () => setMode("read"));
+      try {
+        const saved = localStorage.getItem("al-textbook-depth");
+        if (saved === "middle" || saved === "beginner") setDepth(saved);
+      } catch (_) {}
+
+      function tally() {
+        const counts = { clear: 0, partial: 0, stuck: 0, parked: 0, unset: 0 };
+        document.querySelectorAll(".q").forEach((q) => {
+          const on = q.querySelector(".chip.on");
+          if (!on) counts.unset += 1;
+          else counts[on.dataset.s] += 1;
+        });
+        const el = document.getElementById("summary");
+        el.textContent =
+          `CLEAR ${counts.clear} · PARTIAL ${counts.partial} · STUCK ${counts.stuck} · PARKED ${counts.parked}` +
+          (counts.unset ? ` · 未選択 ${counts.unset}` : "") +
+          "。STUCK はずかんへ、PARTIAL は該当章の再読が翌日 CTA になる想定。";
+      }
+
+      document.querySelectorAll(".q").forEach((q) => {
+        q.querySelectorAll(".chip").forEach((chip) => {
+          chip.addEventListener("click", () => {
+            q.querySelectorAll(".chip").forEach((c) => c.classList.remove("on"));
+            chip.classList.add("on");
+            tally();
+          });
+        });
+      });
+
+      document.getElementById("finish").addEventListener("click", () => {
+        tally();
+        alert("モックです。本番では Mastery を保存し、翌日の briefing / ちず CTA が変わります。");
+      });
+
+      const dock = document.getElementById("jumon-dock");
+      const jumonToggle = document.getElementById("jumon-toggle");
+      const jumonCmd = document.getElementById("jumon-cmd");
+      const jumonTerm = document.getElementById("jumon-term");
+      const jumonSub = document.getElementById("jumon-sub");
+      let cmd = "codex";
+      jumonCmd.addEventListener("click", () => {
+        cmd = cmd === "codex" ? "claude" : "codex";
+        jumonCmd.textContent = cmd;
+      });
+      jumonToggle.addEventListener("click", () => {
+        const open = dock.classList.toggle("open");
+        jumonToggle.textContent = open
+          ? "じゅもんを閉じる"
+          : "じゅもんをとなえる（AIを開く）";
+      });
+      function openJumonForChapter(n, title) {
+        const depth = body.dataset.depth === "middle" ? "実務" : "初学者";
+        jumonSub.textContent = `章${n}「${title}」を注入中 · 深さ ${depth} · ${cmd}`;
+        jumonTerm.innerHTML = `<span class="dim"># MOCK — 本番は xterm + ${cmd} CLI（じゅもん＝アプリ内のAI対話）</span>
+<span class="dim"># 注入コンテキスト:</span>
+<span class="hi">きょうのぼうけんのしょ 2026-08-10 / 章${n} ${title}</span>
+深さ: ${depth}
+
+一次情報は URL ポインタのみ（本文・他章・当日全commitは載せない）:
+- DIFF / DOC のリンク一覧
+
+やってほしいこと:
+1. 初学者向けに、図を言葉で再説明
+2. 必要ならリンク先を自分で開いてから深掘り（こちらは全文を貼らない）
+3. 非自明な学びがあれば capture_learning_candidate 候補を1行で提案`;
+        dock.classList.add("open");
+        jumonToggle.textContent = "じゅもんを閉じる";
+      }
+      document.querySelectorAll("[data-jumon-chapter]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          openJumonForChapter(btn.dataset.jumonChapter, btn.dataset.jumonTitle);
+        });
+      });
+    </script>
+  </body>
+</html>

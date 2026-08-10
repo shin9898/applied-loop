@@ -10,6 +10,7 @@ export type AtlasChromeActive =
   | "/entries"
   | "/requirements"
   | "/setup"
+  | "/retro"
   | "/gates/[id]";
 
 /**

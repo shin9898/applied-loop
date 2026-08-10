@@ -24,6 +24,8 @@ const NAV_EVIDENCE = [
   { href: "/harness", label: "どうぐ", plain: "ハーネス" },
   /** P3 B12-5: requirements 復帰（初 CLEAR 後。直 URL は常時可） */
   { href: "/requirements", label: "ようけん", plain: "要件ゲート" },
+  /** P4 ADR-0020: 日次教科書（直 URL は常時可） */
+  { href: "/retro", label: "きょうのしょ", plain: "日次教科書" },
 ] as const;
 
 const STORAGE_KEY = "atlas-cmd-dock-v1";

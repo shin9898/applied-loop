@@ -249,3 +249,52 @@ model RequirementLink {
 
   @@unique([requirementId, targetType, targetId])
 }
+
+// 日次教科書 (ADR-0020)。材料は DevEvent 全量。本書は圧縮ビュー。
+model DailyTextbook {
+  id                 String                 @id @default(cuid())
+  dateKey            String                 @unique // "2026-08-10" JST
+  title              String
+  lead               String?
+  status             String                 @default("ready") // draft / ready
+  materialCount      Int                    @default(0)
+  chapterCount       Int                    @default(0)
+  peakHour           Int? // 0-23 JST
+  droppedMaterialIds String? // JSON string[]
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  chapters           DailyTextbookChapter[]
+  checks             DailyTextbookCheck[]
+}
+
+model DailyTextbookChapter {
+  id           String         @id @default(cuid())
+  textbookId   String
+  textbook     DailyTextbook  @relation(fields: [textbookId], references: [id], onDelete: Cascade)
+  index        Int // 1-based
+  title        String
+  oneLiner     String
+  bodyPlain    String
+  bodyDeep     String?
+  diagramKind  String         @default("generic") // silent_gap / drift / prefix / generic
+  evidenceJson String         @default("[]") // JSON EvidenceLink[]
+  materialIds  String         @default("[]") // JSON string[]
+  checks       DailyTextbookCheck[]
+
+  @@unique([textbookId, index])
+}
+
+// 日次確認問い。Mastery: clear / partial / stuck / parked
+model DailyTextbookCheck {
+  id          String                @id @default(cuid())
+  textbookId  String
+  textbook    DailyTextbook         @relation(fields: [textbookId], references: [id], onDelete: Cascade)
+  chapterId   String?
+  chapter     DailyTextbookChapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  index       Int
+  question    String
+  mastery     String? // clear / partial / stuck / parked
+  answeredAt  DateTime?
+
+  @@unique([textbookId, index])
+}

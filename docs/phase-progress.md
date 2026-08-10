@@ -15,7 +15,7 @@ Status: `todo` | `doing` | `done` | `blocked` | `wont`
 | P1 | 供給と検証 | 同僚1名無介入完走＋詰まり全クローズ | doing |
 | P2 | 翌日以降 | D2以降自発回答＋再出題発火 | doing |
 | P3 | 周辺復帰 | 一つずつ戻し指標悪化なし | doing |
-| P4 | 日次振り返り型へ | 材料無制限＋教科書HTML＋Mastery4状態で翌日導線 | todo |
+| P4 | 日次振り返り型へ | 材料無制限＋教科書HTML＋Mastery4状態で翌日導線 | doing |
 
 ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-knowledge-loop.md)
 
@@ -132,12 +132,14 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 | ID | 項目 | Status | 完了条件（要約） | メモ |
 |---|---|---|---|---|
 | C0-1 | ADR-0020 採択 | done | ADR 存在＋0019 追記 | 本セクションとセット |
-| C1-1 | Material を backlog で落とさない | todo | DevEvent は常に材料化。`skipReason=backlog` で生成スキップしても材料は残る／即時生成と分離 | 現行 cap は「即時しれん」のみに閉じる |
+| C1-1 | Material を backlog で落とさない | done | DevEvent は常に材料化。`skipReason=backlog` で生成スキップしても材料は残る／即時生成と分離 | `recordEvent` コメント明文化。Textbook が backlog 材料を章に含む |
 | C1-2 | 既存 pending しれんの退避 UI | todo | parked / dismiss で pending を5未満にもできる | 移行期の呼吸 |
-| C2-1 | 日次 Textbook 生成 | todo | 指定日の材料→章立てデータ＋HTML 1本 | HTML はビュー、正本は DB |
-| C2-2 | Textbook 閲覧面 | todo | Web でその日の教科書を開ける | Living Atlas トーン |
-| C3-1 | Check 蒸留（3〜7問） | todo | 教科書から少数確認を生成 | 無制限同時出題は禁止 |
-| C3-2 | Mastery 4状態 | todo | clear / partial / stuck / parked を保存・表示 | 生の pass/fail は内部可 |
+| C2-1 | 日次 Textbook 生成 | done | 指定日の材料→章立てデータ＋HTML 1本 | `generateDailyTextbook`（規則ベース）。正本 DB。章≤5・章内≤8 |
+| C2-2 | Textbook 閲覧面 | done | Web でその日の教科書を開ける | `/retro`・`/retro/[dateKey]` |
+| C2-3 | コンテキスト溢れ防止 | done | じゅもん注入は1章＋URLのみ。全量貼り禁止。圧縮落ち材料に証跡 | `buildJumonContext`＋`droppedMaterialIds` |
+| C2-4 | じゅもん（AI対話）深掘り | done | 読む面に TerminalPanel。章コンテキスト注入 | 確認モードでは非表示。表記に括弧補足 |
+| C3-1 | Check 蒸留（3〜7問） | done | 教科書から少数確認を生成 | `distillChecks`（規則）。材料件数に比例しない |
+| C3-2 | Mastery 4状態 | done | clear / partial / stuck / parked を保存・表示 | `DailyTextbookCheck.mastery` |
 | C3-3 | ステータス別翌日導線 | todo | briefing / ちず CTA が状態で変わる | stuck→ずかん、partial→再問 |
 | C4-1 | コアループ説明の更新 | todo | onboarding / README / LP を 0020 一文に合わせる | 即時しれん偏重をやめる |
 | C4-2 | セルフラン（実装多めの1日） | todo | 材料が増えても沈黙せず、夜に教科書→確認→振り分けまで完走 | dogfood |
@@ -196,3 +198,4 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 | 2026-08-06 | Fable G2/G3/G4: 空list診断応答・initial再出題予約・scheduleDueGates 経路拡大 |
 | 2026-08-06 | Fable G5/G7/G8/G10: P3一括定義明記・採点dry-run・ファネル正本7点・prefix_fix誤字 |
 | 2026-08-10 | ADR-0020 採択。P4（日次振り返り型）を追加。コア一文を材料→教科書→Mastery へ更新 |
+| 2026-08-10 | P4 縦スライス: Textbook スキーマ・生成・`/retro`・じゅもん1章注入・Mastery。C1-1/C2-1〜4/C3-1〜2 done |

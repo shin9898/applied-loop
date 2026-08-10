@@ -671,3 +671,31 @@ export async function getEvidenceNavUnlocked(): Promise<boolean> {
     return false;
   }
 }
+
+/** ADR-0020: 指定日の日次教科書を（再）生成 */
+export async function regenerateDailyTextbookAction(dateKey: string) {
+  await requireAuth();
+  const { generateDailyTextbook } = await import("@/lib/daily-textbook");
+  const result = await generateDailyTextbook(dateKey);
+  revalidatePath("/retro");
+  revalidatePath(`/retro/${dateKey}`);
+  return result;
+}
+
+/** ADR-0020: 確認問いの Mastery を保存 */
+export async function setTextbookMasteryAction(
+  checkId: string,
+  mastery: string,
+  dateKey: string,
+) {
+  await requireAuth();
+  const { isMasteryState, setCheckMastery } = await import(
+    "@/lib/daily-textbook"
+  );
+  if (!isMasteryState(mastery)) {
+    throw new Error(`invalid mastery: ${mastery}`);
+  }
+  await setCheckMastery(checkId, mastery);
+  revalidatePath(`/retro/${dateKey}`);
+  revalidatePath("/retro");
+}
