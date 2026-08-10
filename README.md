@@ -1,8 +1,8 @@
 # Applied Loop
 
-AI に書かせたコードについて、**自分の理解を試す出題（しれん）**が届き、答えるとつまずきが**ずかん**に貯まるローカルツール。
+実装の足跡を**材料**として貯め、1日の**教科書（きょうのしょ）**に圧縮し、確認で理解状態（Mastery）を振り分けて翌日を進めるローカルツール（[ADR-0020](docs/adr/0020-daily-retro-knowledge-loop.md)）。
 
-UI は Living Atlas。操作の正典は **MCP**（Web は地図・診断・提出入口）。
+即時の理解チェック（しれん）も過渡期の互換として残る。答えたつまずきは**ずかん**に貯まる。UI は Living Atlas。操作の正典は **MCP**（Web は地図・診断・提出入口）。
 
 **紹介 LP:** ローカル `/lp` · GitHub Pages 用静的版 [docs/lp/](docs/lp/)（repo Settings → Pages → Deploy from branch → `/docs`）  
 **進捗正本（Phase）:** [docs/phase-progress.md](docs/phase-progress.md) · [ADR-0019](docs/adr/0019-core-loop-phases.md) · P4 日次振り返り [ADR-0020](docs/adr/0020-daily-retro-knowledge-loop.md)  
@@ -48,8 +48,9 @@ npm run dev:all
 |---|---|
 | `/` | ちず（ホーム） |
 | `/setup` | じゅんび（チュートリアル＋診断） |
-| `/gates` | しれん（理解度チェック） |
+| `/gates` | しれん（理解度チェック・あとまわし可） |
 | `/zukan` | ずかん（つまずき） |
+| `/retro` | きょうのしょ（日次教科書 → 確認 → Mastery） |
 
 本人用の周辺（goals / harness / requirements / Cloud など）は Phase 進行で段階復帰。直 URL と `MCP_SURFACE=full` でも到達可。
 

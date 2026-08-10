@@ -39,6 +39,7 @@ const GOAL_EVIDENCE_TARGET = 3;
 
 function mapGateStatus(status: string): GateListItem["status"] {
   if (status === "pending") return "pending";
+  if (status === "parked") return "parked";
   if (status === "answered" || status === "grading") return "grading";
   if (status === "grading_failed") return "grading_failed";
   if (status === "passed" || status === "self_graded_pass") return "passed";
@@ -374,14 +375,45 @@ export async function loadZukanItems(): Promise<ZukanItem[]> {
   });
 }
 
-export async function loadGateList(): Promise<GateListItem[]> {
+function mapGateRow(g: {
+  id: string;
+  question: string;
+  status: string;
+  domain: string | null;
+  targetConcept: string | null;
+  contextSummary: string | null;
+  event: { repo: string } | null;
+}): GateListItem {
+  const place = placeFrom(g.event?.repo, g.domain);
+  const system = classifySystem({
+    text: g.question,
+    domain: g.domain,
+    targetConcept: g.targetConcept,
+  });
+  return {
+    id: g.id,
+    title: shortTitle(g.question, g.targetConcept ?? g.contextSummary),
+    question: g.question,
+    status: mapGateStatus(g.status),
+    repo: g.event?.repo ?? null,
+    domain: g.domain,
+    placeLabel: place.label,
+    system,
+  };
+}
+
+export async function loadGateList(): Promise<{
+  items: GateListItem[];
+  parkedItems: GateListItem[];
+  pendingBacklogCount: number;
+}> {
   // 表示前に空 domain をヒューリスティックで埋める（霧帯を減らす）
   await enrichMissingGateDomains({ take: 60 }).catch((e) =>
     console.error("[place-enrich] gate list enrich failed:", e),
   );
 
   const now = new Date();
-  const [active, history] = await Promise.all([
+  const [active, history, parked, pendingBacklogCount] = await Promise.all([
     prisma.gate.findMany({
       where: {
         status: { in: ["pending", "answered", "grading", "grading_failed"] },
@@ -400,33 +432,28 @@ export async function loadGateList(): Promise<GateListItem[]> {
       take: 12,
       include: { event: { select: { repo: true } } },
     }),
+    prisma.gate.findMany({
+      where: { status: "parked" },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      include: { event: { select: { repo: true } } },
+    }),
+    prisma.gate.count({ where: { status: "pending" } }),
   ]);
 
   const rows = [...active, ...history];
-  // Prefer due pending first visually: already ordered within buckets
-  return rows
+  const items = rows
     .filter((g) => {
       if (g.status !== "pending") return true;
       return !g.nextReviewAt || g.nextReviewAt <= now;
     })
-    .map((g) => {
-      const place = placeFrom(g.event?.repo, g.domain);
-      const system = classifySystem({
-        text: g.question,
-        domain: g.domain,
-        targetConcept: g.targetConcept,
-      });
-      return {
-        id: g.id,
-        title: shortTitle(g.question, g.targetConcept ?? g.contextSummary),
-        question: g.question,
-        status: mapGateStatus(g.status),
-        repo: g.event?.repo ?? null,
-        domain: g.domain,
-        placeLabel: place.label,
-        system,
-      };
-    });
+    .map(mapGateRow);
+
+  return {
+    items,
+    parkedItems: parked.map(mapGateRow),
+    pendingBacklogCount,
+  };
 }
 
 function harnessCriteria(

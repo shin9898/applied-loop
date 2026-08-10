@@ -4,20 +4,28 @@ import {
   placeFrom,
   type SystemKind,
 } from "@/lib/atlas-taxonomy";
+import { GATE_BACKLOG_CAP } from "@/lib/gate";
 import type { GatesSupplyState } from "@/lib/gates-supply";
 import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasGroupedList } from "./atlas-list-groups";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
+import { AtlasGateDeferActions } from "./atlas-gate-defer";
 
 export type GateListItem = {
   id: string;
   /** 一覧用の短い見出し */
   title: string;
   question: string;
-  /** pending=未提出 / grading=採点中 / grading_failed=保留 / passed=CLEAR / failed=miss */
-  status: "pending" | "grading" | "grading_failed" | "passed" | "failed";
+  /** pending=未提出 / grading=採点中 / grading_failed=保留 / passed=CLEAR / failed=miss / parked=あとまわし */
+  status:
+    | "pending"
+    | "grading"
+    | "grading_failed"
+    | "passed"
+    | "failed"
+    | "parked";
   repo?: string | null;
   domain?: string | null;
   placeLabel?: string;
@@ -36,17 +44,24 @@ function statusLabel(status: GateListItem["status"]): string {
       return "CLEAR";
     case "failed":
       return "miss";
+    case "parked":
+      return "あとまわし";
   }
 }
 
 /** /gates — しれん一覧（要約＋ばしょ×系統。未特定は霧帯） */
 export function AtlasGatesList({
   items,
+  parkedItems = [],
+  pendingBacklogCount = 0,
   streakDays,
   wsToken = null,
   supply = null,
 }: {
   items: GateListItem[];
+  parkedItems?: GateListItem[];
+  /** status=pending の生件数（backlog cap と同じ定義） */
+  pendingBacklogCount?: number;
   streakDays?: number;
   wsToken?: string | null;
   supply?: GatesSupplyState | null;
@@ -67,6 +82,7 @@ export function AtlasGatesList({
       i.status === "failed" ||
       i.status === "grading_failed",
   );
+  const overCap = pendingBacklogCount >= GATE_BACKLOG_CAP;
 
   const emptyNode =
     supply && supply.kind !== "has_items" ? (
@@ -114,7 +130,22 @@ export function AtlasGatesList({
             {unknown > 0
               ? ` 未特定（霧）が ${unknown} 件あるぞ。`
               : ""}
+            {" "}
+            溜まりすぎたら『あとまわし』か『閉じる』で pending を減らせ（材料はきょうのしょに残る）。
           </p>
+          {overCap ? (
+            <div className="mb-3 border-[3px] border-[#f0a030] bg-[#2a1800] p-3">
+              <p className="m-0 text-[13px] leading-relaxed text-[#f7f3d9]">
+                pending が {pendingBacklogCount} 件（上限 {GATE_BACKLOG_CAP}
+                ）。即時しれん生成は止まっておるが、材料は消えておらぬ。
+                あとまわし／閉じるで {GATE_BACKLOG_CAP} 未満にすると再び生成できる。夜は{" "}
+                <Link href="/retro" className="text-[#9ec0ff]">
+                  きょうのしょ
+                </Link>
+                へ。
+              </p>
+            </div>
+          ) : null}
           <AtlasGroupedList
             items={items}
             getKey={(i) => i.id}
@@ -169,30 +200,63 @@ export function AtlasGatesList({
                           : ""}
                     </p>
                   </div>
-                  {canFight ? (
-                    <Link
-                      href={`/gates/${item.id}`}
-                      className="dq-btn !px-3 !py-2 text-[8px]"
-                    >
-                      {item.status === "grading_failed" ? "復帰" : "たたかう"}
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`/gates/${item.id}`}
-                      className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]"
-                    >
-                      {item.status === "grading"
-                        ? "確認"
-                        : item.status === "passed"
-                          ? "みる"
-                          : statusLabel(item.status)}
-                    </Link>
-                  )}
+                  <div className="flex flex-col items-end gap-1">
+                    {canFight ? (
+                      <Link
+                        href={`/gates/${item.id}`}
+                        className="dq-btn !px-3 !py-2 text-[8px]"
+                      >
+                        {item.status === "grading_failed" ? "復帰" : "たたかう"}
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/gates/${item.id}`}
+                        className="dq-btn dq-btn-ghost !px-3 !py-2 text-[8px]"
+                      >
+                        {item.status === "grading"
+                          ? "確認"
+                          : item.status === "passed"
+                            ? "みる"
+                            : statusLabel(item.status)}
+                      </Link>
+                    )}
+                    {item.status === "pending" ? (
+                      <AtlasGateDeferActions gateId={item.id} mode="active" />
+                    ) : null}
+                  </div>
                 </div>
               );
             }}
           />
         </AtlasReveal>
+
+        {parkedItems.length > 0 ? (
+          <AtlasReveal as="section" className="dq-win p-3.5">
+            <h2 className="dq-win-title mb-2">あとまわし（{parkedItems.length}）</h2>
+            <p className="mb-3 text-[12px] text-[#c9c3a0]">
+              pending から外してある。もどすと再び挑めるしれんになる。
+            </p>
+            <ul className="m-0 list-none space-y-2 p-0">
+              {parkedItems.map((item) => (
+                <li
+                  key={item.id}
+                  className="grid grid-cols-[1fr_auto] items-start gap-3 border-t-2 border-[#002070] pt-2 first:border-t-0 first:pt-0"
+                >
+                  <div>
+                    <Link
+                      href={`/gates/${item.id}`}
+                      className="text-[14px] text-inherit no-underline hover:text-[#f0d25a]"
+                    >
+                      {item.title}
+                    </Link>
+                    <p className="m-0 mt-0.5 text-[11px] text-[#9a9470]">あとまわし</p>
+                  </div>
+                  <AtlasGateDeferActions gateId={item.id} mode="parked" />
+                </li>
+              ))}
+            </ul>
+          </AtlasReveal>
+        ) : null}
       </AtlasShell>
     </AtlasChrome>
   );

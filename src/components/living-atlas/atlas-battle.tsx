@@ -70,6 +70,8 @@ export type AtlasBattleProps = {
   afterAcceptLabel?: string;
   /** 悪問として閉じる（pending のみ） */
   onDismissBadQuestion?: () => Promise<"ok" | "busy">;
+  /** あとまわし（parked。pending のみ） */
+  onPark?: () => Promise<"ok" | "busy">;
   onCastSpell?: (
     answer: string,
     mode: "submit" | "resubmit",
@@ -299,6 +301,7 @@ export function AtlasBattle({
   onPollVerdict,
   onRetryGrading,
   onDismissBadQuestion,
+  onPark,
   onCheckMicro,
   rubricCriteria = [],
   hintText,
@@ -992,26 +995,54 @@ export function AtlasBattle({
               </div>
             ) : null}
 
-            {phase === "idle" && onDismissBadQuestion ? (
+            {phase === "idle" && (onDismissBadQuestion || onPark) ? (
               <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="dq-btn dq-btn-ghost"
-                  onClick={() => {
-                    void (async () => {
-                      setNarrator("悪問として閉じるぞ…");
-                      const r = await onDismissBadQuestion();
-                      if (r === "ok") {
-                        setNarrator("閉じた。しれん一覧へ戻るのじゃ。");
-                        window.setTimeout(() => onGoGates?.(), 500);
-                      } else {
-                        setNarrator("閉じられなかった。すでに提出済みか、状態が変わっておるぞ。");
-                      }
-                    })();
-                  }}
-                >
-                  悪問として閉じる
-                </button>
+                {onPark ? (
+                  <button
+                    type="button"
+                    className="dq-btn dq-btn-ghost"
+                    onClick={() => {
+                      void (async () => {
+                        setNarrator("あとまわしにするぞ…");
+                        const r = await onPark();
+                        if (r === "ok") {
+                          setNarrator(
+                            "あとまわしにした。pending から外れた。材料はきょうのしょに残る。",
+                          );
+                          window.setTimeout(() => onGoGates?.(), 500);
+                        } else {
+                          setNarrator(
+                            "あとまわしにできなかった。状態が変わっておるぞ。",
+                          );
+                        }
+                      })();
+                    }}
+                  >
+                    あとまわし（今日は扱わない）
+                  </button>
+                ) : null}
+                {onDismissBadQuestion ? (
+                  <button
+                    type="button"
+                    className="dq-btn dq-btn-ghost"
+                    onClick={() => {
+                      void (async () => {
+                        setNarrator("悪問として閉じるぞ…");
+                        const r = await onDismissBadQuestion();
+                        if (r === "ok") {
+                          setNarrator("閉じた。しれん一覧へ戻るのじゃ。");
+                          window.setTimeout(() => onGoGates?.(), 500);
+                        } else {
+                          setNarrator(
+                            "閉じられなかった。すでに提出済みか、状態が変わっておるぞ。",
+                          );
+                        }
+                      })();
+                    }}
+                  >
+                    悪問として閉じる
+                  </button>
+                ) : null}
               </div>
             ) : null}
 

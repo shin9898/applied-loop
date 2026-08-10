@@ -20,21 +20,23 @@ export default async function GatesPage() {
   await scheduleDueGates().catch((e) =>
     console.error("[gates] scheduleDueGates failed:", e),
   );
-  const [items, streakDays, genFailures, everHadGate] = await Promise.all([
+  const [gateList, streakDays, genFailures, everHadGate] = await Promise.all([
     loadGateList(),
     loadStreakDays(),
     recentGenFailures(),
     prisma.gate.count().then((n) => n > 0),
   ]);
   const supply = resolveGatesSupplyState({
-    itemCount: items.length,
+    itemCount: gateList.items.length,
     everHadGate,
     gitHookInstalled: existsSync(hookBody),
     genFailures,
   });
   return (
     <AtlasGatesList
-      items={items}
+      items={gateList.items}
+      parkedItems={gateList.parkedItems}
+      pendingBacklogCount={gateList.pendingBacklogCount}
       streakDays={streakDays}
       wsToken={getTerminalWsToken()}
       supply={supply}

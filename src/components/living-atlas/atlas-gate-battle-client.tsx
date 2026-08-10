@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   checkGateMicroAspect,
   dismissGateWithReason,
+  parkGate,
   pollGateVerdict,
   resubmitGateAnswer,
   retryGateGrading,
@@ -74,6 +75,17 @@ export function AtlasGateBattleClient({
       }
       autoLeaveOnAccept={!isTutorial}
       afterAcceptLabel="じゅんびにもどる（次の手へ）"
+      onPark={
+        isTutorial
+          ? undefined
+          : async () => {
+              try {
+                return await parkGate(gate.id);
+              } catch {
+                return "busy";
+              }
+            }
+      }
       onDismissBadQuestion={
         isTutorial
           ? undefined

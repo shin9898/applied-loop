@@ -6,7 +6,7 @@
     <title>Applied Loop — 「わかったつもり」を、しっかり説明できるレベルまで</title>
     <meta
       name="description"
-      content="AIで書いたコードの「わかったつもり」を、しっかり説明できるレベルまで。コミットのたびに理解チェックが届く、手元のローカル学習ループ。"
+      content="AIで書いたコードの「わかったつもり」を、しっかり説明できるレベルまで。足跡を材料として貯め、1日の教科書に圧縮する手元のローカル学習ループ。"
     />
     <!-- 正本の物語: docs/onboarding.md。アプリ内 /lp と章立てを同期すること。 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -471,7 +471,7 @@
           </h1>
           <p class="lead">
             Cursor や Claude
-            で書いたコードについて、コミットのたびに理解チェックが届く。答えてつまずきを残し、レビューでも自分の言葉で話せる状態へ——手元のローカルツール。
+            で書いたコードの足跡を材料として貯め、1日の教科書に圧縮し、確認で理解状態を振り分ける。レビューでも自分の言葉で話せる状態へ——手元のローカルツール。
           </p>
           <div class="cta-row">
             <a
@@ -551,18 +551,18 @@
       <div class="grid3">
         <div class="win">
           <p class="n">01</p>
-          <h3>説明できるまで、あとから試せる</h3>
-          <p>コミットや会話から理解チェック（しれん）が届く。合否はあとから見られる。</p>
+          <h3>足跡を材料として残せる</h3>
+          <p>commit や会話の痕跡は捨てない。即時チェックが止まっても材料は残る。</p>
         </div>
         <div class="win">
           <p class="n">02</p>
-          <h3>つまずきが地図に残る</h3>
-          <p>答えた結果がずかんに貯まる。未解消や再発を追える。</p>
+          <h3>1日の教科書に圧縮できる</h3>
+          <p>夜（または朝）にきょうのしょへ。章を読み、少数の確認で理解状態を振り分ける。</p>
         </div>
         <div class="win">
           <p class="n">03</p>
-          <h3>今日の一手が朝に見える</h3>
-          <p>朝の要約から、いま解くべきしれん／関連する学びに戻れる。</p>
+          <h3>翌日の一手が状態で決まる</h3>
+          <p>Mastery（clear / partial / stuck / parked）が朝の要約とちず CTA になる。</p>
         </div>
       </div>
     </section>
@@ -572,16 +572,16 @@
       <p class="sub">UI の呼び名はゲーム風。中身は全部、理解を残すための機能。</p>
       <div class="grid2">
         <div class="pane">
+          <p class="t">きょうのしょ（日次教科書）</p>
+          <p class="body">その日の材料を章立てし、確認→Mastery まで。じゅもんで1章だけ深掘りできる。</p>
+        </div>
+        <div class="pane">
           <p class="t">しれん（理解チェック）</p>
-          <p class="body">自分の差分について出題され、Web か自分の LLM から答える。</p>
+          <p class="body">過渡期の即時出題。溜まったらあとまわし／閉じるで呼吸できる。</p>
         </div>
         <div class="pane">
           <p class="t">ずかん（つまずき一覧）</p>
-          <p class="body">間違えた論点・誤解を一覧で追い、再出題につなげる。</p>
-        </div>
-        <div class="pane">
-          <p class="t">ちず（進捗の地図）</p>
-          <p class="body">未消化の理解ギャップをクエスト（！）として眺める。</p>
+          <p class="body">stuck や誤解を一覧で追い、再出題につなげる。</p>
         </div>
         <div class="pane">
           <p class="t">自分の LLM とつなぐ</p>
@@ -594,7 +594,7 @@
 
     <section id="how" class="section alt">
       <h2>どう動くか</h2>
-      <p class="sub">初日はツール名を覚えなくてよい。起動 → 働く → 答える、の3手。</p>
+      <p class="sub">初日はツール名を覚えなくてよい。起動 → 働く → 教科書で閉じる、の3手。</p>
       <div class="grid3">
         <div class="win">
           <p class="n">①</p>
@@ -604,12 +604,12 @@
         <div class="win">
           <p class="n">②</p>
           <h3>いつもどおり働く</h3>
-          <p>監視中の repo で commit、または会話から出題。PR 作成だけでは溜まらない。</p>
+          <p>監視中の repo で commit。材料が増える。PR 作成だけでは溜まらない。</p>
         </div>
         <div class="win">
           <p class="n">③</p>
-          <h3>答えて、地図に残す</h3>
-          <p>しれんに答える → つまずきがずかんへ。朝に次の一手を見る。</p>
+          <h3>教科書で閉じ、翌朝へ</h3>
+          <p>きょうのしょ → 確認 → Mastery。朝の一手が状態で変わる。</p>
         </div>
       </div>
     </section>

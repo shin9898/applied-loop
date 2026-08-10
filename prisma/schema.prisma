@@ -129,9 +129,9 @@ model Gate {
   answer           String? // ローカルのみ。クラウド同期除外
   status           String         @default("pending")
   // pending / answered / grading / grading_failed / passed / failed /
-  // self_graded_pass / self_graded_fail / dismissed
+  // self_graded_pass / self_graded_fail / dismissed / parked (ADR-0020 C1-2)
   gradeNote        String? // ローカルのみ。クラウド同期除外
-  /** 悪問スキップ等の理由 (B5-4)。例: bad_question / duplicate / other */
+  /** 悪問スキップ等の理由 (B5-4)。例: bad_question / duplicate / other / parked / too_many */
   dismissReason    String?
   resources        String? // JSON: [{kind, label, ref}] (ADR-0007)
   rubricCriteria   String? // JSON: ["観点1", ...] 出題生成時 (ADR-0007)

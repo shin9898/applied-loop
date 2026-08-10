@@ -449,6 +449,7 @@ const DISMISS_REASONS = new Set([
   "duplicate",
   "not_relevant",
   "other",
+  "too_many",
 ]);
 
 /** ゲートを閉じる (スキップ。発火点チューニングの計測対象) */
@@ -472,6 +473,41 @@ export async function dismissGateWithReason(
   const updated = await prisma.gate.updateMany({
     where: { id, status: { in: ["pending", "failed", "grading_failed"] } },
     data: { status: "dismissed", dismissReason: r },
+  });
+  if (updated.count === 0) return "busy";
+  revalidatePath("/gates");
+  revalidatePath(`/gates/${id}`);
+  revalidatePath("/");
+  return "ok";
+}
+
+/**
+ * ADR-0020 C1-2: pending をあとまわし（parked）。
+ * backlog cap の件数から外れ、あとで unpark できる。材料（DevEvent）は消えない。
+ */
+export async function parkGate(gateId: string): Promise<"ok" | "busy"> {
+  await requireAuth();
+  const id = gateId.trim();
+  if (!id) return "busy";
+  const updated = await prisma.gate.updateMany({
+    where: { id, status: "pending" },
+    data: { status: "parked", dismissReason: "parked" },
+  });
+  if (updated.count === 0) return "busy";
+  revalidatePath("/gates");
+  revalidatePath(`/gates/${id}`);
+  revalidatePath("/");
+  return "ok";
+}
+
+/** parked → pending に戻す */
+export async function unparkGate(gateId: string): Promise<"ok" | "busy"> {
+  await requireAuth();
+  const id = gateId.trim();
+  if (!id) return "busy";
+  const updated = await prisma.gate.updateMany({
+    where: { id, status: "parked" },
+    data: { status: "pending", dismissReason: null },
   });
   if (updated.count === 0) return "busy";
   revalidatePath("/gates");

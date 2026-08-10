@@ -133,7 +133,7 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 |---|---|---|---|---|
 | C0-1 | ADR-0020 採択 | done | ADR 存在＋0019 追記 | 本セクションとセット |
 | C1-1 | Material を backlog で落とさない | done | DevEvent は常に材料化。`skipReason=backlog` で生成スキップしても材料は残る／即時生成と分離 | `recordEvent` コメント明文化。Textbook が backlog 材料を章に含む |
-| C1-2 | 既存 pending しれんの退避 UI | todo | parked / dismiss で pending を5未満にもできる | 移行期の呼吸 |
+| C1-2 | 既存 pending しれんの退避 UI | done | parked / dismiss で pending を5未満にもできる | `/gates` あとまわし・閉じる。バトルにも同操作。status=`parked` |
 | C2-1 | 日次 Textbook 生成 | done | 指定日の材料→章立てデータ＋HTML 1本 | `generateDailyTextbook`（規則ベース）。正本 DB。章≤5・章内≤8 |
 | C2-2 | Textbook 閲覧面 | done | Web でその日の教科書を開ける | `/retro`・`/retro/[dateKey]` |
 | C2-3 | コンテキスト溢れ防止 | done | じゅもん注入は1章＋URLのみ。全量貼り禁止。圧縮落ち材料に証跡 | `buildJumonContext`＋`droppedMaterialIds` |
@@ -141,14 +141,14 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 | C3-1 | Check 蒸留（3〜7問） | done | 教科書から少数確認を生成 | `distillChecks`（規則）。材料件数に比例しない |
 | C3-2 | Mastery 4状態 | done | clear / partial / stuck / parked を保存・表示 | `DailyTextbookCheck.mastery` |
 | C3-3 | ステータス別翌日導線 | done | briefing / ちず CTA が状態で変わる | `textbook-guidance`＋home CTA。stuck→ずかん、partial/未確認→/retro、しれんより優先 |
-| C4-1 | コアループ説明の更新 | todo | onboarding / README / LP を 0020 一文に合わせる | 即時しれん偏重をやめる |
-| C4-2 | セルフラン（実装多めの1日） | todo | 材料が増えても沈黙せず、夜に教科書→確認→振り分けまで完走 | dogfood |
+| C4-1 | コアループ説明の更新 | done | onboarding / README / LP を 0020 一文に合わせる | README・onboarding・`/lp`・`docs/lp`・じゅんび文言 |
+| C4-2 | セルフラン（実装多めの1日） | todo | 材料が増えても沈黙せず、夜に教科書→確認→振り分けまで完走 | 手順: [walkthrough-p4-self-run.md](./walkthrough-p4-self-run.md) |
 
 ### P4 完了チェック
 
-- [ ] C1〜C3 の Must が `done`
-- [ ] 実装の多い日でも `backlog` 沈黙が起きない
-- [ ] 教科書 HTML が1日分生成され、Mastery 振り分け後に翌日 CTA が変わる
+- [x] C1〜C3 の Must が `done`
+- [ ] 実装の多い日でも `backlog` 沈黙が起きない（C4-2 で確認）
+- [ ] 教科書 HTML が1日分生成され、Mastery 振り分け後に翌日 CTA が変わる（C4-2）
 - [ ] C4-2 セルフラン成功
 
 ---
@@ -200,3 +200,4 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 | 2026-08-10 | ADR-0020 採択。P4（日次振り返り型）を追加。コア一文を材料→教科書→Mastery へ更新 |
 | 2026-08-10 | P4 縦スライス: Textbook スキーマ・生成・`/retro`・じゅもん1章注入・Mastery。C1-1/C2-1〜4/C3-1〜2 done |
 | 2026-08-10 | C3-3: Mastery→翌日導線（home CTA / morning_briefing）。教科書導線をしれんより優先 |
+| 2026-08-10 | C1-2 parked/dismiss UI。C4-1 説明更新。C4-2 手順書。P4 実装 Must は人間セルフランのみ残り |

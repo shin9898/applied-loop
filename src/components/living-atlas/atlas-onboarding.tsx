@@ -364,7 +364,7 @@ export function AtlasSetupPanel({
               （任意）監視リポジトリを選んで鉤をかける
             </p>
             <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-              選んだ repo への commit だけがしれんの種になる。仕事していれば勝手に溜まるわけではない。Cloud 作業が主なら今は飛ばしてよい。
+              選んだ repo への commit が材料になる（即時しれんは溜まると止まるが、材料は消えない）。仕事していれば勝手に溜まるわけではない。Cloud 作業が主なら今は飛ばしてよい。
             </p>
             <AtlasWatchedReposPanel repos={diagnosis.watchedRepos} />
             <div className="flex flex-wrap gap-2">
