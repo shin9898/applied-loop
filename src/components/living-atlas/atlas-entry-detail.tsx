@@ -19,8 +19,21 @@ export type AtlasEntryDetailProps = {
       note: string;
       createdAt: Date;
     }[];
+    experiments: {
+      id: string;
+      action: string;
+      status: string;
+      startDate: Date;
+      endDate: Date;
+    }[];
   };
   streakDays?: number;
+};
+
+const EXPERIMENT_STATUS_LABEL: Record<string, string> = {
+  active: "実験中",
+  completed: "完了",
+  abandoned: "中止",
 };
 
 /** /entries/[id] — 登録済み学び（読み取り。適用の記録は MCP） */
@@ -35,7 +48,7 @@ export function AtlasEntryDetail({ entry, streakDays }: AtlasEntryDetailProps) {
               href="/entries"
               className="font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a] no-underline"
             >
-              ← にっきにもどる
+              ← うけばこにもどる
             </Link>
           </div>
           <AtlasPageTitle title="きろく" sub={`${date} · ${entry.kind}`} />
@@ -80,6 +93,33 @@ export function AtlasEntryDetail({ entry, streakDays }: AtlasEntryDetailProps) {
             </ul>
           )}
         </AtlasReveal>
+
+        {entry.experiments.length > 0 ? (
+          <AtlasReveal as="section" delayIndex={2} className="dq-win p-3.5">
+            <h2 className="dq-win-title">ためしていること</h2>
+            <ul className="m-0 list-none p-0">
+              {entry.experiments.map((exp, i) => (
+                <li
+                  key={exp.id}
+                  className={`py-3 ${i ? "border-t-2 border-[#002070]" : "pt-0"}`}
+                >
+                  <Link
+                    href={`/experiments/${exp.id}`}
+                    className="text-[15px] text-[#f7f3d9] no-underline hover:underline"
+                  >
+                    {exp.action}
+                  </Link>
+                  <p className="mt-1 font-[family-name:var(--font-pixel)] text-[9px] text-[#9ec0ff]">
+                    {EXPERIMENT_STATUS_LABEL[exp.status] ?? exp.status}
+                    {" · "}
+                    {exp.startDate.toISOString().slice(0, 10)} 〜{" "}
+                    {exp.endDate.toISOString().slice(0, 10)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </AtlasReveal>
+        ) : null}
       </AtlasShell>
     </AtlasChrome>
   );

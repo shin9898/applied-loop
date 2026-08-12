@@ -7,6 +7,7 @@ import { resolvedGrowthStats } from "@/lib/heatmap";
 import { recordStreak } from "@/lib/stats";
 import { weeklyEvidenceCounts } from "@/lib/goal";
 import { repoCacheReadRates } from "@/lib/harness-stats";
+import { listMaterialCaptureHealth } from "@/lib/daily-textbook";
 import {
   findWatchedForHarnessRepo,
   pickRateForWatched,
@@ -39,6 +40,7 @@ import type { GateListItem } from "./atlas-gates-list";
 import type { HarnessRepo } from "./atlas-harness";
 import type { GoalItem } from "./atlas-goals";
 import type { EntryItem } from "./atlas-entries";
+import type { UkebakoBoard } from "./ukebako-view";
 import type { RequirementItem } from "./atlas-requirements";
 
 const GOAL_EVIDENCE_TARGET = 3;
@@ -155,6 +157,7 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     growth,
     streakDays,
     pendingGate,
+    pendingGateCount,
     pendingCaptureCount,
     openMisconceptionCount,
     weakRepos,
@@ -174,6 +177,12 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
       orderBy: { createdAt: "desc" },
       include: {
         event: { select: { repo: true, summary: true } },
+      },
+    }),
+    prisma.gate.count({
+      where: {
+        status: "pending",
+        OR: [{ nextReviewAt: null }, { nextReviewAt: { lte: now } }],
       },
     }),
     prisma.capture.count({ where: { status: "pending" } }),
@@ -266,11 +275,13 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
           context: place?.label,
           domain: pendingGate.domain,
           system: system ? systemLabel(system) : undefined,
+          systemKey: system ?? undefined,
           tags: pendingGate.targetConcept
             ? [pendingGate.targetConcept]
             : undefined,
         }
       : null,
+    pendingGateCount,
     todos,
     textbookGuidance: textbookGuide.guidance,
   };
@@ -389,6 +400,9 @@ function mapGateRow(g: {
   targetConcept: string | null;
   contextSummary: string | null;
   event: { repo: string } | null;
+  kind?: string | null;
+  createdAt?: Date | null;
+  gradedAt?: Date | null;
 }): GateListItem {
   const place = placeFrom(g.event?.repo, g.domain);
   const system = classifySystem({
@@ -405,6 +419,9 @@ function mapGateRow(g: {
     domain: g.domain,
     placeLabel: place.label,
     system,
+    kind: g.kind ?? null,
+    createdAt: g.createdAt ? g.createdAt.toISOString() : null,
+    gradedAt: g.gradedAt ? g.gradedAt.toISOString() : null,
   };
 }
 
@@ -417,7 +434,26 @@ export async function loadGateList(): Promise<{
   await enrichMissingGateDomains({ take: 60 }).catch((e) =>
     console.error("[place-enrich] gate list enrich failed:", e),
   );
+  return queryGateList();
+}
 
+/**
+ * enrich を挟まない軽い版。バトル画面が「つぎのまものへ」を組み立てるとき用
+ * （一覧を開いた時点で enrich 済みなので、1 体ごとに走らせる必要はない）。
+ */
+export async function loadGateListLight(): Promise<{
+  items: GateListItem[];
+  parkedItems: GateListItem[];
+  pendingBacklogCount: number;
+}> {
+  return queryGateList();
+}
+
+async function queryGateList(): Promise<{
+  items: GateListItem[];
+  parkedItems: GateListItem[];
+  pendingBacklogCount: number;
+}> {
   const now = new Date();
   const [active, history, parked, pendingBacklogCount] = await Promise.all([
     prisma.gate.findMany({
@@ -674,6 +710,25 @@ export async function loadHarnessRepos(): Promise<HarnessRepo[]> {
   return [...sortByHealth(watchedRows), ...sortByHealth(discoveredRows)];
 }
 
+export type MaterialCaptureHealth = {
+  days: { dateKey: string; materialCount: number; droppedCount: number }[];
+  inboxPending: number;
+  inboxExpired: number;
+};
+
+/**
+ * どうぐの一次シグナル: ぼうけんのしょの核（ADR-0020）が
+ * 材料（commit / セッション学び）を漏れなく拾えているか。
+ */
+export async function loadMaterialCaptureHealth(): Promise<MaterialCaptureHealth> {
+  const [days, inboxPending, inboxExpired] = await Promise.all([
+    listMaterialCaptureHealth(14),
+    prisma.capture.count({ where: { status: "pending" } }),
+    prisma.capture.count({ where: { status: "expired" } }),
+  ]);
+  return { days, inboxPending, inboxExpired };
+}
+
 function parseFocusDomains(raw: string | null): string[] {
   if (!raw) return [];
   try {
@@ -785,14 +840,23 @@ export async function loadEntries(): Promise<EntryItem[]> {
       orderBy: { createdAt: "desc" },
       take: 40,
       include: {
-        applications: { select: { id: true } },
+        applications: { select: { id: true, createdAt: true } },
       },
     }),
     prisma.capture.findMany({
       where: { status: "pending" },
       orderBy: [{ importanceScore: "desc" }, { capturedAt: "desc" }],
       take: 15,
-      select: { id: true, title: true, sourceTool: true, capturedAt: true },
+      select: {
+        id: true,
+        title: true,
+        note: true,
+        sourceTool: true,
+        sourceContext: true,
+        capturedAt: true,
+        importanceScore: true,
+        triageReason: true,
+      },
     }),
   ]);
 
@@ -807,6 +871,10 @@ export async function loadEntries(): Promise<EntryItem[]> {
     at: c.capturedAt,
     dayKey: "inbox",
     dayLabel: "受信箱（未仕分け）",
+    note: c.note,
+    context: c.sourceContext,
+    importance: c.importanceScore,
+    triageReason: c.triageReason,
   }));
 
   const entryItems: EntryItem[] = entries.map((e) => {
@@ -814,6 +882,11 @@ export async function loadEntries(): Promise<EntryItem[]> {
       text: `${e.title} ${e.note ?? ""}`,
       domain: e.domain,
     });
+    // つかった きろく（Application）の最新日 = くらの「なじみ」の鮮度
+    const lastUsedAt = e.applications.reduce<Date | undefined>(
+      (max, a) => (!max || a.createdAt > max ? a.createdAt : max),
+      undefined,
+    );
     return {
       id: e.id,
       title: shortTitle(e.title, null, 48),
@@ -826,10 +899,78 @@ export async function loadEntries(): Promise<EntryItem[]> {
       at: e.createdAt,
       dayKey: entryDayKey(e.createdAt),
       dayLabel: entryDayLabel(e.createdAt, now),
+      note: e.note,
+      lastUsedAt,
     };
   });
 
   return [...pendingItems, ...entryItems];
+}
+
+/** うけばこ下段（しれん / つかった きろく / 台帳）。一覧の EntryItem では出せない数だけ足す */
+export async function loadUkebakoBoard(): Promise<UkebakoBoard> {
+  const [
+    experiments,
+    applications,
+    pending,
+    expired,
+    entryTotal,
+    sleeping,
+    applicationTotal,
+    trialActive,
+  ] = await Promise.all([
+    prisma.experiment.findMany({
+      where: { status: "active" },
+      orderBy: { endDate: "asc" },
+      take: 3,
+      include: {
+        entry: { select: { id: true, title: true } },
+        checkIns: { select: { id: true } },
+      },
+    }),
+    prisma.application.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: { entry: { select: { id: true, title: true } } },
+    }),
+    prisma.capture.count({ where: { status: "pending" } }),
+    prisma.capture.count({ where: { status: "expired" } }),
+    prisma.entry.count(),
+    prisma.entry.count({ where: { applications: { none: {} } } }),
+    prisma.application.count(),
+    prisma.experiment.count({ where: { status: "active" } }),
+  ]);
+
+  return {
+    trials: experiments.map((x) => ({
+      id: x.id,
+      action: x.action,
+      successMetric: x.successMetric,
+      status: x.status,
+      startDate: x.startDate,
+      endDate: x.endDate,
+      entryId: x.entry.id,
+      entryTitle: shortTitle(x.entry.title, null, 44),
+      checkInCount: x.checkIns.length,
+    })),
+    log: applications.map((a) => ({
+      id: a.id,
+      appliedTo: a.appliedTo,
+      note: a.note,
+      decisionChanged: a.decisionChanged,
+      createdAt: a.createdAt,
+      entryId: a.entry.id,
+      entryTitle: shortTitle(a.entry.title, null, 44),
+    })),
+    stats: {
+      pending,
+      expired,
+      entryTotal,
+      sleeping,
+      applicationTotal,
+      trialActive,
+    },
+  };
 }
 
 export async function loadEntryDetail(id: string): Promise<{
@@ -842,6 +983,13 @@ export async function loadEntryDetail(id: string): Promise<{
   createdAt: Date;
   applicationCount: number;
   applications: { id: string; appliedTo: string; note: string; createdAt: Date }[];
+  experiments: {
+    id: string;
+    action: string;
+    status: string;
+    startDate: Date;
+    endDate: Date;
+  }[];
 } | null> {
   const entry = await prisma.entry.findUnique({
     where: { id },
@@ -850,6 +998,11 @@ export async function loadEntryDetail(id: string): Promise<{
         orderBy: { createdAt: "desc" },
         take: 12,
         select: { id: true, appliedTo: true, note: true, createdAt: true },
+      },
+      experiments: {
+        orderBy: { createdAt: "desc" },
+        take: 12,
+        select: { id: true, action: true, status: true, startDate: true, endDate: true },
       },
     },
   });
@@ -864,6 +1017,7 @@ export async function loadEntryDetail(id: string): Promise<{
     createdAt: entry.createdAt,
     applicationCount: entry.applications.length,
     applications: entry.applications,
+    experiments: entry.experiments,
   };
 }
 
@@ -910,12 +1064,16 @@ export async function loadRequirements(): Promise<RequirementItem[]> {
       title: shortTitle(r.title, null, 52),
       kind: "next" as const,
       system: classifySystem({ text: r.title }),
+      nextGateId: r.approvedGates.find((g) => !g.passed)?.gateId ?? null,
+      suggestedGateCount: r.suggestedGateCount,
     })),
     ...understood.map((r) => ({
       id: r.id,
       title: shortTitle(r.title, null, 52),
       kind: "understood" as const,
       system: classifySystem({ text: r.title }),
+      nextGateId: null,
+      suggestedGateCount: 0,
     })),
   ];
 
@@ -931,6 +1089,8 @@ export async function loadRequirements(): Promise<RequirementItem[]> {
       title: shortTitle(r.title, null, 52),
       kind: r.status === "understood" ? ("understood" as const) : ("next" as const),
       system: classifySystem({ text: r.title }),
+      nextGateId: null,
+      suggestedGateCount: 0,
     }));
   }
 

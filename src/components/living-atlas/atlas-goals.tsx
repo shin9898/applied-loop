@@ -26,41 +26,266 @@ export type GoalItem = {
 
 export { kdiConditions };
 
-const LINE_SLOTS = 6;
+/* ——— ドットのスプライト ———
+   すべて整数グリッドの <rect> で組み、shape-rendering=crispEdges で
+   拡大しても輪郭がにじまないようにする（ADR-0018: ドット表現） */
 
-function CrossedSwords({ className }: { className?: string }) {
+export function PixelSlime({ className }: { className?: string }) {
   return (
     <svg
       className={className}
-      viewBox="0 0 64 48"
-      width="48"
-      height="36"
+      viewBox="0 0 16 12"
+      shapeRendering="crispEdges"
       aria-hidden
+      focusable="false"
     >
-      <g
-        fill="none"
-        stroke="#3a2a18"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 40 L40 8" />
-        <path d="M36 6 L44 14" />
-        <path d="M8 36 L16 44" />
-        <path d="M52 40 L24 8" />
-        <path d="M28 6 L20 14" />
-        <path d="M56 36 L48 44" />
+      <g fill="currentColor">
+        <rect x="7" y="0" width="2" height="1" />
+        <rect x="6" y="1" width="4" height="1" />
+        <rect x="5" y="2" width="6" height="1" />
+        <rect x="4" y="3" width="8" height="1" />
+        <rect x="3" y="4" width="10" height="1" />
+        <rect x="2" y="5" width="12" height="2" />
+        <rect x="1" y="7" width="14" height="2" />
+        <rect x="0" y="9" width="16" height="3" />
       </g>
-      <g fill="#c9a227" stroke="#3a2a18" strokeWidth="1.4">
-        <rect x="6" y="34" width="10" height="4" rx="1" transform="rotate(-45 11 36)" />
-        <rect x="48" y="34" width="10" height="4" rx="1" transform="rotate(45 53 36)" />
+      <g fill="#000c4a">
+        <rect x="5" y="6" width="1" height="2" />
+        <rect x="10" y="6" width="1" height="2" />
+        <rect x="6" y="9" width="4" height="1" />
       </g>
-      <circle cx="32" cy="24" r="3.2" fill="#8a6a2a" stroke="#3a2a18" strokeWidth="1.2" />
     </svg>
   );
 }
 
-/** /goals — グランドクエスト一覧（羊皮紙クエスト掲示） */
+function PixelCross({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 8 8"
+      shapeRendering="crispEdges"
+      aria-hidden
+      focusable="false"
+    >
+      <g fill="currentColor">
+        <rect x="0" y="0" width="2" height="2" />
+        <rect x="2" y="2" width="2" height="2" />
+        <rect x="4" y="4" width="2" height="2" />
+        <rect x="6" y="6" width="2" height="2" />
+        <rect x="6" y="0" width="2" height="2" />
+        <rect x="4" y="2" width="2" height="2" />
+        <rect x="2" y="4" width="2" height="2" />
+        <rect x="0" y="6" width="2" height="2" />
+      </g>
+    </svg>
+  );
+}
+
+function PixelSword({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 12 12"
+      shapeRendering="crispEdges"
+      aria-hidden
+      focusable="false"
+    >
+      <g fill="currentColor">
+        <rect x="5" y="0" width="2" height="7" />
+        <rect x="4" y="2" width="1" height="5" />
+        <rect x="2" y="7" width="8" height="2" />
+        <rect x="5" y="9" width="2" height="2" />
+        <rect x="4" y="11" width="4" height="1" />
+      </g>
+    </svg>
+  );
+}
+
+function PixelScroll({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 12 12"
+      shapeRendering="crispEdges"
+      aria-hidden
+      focusable="false"
+    >
+      <g fill="currentColor">
+        <rect x="1" y="1" width="10" height="2" />
+        <rect x="1" y="9" width="10" height="2" />
+        <rect x="1" y="3" width="1" height="6" />
+        <rect x="10" y="3" width="1" height="6" />
+        <rect x="3" y="4" width="6" height="1" />
+        <rect x="3" y="6" width="5" height="1" />
+      </g>
+    </svg>
+  );
+}
+
+function PixelStar({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 8 8"
+      shapeRendering="crispEdges"
+      aria-hidden
+      focusable="false"
+    >
+      <g fill="currentColor">
+        <rect x="3" y="0" width="2" height="8" />
+        <rect x="0" y="3" width="8" height="2" />
+        <rect x="1" y="1" width="1" height="1" />
+        <rect x="6" y="1" width="1" height="1" />
+        <rect x="1" y="6" width="1" height="1" />
+        <rect x="6" y="6" width="1" height="1" />
+      </g>
+    </svg>
+  );
+}
+
+function PixelFlame({ frame, className }: { frame: "a" | "b"; className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 8 10"
+      shapeRendering="crispEdges"
+      aria-hidden
+      focusable="false"
+    >
+      {frame === "a" ? (
+        <>
+          <g fill="currentColor">
+            <rect x="3" y="0" width="2" height="2" />
+            <rect x="2" y="2" width="4" height="2" />
+            <rect x="1" y="4" width="6" height="3" />
+            <rect x="2" y="7" width="4" height="2" />
+          </g>
+          <rect x="3" y="4" width="2" height="3" fill="#f7f3d9" />
+        </>
+      ) : (
+        <>
+          <g fill="currentColor">
+            <rect x="4" y="0" width="2" height="1" />
+            <rect x="3" y="1" width="3" height="3" />
+            <rect x="1" y="4" width="6" height="3" />
+            <rect x="2" y="7" width="4" height="2" />
+          </g>
+          <rect x="3" y="5" width="2" height="2" fill="#f7f3d9" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/** 掲示板の見出し看板（一覧・詳細で共通） */
+export function GrandQuestBanner() {
+  return (
+    <div className="atlas-gq-banner">
+      <PixelSlime className="atlas-gq-ico atlas-gq-ico--slime" />
+      <h2 className="atlas-gq-board__title">GRAND QUEST</h2>
+      <PixelSlime className="atlas-gq-ico atlas-gq-ico--slime atlas-gq-ico--flip" />
+    </div>
+  );
+}
+
+/** 板の四隅の釘 */
+export function GrandQuestNails() {
+  return (
+    <>
+      <span className="atlas-gq-nail atlas-gq-nail--tl" aria-hidden />
+      <span className="atlas-gq-nail atlas-gq-nail--tr" aria-hidden />
+      <span className="atlas-gq-nail atlas-gq-nail--bl" aria-hidden />
+      <span className="atlas-gq-nail atlas-gq-nail--br" aria-hidden />
+    </>
+  );
+}
+
+/** CLEAR の押印（回転させずドットの段差枠で出す） */
+export function ClearStamp() {
+  return (
+    <span className="atlas-gq-stamp">
+      <PixelStar className="atlas-gq-ico atlas-gq-ico--star" />
+      CLEAR
+    </span>
+  );
+}
+
+/** 討伐スロット: 証跡 1 件 = スライム 1 体。既存の evidenceCount/target をそのまま使う */
+export function HuntSlots({
+  count,
+  target,
+  label = "討伐進捗（証跡）",
+}: {
+  count: number;
+  target: number;
+  label?: string;
+}) {
+  const total = Math.max(1, target);
+  const pct = Math.min(100, Math.round((count / total) * 100));
+  return (
+    <div className="atlas-gq-hunt">
+      <div className="atlas-gq-hunt__row">
+        <span>{label}</span>
+        <b>
+          {count}/{total}
+        </b>
+      </div>
+      <div
+        className="atlas-gq-hunt__slots"
+        style={{
+          gridTemplateColumns: `repeat(${Math.min(total, 6)}, 1fr)`,
+        }}
+        role="img"
+        aria-label={`証跡 ${count}/${total}（${pct}%）`}
+      >
+        {Array.from({ length: total }, (_, i) => i < count).map((on, i) => (
+          <span
+            key={i}
+            className={`atlas-gq-hunt__slot ${on ? "is-on" : ""}`}
+            aria-hidden
+          >
+            <PixelSlime className="atlas-gq-ico atlas-gq-ico--slime-sm" />
+            {on ? (
+              <PixelCross className="atlas-gq-ico atlas-gq-hunt__cross" />
+            ) : null}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** クリア条件（KDI）のチェック欄 */
+export function QuestConditions({
+  conditions,
+  cleared,
+}: {
+  conditions: string[];
+  cleared: boolean;
+}) {
+  if (conditions.length === 0) {
+    return (
+      <p className="atlas-gq-cond__empty">
+        クリア条件（KDI）は未設定。じゅもんで掲げよ。
+      </p>
+    );
+  }
+  return (
+    <ul className="atlas-gq-cond">
+      {conditions.map((c) => (
+        <li key={c}>
+          <span
+            className={`atlas-gq-cond__box ${cleared ? "is-on" : ""}`}
+            aria-hidden
+          />
+          <span>{c}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** /goals — グランドクエスト一覧（けいじばんにピン留めした羊皮紙の札） */
 export function AtlasGoals({
   goals,
   streakDays,
@@ -105,29 +330,82 @@ export function AtlasGoals({
                 : "進行中のグランドクエスト"
             }
           />
-          <div className="atlas-gq-board">
-            <header className="atlas-gq-board__head">
-              <h2 className="atlas-gq-board__title">Grand Quest</h2>
-              <p className="atlas-gq-board__rule" aria-hidden />
-              <p className="atlas-gq-board__blurb">
-                掲示された使命を選べ。クリア条件を見て、証跡を刻め。
-                日々の手はホームのデイリークエストへ。
-              </p>
-            </header>
+          <div className="atlas-gq-stage">
+            <div className="atlas-gq-board">
+              <GrandQuestNails />
+              <div className="atlas-gq-rail" aria-hidden />
 
-            {goals.length === 0 ? (
-              <p className="atlas-gq-board__empty">
-                まだグランドクエストがない。MCP の register_goals で掲げよ。
-              </p>
-            ) : (
-              <ul className="atlas-gq-list">
-                {goals.map((g) => (
-                  <li key={g.id}>
-                    <GrandQuestCard goal={g} />
-                  </li>
-                ))}
-              </ul>
-            )}
+              <div className="atlas-gq-board__inner">
+                <header className="atlas-gq-board__head">
+                  <GrandQuestBanner />
+                  <p className="atlas-gq-board__blurb">
+                    <b>掲示された使命をえらべ。</b>
+                    クリア条件を見て、証跡をきざめ。
+                    <br />
+                    毎日の手はホームのデイリークエストへ。
+                  </p>
+                </header>
+
+                {goals.length === 0 ? (
+                  <p className="atlas-gq-board__empty">
+                    まだグランドクエストがない。MCP の register_goals で掲げよ。
+                  </p>
+                ) : (
+                  <ul className="atlas-gq-list">
+                    {goals.map((g, i) => (
+                      <li
+                        key={g.id}
+                        className={`atlas-gq-slip ${
+                          ["", "atlas-gq-slip--b", "atlas-gq-slip--c"][i % 3]
+                        } ${
+                          g.evidenceCount >= (g.evidenceTarget ?? 3)
+                            ? "atlas-gq-slip--clear"
+                            : ""
+                        }`}
+                      >
+                        <GrandQuestSlip goal={g} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="atlas-gq-cmd">
+                  <span className="atlas-gq-cmd__label">コマンド</span>
+                  <span className="atlas-gq-cmd__item">
+                    もくひょうをかかげる（MCP register_goals）
+                  </span>
+                  <span className="atlas-gq-cmd__item">
+                    証跡をきざむ（じゅもん）
+                  </span>
+                  <Link href="/entries" className="atlas-gq-cmd__item">
+                    にっきへもどる
+                  </Link>
+                </div>
+              </div>
+
+              <div className="atlas-gq-rail" aria-hidden />
+            </div>
+
+            <div className="atlas-gq-posts" aria-hidden>
+              <span />
+              <span />
+            </div>
+            <div className="atlas-gq-ground" aria-hidden />
+
+            <span className="atlas-gq-torch atlas-gq-torch--l" aria-hidden>
+              <span className="atlas-gq-torch__fire">
+                <PixelFlame frame="a" className="atlas-gq-ico atlas-gq-flame--a" />
+                <PixelFlame frame="b" className="atlas-gq-ico atlas-gq-flame--b" />
+              </span>
+              <span className="atlas-gq-torch__stick" />
+            </span>
+            <span className="atlas-gq-torch atlas-gq-torch--r" aria-hidden>
+              <span className="atlas-gq-torch__fire">
+                <PixelFlame frame="a" className="atlas-gq-ico atlas-gq-flame--a" />
+                <PixelFlame frame="b" className="atlas-gq-ico atlas-gq-flame--b" />
+              </span>
+              <span className="atlas-gq-torch__stick" />
+            </span>
           </div>
         </AtlasReveal>
       </AtlasShell>
@@ -135,98 +413,61 @@ export function AtlasGoals({
   );
 }
 
-function GrandQuestCard({ goal: g }: { goal: GoalItem }) {
+/** 板にピン留めされた 1 枚の羊皮紙 */
+function GrandQuestSlip({ goal: g }: { goal: GoalItem }) {
   const target = g.evidenceTarget ?? 3;
-  const pct = Math.min(100, Math.round((g.evidenceCount / target) * 100));
   const isThin = g.thin ?? g.evidenceCount < target;
-  const conditions = kdiConditions(g.kdi);
   const cleared = g.evidenceCount >= target;
-  const lines = [...conditions];
-  while (lines.length < LINE_SLOTS) lines.push("");
+  const conditions = kdiConditions(g.kdi);
 
   return (
-    <article
-      className={`atlas-gq-card ${isThin ? "atlas-gq-card--thin" : ""} ${
-        cleared ? "atlas-gq-card--clear" : ""
-      }`}
-    >
-      <div className="atlas-gq-card__paper">
-        <header className="atlas-gq-card__head">
-          <CrossedSwords className="atlas-gq-card__swords" />
-          <div className="atlas-gq-card__head-text">
-            <p className="atlas-gq-card__kind">Grand Quest</p>
-            <p className="atlas-gq-card__code">
-              {g.code}
-              {g.period ? ` · ${g.period}` : ""}
+    <>
+      <span className="atlas-gq-slip__pin" aria-hidden />
+      {isThin && !cleared ? (
+        <span className="atlas-gq-slip__state">証跡うすい</span>
+      ) : null}
+      <div className="atlas-gq-slip__hang">
+        <article className="atlas-gq-slip__paper">
+          <div className="atlas-gq-slip__meta">
+            <span className="atlas-gq-slip__code">{g.code}</span>
+            <span>{g.period ?? "—"}</span>
+          </div>
+
+          <h3 className="atlas-gq-slip__title">{g.title}</h3>
+          <div className="atlas-gq-slip__hr" aria-hidden />
+
+          <QuestConditions conditions={conditions} cleared={cleared} />
+
+          <HuntSlots count={g.evidenceCount} target={target} />
+
+          {g.focusDomains && g.focusDomains.length > 0 ? (
+            <p className="atlas-gq-slip__next">
+              戦場: {g.focusDomains.join(" · ")}
             </p>
-          </div>
-          <div
-            className={`atlas-gq-card__clear ${cleared ? "is-on" : ""}`}
-            aria-label={cleared ? "CLEAR" : "未CLEAR"}
-          >
-            <span>CLEAR</span>
-            <i>{cleared ? "済" : ""}</i>
-          </div>
-        </header>
+          ) : null}
 
-        <h3 className="atlas-gq-card__title">{g.title}</h3>
-
-        <section className="atlas-gq-card__conditions" aria-label="クリア条件">
-          <ul className="atlas-gq-card__cond-list">
-            {lines.map((c, i) => (
-              <li key={`${g.id}-line-${i}`} className={c ? "" : "is-blank"}>
-                <span className="atlas-gq-card__check" aria-hidden>
-                  {c ? (cleared ? "☑" : "☐") : "□"}
-                </span>
-                <span className="atlas-gq-card__line">
-                  {c || "\u00a0"}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="atlas-gq-card__progress" aria-label="討伐進捗">
-          <div className="atlas-gq-card__progress-row">
-            <span>討伐進捗（証跡）</span>
-            <span>
-              {g.evidenceCount}/{target}
-            </span>
-          </div>
-          <div className="atlas-gq-card__bar">
-            <i
-              className={isThin ? "is-thin" : "is-ok"}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </section>
-
-        {g.focusDomains && g.focusDomains.length > 0 ? (
-          <p className="atlas-gq-card__focus">
-            戦場: {g.focusDomains.join(" · ")}
-          </p>
-        ) : null}
-
-        <footer className="atlas-gq-card__foot">
           {g.nextAction ? (
-            <div className="atlas-gq-card__next">
-              <p>{g.nextAction.reason}</p>
-              <div className="atlas-gq-card__actions">
-                <Link href={g.nextAction.href} className="atlas-gq-card__btn">
-                  {g.nextAction.label}
-                </Link>
-                <Link href={`/goals/${g.id}`} className="atlas-gq-card__detail">
-                  クエスト詳細
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <Link href={`/goals/${g.id}`} className="atlas-gq-card__btn">
-              クエスト詳細
+            <p className="atlas-gq-slip__next">{g.nextAction.reason}</p>
+          ) : null}
+
+          <div className="atlas-gq-slip__foot">
+            {g.nextAction ? (
+              <Link href={g.nextAction.href} className="atlas-gq-btn">
+                <PixelSword className="atlas-gq-ico atlas-gq-ico--sword" />
+                {g.nextAction.label}
+              </Link>
+            ) : null}
+            <Link
+              href={`/goals/${g.id}`}
+              className="atlas-gq-btn atlas-gq-btn--ghost"
+            >
+              <PixelScroll className="atlas-gq-ico atlas-gq-ico--scroll" />
+              くわしく
             </Link>
-          )}
-        </footer>
+            {cleared ? <ClearStamp /> : null}
+          </div>
+        </article>
       </div>
-    </article>
+    </>
   );
 }

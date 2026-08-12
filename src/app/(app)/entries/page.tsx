@@ -2,6 +2,7 @@ import { AtlasEntries } from "@/components/living-atlas/atlas-entries";
 import {
   loadEntries,
   loadStreakDays,
+  loadUkebakoBoard,
 } from "@/components/living-atlas/load-atlas-data";
 import { prisma } from "@/lib/db";
 import { getTerminalWsToken } from "@/lib/terminal-token";
@@ -16,8 +17,9 @@ export default async function EntriesPage({ searchParams }: Props) {
   const sp = searchParams ? await searchParams : {};
   const goalId = sp.goal?.trim() || null;
   const mcpHint = sp.hint === "mcp";
-  const [items, streakDays, goal] = await Promise.all([
+  const [items, board, streakDays, goal] = await Promise.all([
     loadEntries(),
+    loadUkebakoBoard(),
     loadStreakDays(),
     goalId
       ? prisma.goal.findUnique({
@@ -29,6 +31,7 @@ export default async function EntriesPage({ searchParams }: Props) {
   return (
     <AtlasEntries
       items={items}
+      board={board}
       streakDays={streakDays}
       wsToken={getTerminalWsToken()}
       evidenceHint={

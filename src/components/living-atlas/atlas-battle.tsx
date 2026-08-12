@@ -95,6 +95,11 @@ export type AtlasBattleProps = {
   /** B5-5: CLEAR 時の再出題予告ラベル */
   initialNextReviewLabel?: string | null;
   onGoZukan?: () => void;
+  /**
+   * ダンジョン（/gates?d=系統）で連続撃破しているときの「つぎのまものへ」。
+   * バトルの中身は変えず、結果／採点待ちの導線に 1 本足すだけ。
+   */
+  nextGate?: { href: string; label: string } | null;
 };
 
 type Phase =
@@ -311,6 +316,7 @@ export function AtlasBattle({
   relatedMisconceptionId = null,
   initialNextReviewLabel = null,
   onGoZukan,
+  nextGate = null,
 }: AtlasBattleProps) {
   const def = enemy ?? DEFAULT_ENEMY;
   const displayName = enemyName ?? def.name;
@@ -855,6 +861,11 @@ export function AtlasBattle({
 
             {phase === "waiting" ? (
               <div className="mt-3 flex flex-wrap gap-2">
+                {nextGate ? (
+                  <Link href={nextGate.href} className="dq-btn dq-btn-ghost">
+                    {nextGate.label}
+                  </Link>
+                ) : null}
                 {onAccepted ? (
                   <button type="button" className="dq-btn" onClick={onAccepted}>
                     {afterAcceptLabel}
@@ -897,6 +908,11 @@ export function AtlasBattle({
 
             {phase === "result" ? (
               <div className="mt-3 flex flex-wrap gap-2">
+                {nextGate && verdict === "pass" ? (
+                  <Link href={nextGate.href} className="dq-btn">
+                    {nextGate.label}
+                  </Link>
+                ) : null}
                 {verdict === "grading_failed" ? (
                   <>
                     <button
@@ -967,7 +983,12 @@ export function AtlasBattle({
                 {verdict === "pass" || verdict === "retry" ? (
                   <button
                     type="button"
-                    className="dq-btn"
+                    /* 金は画面に 1 つだけ。連続撃破中は「つぎのまものへ」が主役 */
+                    className={
+                      nextGate && verdict === "pass"
+                        ? "dq-btn dq-btn-ghost"
+                        : "dq-btn"
+                    }
                     onClick={() => {
                       if (onGoZukan) onGoZukan();
                       else if (typeof window !== "undefined") {
@@ -988,6 +1009,11 @@ export function AtlasBattle({
                       ちずへもどる
                     </button>
                   )
+                ) : null}
+                {nextGate && verdict !== "pass" ? (
+                  <Link href={nextGate.href} className="dq-btn dq-btn-ghost">
+                    {nextGate.label}
+                  </Link>
                 ) : null}
                 <button type="button" className="dq-btn dq-btn-ghost" onClick={onGoGates}>
                   しれん一覧へ

@@ -16,7 +16,12 @@ import {
 import { AtlasShell } from "./atlas-shell";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasPageTitle } from "./atlas-page-title";
-import { AtlasWorldMap, REGION_LEGEND } from "./atlas-world-map";
+import {
+  AtlasWorldMap,
+  FOG_REGION_POS,
+  SYSTEM_REGION_POS,
+  type MapMarker,
+} from "./atlas-world-map";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
@@ -45,9 +50,14 @@ export type AtlasDashboardProps = {
     title?: string;
     context?: string;
     domain?: string | null;
+    /** 表示用ラベル（例: キャッシュ） */
     system?: string | null;
+    /** 地図の領座標を引くための生キー（例: cache） */
+    systemKey?: string;
     tags?: string[];
   };
+  /** 未クリアしれんの総数（！ピンの脇に表示） */
+  pendingGateCount?: number;
   todos?: { title: string; meta: string }[];
   /** 今日のタスク × 学び (ADR-0013) */
   taskMap?: TaskMapView | null;
@@ -413,24 +423,6 @@ function StatusCommandPanel({
   );
 }
 
-const LOG: Record<string, { who: string; title: string; body: string }> = {
-  "quest-1": {
-    who: "◆ しれんの案内",
-    title: "未クリアのしれん",
-    body: "『たたかう』で解答画面へ。じゅもん（回答）は採点に送られるぞ。",
-  },
-  "clear-1": {
-    who: "◆ CLEAR（ずかんに記録済み）",
-    title: "クリア済みのつまずき",
-    body: "ずかんで本文・根拠・再出題を見返せる。同じ系統のしれんのヒントになるぞ。",
-  },
-  you: {
-    who: "◆ いまのばしょ",
-    title: "しれん連峰のふもと",
-    body: "未クリアの「！」は未解明帯にある。画面のコマンド窓（黒）でどうぐ・にっきへ移れるぞ。",
-  },
-};
-
 export function AtlasDashboard({
   resolvedTotal,
   thisWeekDelta,
@@ -438,6 +430,7 @@ export function AtlasDashboard({
   adventurer: adventurerProp,
   systemStars = [],
   pendingGate,
+  pendingGateCount,
   todos = [
     { title: "① 未クリアのしれんを1つ解く", meta: "『たたかう』→ じゅもん（LLM）で回答" },
     { title: "② 受信箱の学びを仕分ける", meta: "にっき → 候補を確認" },
@@ -454,12 +447,34 @@ export function AtlasDashboard({
   const adventurer =
     adventurerProp ?? adventurerLevelFromResolved(resolvedTotal);
 
-  const log = LOG[activeId] ?? {
-    who: "◆ しれんの案内",
-    title: pendingGate?.title ?? "つぎのしれんはないようじゃ",
-    body: pendingGate
-      ? "『たたかう』で解答画面へ。問い全文はそこで読むのじゃ。"
-      : "ちずのピンを選ぶか、コマンド窓からにっき・どうぐを開くとよいぞ。",
+  const questPos = pendingGate
+    ? (SYSTEM_REGION_POS[pendingGate.systemKey ?? ""] ?? FOG_REGION_POS)
+    : null;
+  const mapMarkers: MapMarker[] = [
+    { id: "you", kind: "you", label: "▼ あなた", left: "22%", top: "64%" },
+    ...(pendingGate && questPos
+      ? [
+          {
+            id: "quest-1",
+            kind: "quest" as const,
+            label: "！",
+            left: questPos.left,
+            top: questPos.top,
+            href: `/gates/${pendingGate.id}`,
+          },
+        ]
+      : []),
+  ];
+
+  const starByKey = new Map(systemStars.map((s) => [s.key, s.stars]));
+  const regionBrightness = {
+    knowledge: (starByKey.get("knowledge") ?? 0) / 5,
+    harness: (starByKey.get("harness") ?? 0) / 5,
+    cache: (starByKey.get("cache") ?? 0) / 5,
+    design: (starByKey.get("design") ?? 0) / 5,
+    fog:
+      Math.max(starByKey.get("verification") ?? 0, starByKey.get("premise") ?? 0) /
+      5,
   };
 
   const primaryCta = resolveHomeCta({
@@ -492,61 +507,49 @@ export function AtlasDashboard({
   return (
     <AtlasShell>
       <AtlasWorldIntroModal />
-      <AtlasReveal as="section">
-        <div className="grid grid-cols-1 items-center gap-3.5 border-4 border-[#f0d25a] bg-[#001a8c] p-4 outline outline-4 outline-[#000c4a] shadow-[6px_6px_0_#000] md:grid-cols-[1fr_auto]">
-          <div>
-            <div className="mb-2 font-[family-name:var(--font-pixel)] text-[11px] text-[#f0d25a]">
-              ◆ いまの一手
-            </div>
-            <h1 className="m-0 font-[family-name:var(--font-jp)] text-[18px] font-normal leading-relaxed">
-              {primaryCta.title}
-            </h1>
-            <p className="mt-2 text-[13px] leading-relaxed text-[#c9c3a0]">
-              {primaryCta.body}
-            </p>
-          </div>
-          <Link href={primaryCta.href} className="dq-btn">
-            {primaryCta.label}
-          </Link>
-        </div>
-      </AtlasReveal>
-      <AtlasReveal as="section">
-        {wsToken ? (
-          <AtlasAssist
-            wsToken={wsToken}
-            intent="general"
-            context={assistContext}
-            title="じゅもんで今日を進める"
-            blurb="朝の仕分けも、証跡も、どうぐの見立ても——願うならここからじゅもんを。ひとつのしれんなら上の一手へ。"
-            plain="ホーム用の全体操作。Claude/Codex が開き MCP で morning_briefing・仕分け・処方など。1問集中は上のプライマリ CTA。"
-            defaultOpen={false}
-          />
-        ) : (
-          <AtlasAssistUnavailable />
-        )}
-      </AtlasReveal>
 
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1.6fr_0.9fr]">
-        <AtlasReveal as="section" className="dq-win flex h-full flex-col gap-2.5 p-3">
+        <AtlasReveal as="section" className="dq-win flex h-full flex-col gap-3 p-3.5">
           <AtlasPageTitle
             title="ちず"
-            sub="あかるい領ほど、まち・きがふえるんじゃ"
+            sub={
+              pendingGate
+                ? `！＝いまのしれん（未クリア ${pendingGateCount ?? 1} 件）`
+                : "領＝学びの系統じゃ"
+            }
             surface="map"
           />
-          <AtlasWorldMap activeId={activeId} onSelect={setActiveId} />
+          <div className="atlas-worldmap-frame">
+            <AtlasWorldMap
+              markers={mapMarkers}
+              activeId={activeId}
+              onSelect={setActiveId}
+              regionBrightness={regionBrightness}
+            />
+          </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-[#c9c3a0]">
-            {REGION_LEGEND.map((r) => (
-              <span key={r.name} className="inline-flex items-center gap-1.5">
-                <i
-                  className="inline-block h-2.5 w-2.5 border border-black"
-                  style={{ background: r.swatch }}
-                  aria-hidden
-                />
-                {r.name}
-              </span>
-            ))}
-            <span className="text-[#9ec0ff]">！＝未クリア</span>
-            <span>まち／き＝学びの密度</span>
+            <span className="text-[#f0d25a]">！＝未クリアのしれん</span>
+            <span>▼＝いま</span>
+            <span>領＝学びの系統</span>
+          </div>
+
+          <div className="mt-auto border-t-2 border-[#002070] pt-3">
+            <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
+              ◆ いまの一手
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="m-0 text-[15px] font-normal leading-relaxed">
+                  {primaryCta.title}
+                </h2>
+                <p className="mt-1 mb-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+                  {primaryCta.body}
+                </p>
+              </div>
+              <Link href={primaryCta.href} className="dq-btn shrink-0">
+                {primaryCta.label}
+              </Link>
+            </div>
           </div>
         </AtlasReveal>
 
@@ -564,21 +567,20 @@ export function AtlasDashboard({
         />
       </div>
 
-      <AtlasReveal
-        as="section"
-        delayIndex={2}
-        className="dq-win grid grid-cols-1 items-center gap-3 p-3.5 md:grid-cols-[1fr_auto]"
-      >
-        <div>
-          <div className="mb-2 font-[family-name:var(--font-pixel)] text-[11px] text-[#f0d25a]">
-            {log.who}
-          </div>
-          <h2 className="m-0 text-[16px] font-normal leading-relaxed">{log.title}</h2>
-          <p className="mt-2 text-[13px] leading-relaxed text-[#c9c3a0]">{log.body}</p>
-        </div>
-        <Link href={primaryCta.href} className="dq-btn">
-          {primaryCta.label}
-        </Link>
+      <AtlasReveal as="section" delayIndex={2}>
+        {wsToken ? (
+          <AtlasAssist
+            wsToken={wsToken}
+            intent="general"
+            context={assistContext}
+            title="じゅもんで今日を進める"
+            blurb="朝の仕分けも、証跡も、どうぐの見立ても——願うならここからじゅもんを。ひとつのしれんなら上の一手へ。"
+            plain="ホーム用の全体操作。Claude/Codex が開き MCP で morning_briefing・仕分け・処方など。1問集中は上のプライマリ CTA。"
+            defaultOpen={false}
+          />
+        ) : (
+          <AtlasAssistUnavailable />
+        )}
       </AtlasReveal>
     </AtlasShell>
   );

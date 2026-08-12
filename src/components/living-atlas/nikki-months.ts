@@ -1,3 +1,10 @@
+export type NikkiChapterBrief = {
+  index: number;
+  title: string;
+  /** 「やったこと」要約 1〜2文（既存の oneLiner / action から整形済み） */
+  summary: string;
+};
+
 export type NikkiDay = {
   dateKey: string;
   chapterCount: number;
@@ -5,6 +12,7 @@ export type NikkiDay = {
   title?: string;
   lead?: string | null;
   lines?: string[];
+  chapters?: NikkiChapterBrief[];
 };
 
 export type NikkiMonth = {

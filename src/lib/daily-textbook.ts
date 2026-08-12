@@ -7,6 +7,7 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { dateKeyJST } from "@/lib/date";
 import {
+  chapterDidSummary,
   chaptersHaveLessonSlots,
   clusterMaterialsIntoChapters,
   dayRangeFromDateKey,
@@ -233,6 +234,7 @@ export async function listTextbookDates(limit = 14): Promise<
     title: string;
     lead: string | null;
     lines: string[];
+    chapters: Array<{ index: number; title: string; summary: string }>;
   }>
 > {
   const rows = await prisma.dailyTextbook.findMany({
@@ -247,7 +249,7 @@ export async function listTextbookDates(limit = 14): Promise<
       chapters: {
         orderBy: { index: "asc" },
         take: 5,
-        select: { title: true, oneLiner: true },
+        select: { index: true, title: true, oneLiner: true, bodyDeep: true },
       },
     },
   });
@@ -258,5 +260,70 @@ export async function listTextbookDates(limit = 14): Promise<
     title: r.title,
     lead: r.lead,
     lines: r.chapters.map((c) => c.oneLiner?.trim() || c.title).filter(Boolean),
+    // めくった先の日ページに「章タイトル＋やったこと要約」を出すための組
+    chapters: r.chapters.map((c) => ({
+      index: c.index,
+      title: c.title,
+      summary:
+        chapterDidSummary({
+          oneLiner: c.oneLiner ?? "",
+          action: parseLessonSlots(c.bodyDeep).action,
+        }) || c.title,
+    })),
   }));
+}
+
+/**
+ * 材料（DevEvent）はあるのに、まだ教科書になっていない日。
+ * 一覧画面の「未作成の日をまとめて教科書化」で使う。
+ */
+export async function listUngeneratedDays(
+  days = 60,
+): Promise<Array<{ dateKey: string; materialCount: number }>> {
+  const { start } = dayRangeFromDateKey(dateKeyJST());
+  const from = new Date(start.getTime() - (days - 1) * 86400000);
+  const rows = await prisma.devEvent.findMany({
+    where: { receivedAt: { gte: from } },
+    select: { receivedAt: true },
+  });
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const key = dateKeyJST(r.receivedAt);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  if (counts.size === 0) return [];
+  const existing = await prisma.dailyTextbook.findMany({
+    where: { dateKey: { in: [...counts.keys()] } },
+    select: { dateKey: true },
+  });
+  const written = new Set(existing.map((e) => e.dateKey));
+  return [...counts.entries()]
+    .filter(([dateKey]) => !written.has(dateKey))
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([dateKey, materialCount]) => ({ dateKey, materialCount }));
+}
+
+/**
+ * 日次教科書が「材料を漏れなく拾えているか」(ADR-0020 §6-4)。
+ * 圧縮で落とした droppedMaterialIds の割合が高いほど、その日は取りこぼしが多い。
+ */
+export async function listMaterialCaptureHealth(limit = 14): Promise<
+  Array<{
+    dateKey: string;
+    materialCount: number;
+    droppedCount: number;
+  }>
+> {
+  const rows = await prisma.dailyTextbook.findMany({
+    orderBy: { dateKey: "desc" },
+    take: limit,
+    select: { dateKey: true, materialCount: true, droppedMaterialIds: true },
+  });
+  return rows
+    .map((r) => ({
+      dateKey: r.dateKey,
+      materialCount: r.materialCount,
+      droppedCount: parseIds(r.droppedMaterialIds).length,
+    }))
+    .reverse();
 }

@@ -109,6 +109,50 @@ export function AtlasNikkiShelf({
   );
 }
 
+/**
+ * めくった先の日ページ本文。章の先頭に「タイトル＋やったこと要約」を置く。
+ * ページは固定寸法なので、章は 3 つまで・要約は clamp して紙面から溢れさせない。
+ */
+const DAY_PAGE_MAX_CHAPTERS = 3;
+
+function DayPageChapters({ entry }: { entry: NikkiDay }) {
+  const chapters = entry.chapters ?? [];
+  if (chapters.length > 0) {
+    const shown = chapters.slice(0, DAY_PAGE_MAX_CHAPTERS);
+    const rest = entry.chapterCount - shown.length;
+    return (
+      <div className="atlas-nikki-day-page__chapters">
+        {shown.map((c) => (
+          <section key={c.index} className="atlas-nikki-day-chapter">
+            <p className="atlas-nikki-day-chapter__head">
+              <span className="atlas-nikki-day-chapter__no">第{c.index}章</span>
+              <span className="atlas-nikki-day-chapter__title">{c.title}</span>
+            </p>
+            <p className="atlas-nikki-day-chapter__did">{c.summary}</p>
+          </section>
+        ))}
+        {rest > 0 ? (
+          <p className="atlas-nikki-day-chapter__rest">ほか {rest} 章</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (entry.lines && entry.lines.length > 0) {
+    return (
+      <ul className="atlas-nikki-day-page__lines">
+        {entry.lines.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  return entry.lead ? (
+    <p className="atlas-nikki-day-page__lead">{entry.lead}</p>
+  ) : null;
+}
+
 function AtlasNikkiBook({
   month,
   todayKey,
@@ -388,20 +432,10 @@ function AtlasNikkiBook({
                   </p>
                   {d.entry ? (
                     <>
-                      {d.entry.lead ? (
-                        <p className="atlas-nikki-day-page__lead">{d.entry.lead}</p>
-                      ) : null}
-                      {d.entry.lines && d.entry.lines.length > 0 ? (
-                        <ul className="atlas-nikki-day-page__lines">
-                          {d.entry.lines.map((line) => (
-                            <li key={line}>{line}</li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="atlas-nikki-day-page__meta">
-                          材料 {d.entry.materialCount} · 章 {d.entry.chapterCount}
-                        </p>
-                      )}
+                      <DayPageChapters entry={d.entry} />
+                      <p className="atlas-nikki-day-page__meta">
+                        材料 {d.entry.materialCount} · 章 {d.entry.chapterCount}
+                      </p>
                       <Link
                         href={`/retro/${d.dateKey}`}
                         className="dq-btn atlas-nikki-day-page__open !text-[9px]"

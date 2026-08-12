@@ -14,6 +14,7 @@ import {
 import {
   bodyForDisplay,
   buildJumonContext,
+  chapterDidSummary,
   MASTERY_STATES,
   type MasteryState,
   type TextbookView,
@@ -214,6 +215,25 @@ export function AtlasDailyTextbook({
                 ? ` · 圧縮で畳んだ材料 ${textbook.droppedMaterialIds.length}`
                 : ""}
             </p>
+            {textbook.chapters.length > 0 ? (
+              <div className="atlas-journal__toc">
+                <p className="atlas-journal__toc-label">
+                  きょうの{textbook.chapters.length}章
+                </p>
+                <ul className="atlas-journal__toc-list">
+                  {textbook.chapters.map((ch) => (
+                    <li key={ch.id} className="atlas-journal__toc-item">
+                      <a href={`#chapter-${ch.index}`}>
+                        <span className="atlas-journal__toc-no">
+                          第{ch.index}章
+                        </span>
+                        <span>{ch.title}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <p className="atlas-journal__note">
               新規も再圧縮も同じ規則で「なぜ／型／結果／別案」を埋める（LLMなし）。
               各章の「LLMで磨く」は任意。深掘りは章末導線から最下部のじゅもんへ。
@@ -248,12 +268,42 @@ export function AtlasDailyTextbook({
                   <p className="atlas-journal__chapter-no">
                     第{ch.index}章
                   </p>
-                  <h3 className="atlas-journal__chapter-title">
-                    {ch.title}
-                  </h3>
-                  <p className="atlas-journal__lead">
-                    {ch.oneLiner}
-                  </p>
+                  {/* 章の先頭 = タイトル＋やったこと要約。ここだけで何の話か分かる */}
+                  <div className="atlas-journal__summary">
+                    <h3 className="atlas-journal__chapter-title">
+                      {ch.title}
+                    </h3>
+                    <p className="atlas-journal__summary-did">
+                      {chapterDidSummary({
+                        oneLiner: ch.oneLiner,
+                        action: ch.action,
+                      })}
+                    </p>
+                    <div className="atlas-journal__facts">
+                      <span className="atlas-journal__fact">
+                        材料{" "}
+                        <span className="atlas-journal__fact-v">
+                          {ch.materialIds.length}
+                        </span>
+                      </span>
+                      <span className="atlas-journal__fact">
+                        一次情報{" "}
+                        <span className="atlas-journal__fact-v">
+                          {ch.evidence.length}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 構造化スロットは折りたたみ。読むのは要約 → 必要なら開く */}
+                  <details className="atlas-journal__deep">
+                    <summary className="atlas-journal__deep-summary">
+                      くわしく読む（なぜ・型・別案）
+                      <span className="atlas-journal__deep-hint">
+                        7スロット + BAD/OK
+                      </span>
+                    </summary>
+                    <div className="atlas-journal__deep-body">
                   <pre className="atlas-journal__body">
                     {body}
                   </pre>
@@ -305,6 +355,8 @@ export function AtlasDailyTextbook({
                       ))}
                     </ul>
                   ) : null}
+                    </div>
+                  </details>
                   <div className="atlas-journal__footer-actions">
                     <div className="flex flex-wrap gap-2">
                       {wsToken ? (

@@ -6,6 +6,7 @@ import { dateKeyJST } from "@/lib/date";
 import {
   dayRangeFromDateKey,
   listTextbookDates,
+  listUngeneratedDays,
 } from "@/lib/daily-textbook";
 import { prisma } from "@/lib/db";
 import { regenerateDailyTextbookAction } from "@/lib/actions";
@@ -14,16 +15,18 @@ export const dynamic = "force-dynamic";
 
 export default async function RetroIndexPage() {
   const today = dateKeyJST();
-  const [streakDays, dates, materialCountToday] = await Promise.all([
-    loadStreakDays(),
-    listTextbookDates(120),
-    (() => {
-      const { start, end } = dayRangeFromDateKey(today);
-      return prisma.devEvent.count({
-        where: { receivedAt: { gte: start, lt: end } },
-      });
-    })(),
-  ]);
+  const [streakDays, dates, ungeneratedDays, materialCountToday] =
+    await Promise.all([
+      loadStreakDays(),
+      listTextbookDates(120),
+      listUngeneratedDays(60),
+      (() => {
+        const { start, end } = dayRangeFromDateKey(today);
+        return prisma.devEvent.count({
+          where: { receivedAt: { gte: start, lt: end } },
+        });
+      })(),
+    ]);
 
   const months = groupNikkiMonths(dates);
 
@@ -38,6 +41,7 @@ export default async function RetroIndexPage() {
         months={months}
         todayKey={today}
         materialCountToday={materialCountToday}
+        ungeneratedDays={ungeneratedDays}
         regenerateAction={regenerateAction}
       />
     </AtlasChrome>

@@ -30,7 +30,7 @@ export function AtlasInboxDetail({ capture, streakDays }: AtlasInboxDetailProps)
               href="/entries"
               className="font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a] no-underline"
             >
-              ← にっきにもどる
+              ← うけばこにもどる
             </Link>
           </div>
           <AtlasPageTitle title="受信箱" sub={`${date} · ${capture.status}`} />
@@ -72,7 +72,7 @@ export function AtlasInboxDetail({ capture, streakDays }: AtlasInboxDetailProps)
           <p className="m-0 text-[14px] leading-relaxed text-[#c9c3a0]">
             受け入れる／見送るはアプリ内ボタンではなく、MCP の{" "}
             <span className="text-[#f0d25a]">triage_inbox</span>（accept / skip）で行うのじゃ。
-            確定すると「記」のにっきへ移る。
+            確定すると うけばこの「くら」へ移る。
           </p>
           <p className="mt-3 mb-0 font-[family-name:var(--font-pixel)] text-[10px] text-[#c9c3a0]">
             id: {capture.id}

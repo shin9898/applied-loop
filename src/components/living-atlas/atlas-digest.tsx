@@ -96,7 +96,7 @@ export function AtlasDigest({
             href="/entries"
             className="font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a] no-underline"
           >
-            ← にっきにもどる
+            ← うけばこにもどる
           </Link>
         </AtlasReveal>
       </AtlasShell>

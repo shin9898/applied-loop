@@ -30,6 +30,11 @@ export type GateListItem = {
   domain?: string | null;
   placeLabel?: string;
   system?: SystemKind;
+  /** initial / retry / sr_review / module。sr_review = 再出題（ダンジョンの「ぬし」） */
+  kind?: string | null;
+  /** ISO。ダンジョンの階層順（古い順）と「n日前」表示に使う */
+  createdAt?: string | null;
+  gradedAt?: string | null;
 };
 
 function statusLabel(status: GateListItem["status"]): string {
@@ -124,8 +129,12 @@ export function AtlasGatesList({
           )}
         </AtlasReveal>
         <AtlasReveal as="section" className="dq-win p-3.5">
-          <AtlasPageTitle title="しれん" sub={`いま挑めるもの ${pending} 件`} />
+          <AtlasPageTitle title="しれん（ぜんぶ一覧）" sub={`いま挑めるもの ${pending} 件`} />
           <p className="mb-3 text-[12px] leading-relaxed text-[#c9c3a0]">
+            <Link href="/gates" className="text-[#9ec0ff]">
+              ← ダンジョンのちずへもどる
+            </Link>
+            <br />
             一覧は見出しだけ。全文はたたかう画面か上のじゅもんで。状態は未提出／採点中／CLEAR・miss／保留。
             {unknown > 0
               ? ` 未特定（霧）が ${unknown} 件あるぞ。`

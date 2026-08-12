@@ -754,6 +754,34 @@ export function bodyForDisplay(body: string): string {
 }
 
 /**
+ * 章の「やったこと」要約（1〜2文、日記文体）。
+ * 章の先頭に置いて、スロットを開かなくても何の話か分かるようにするためのもの。
+ * 新しい生成は足さず、既存の oneLiner（核: …）と action（対応: …）だけを整形する。
+ */
+export function chapterDidSummary(input: {
+  oneLiner: string;
+  action?: string | null;
+}): string {
+  const core = input.oneLiner
+    .replace(/^核:\s*/, "")
+    .replace(/\s*／\s*ついでに\s*/, "。ついでに ")
+    .trim();
+  const did = (input.action ?? "")
+    .replace(/^対応:\s*/, "")
+    // action 末尾の「（核: …）」は oneLiner と同じ材料。要約で二度言わない
+    .replace(/（核:[^）]*）\s*。?\s*$/, "")
+    .replace(/^「[^」]*」で実際に採った一手を1文で復元せよ。?$/, "")
+    .trim();
+  const parts = [core];
+  // 核だけで足りている日は1文で止める（テンプレ文で水増ししない）
+  if (did && did !== core && core.length < 24) parts.push(did);
+  return parts
+    .filter(Boolean)
+    .map((s) => (/[。.!?！？]$/.test(s) ? s : `${s}。`))
+    .join("");
+}
+
+/**
  * 材料を repo 単位で章に圧縮。超過は dropped に残す（捨てない＝証跡）。
  */
 export function clusterMaterialsIntoChapters(

@@ -718,6 +718,31 @@ export async function regenerateDailyTextbookAction(dateKey: string) {
   return result;
 }
 
+/**
+ * 材料はあるのに未作成の日を、まとめて教科書化する（LLMなし・手元の規則だけ）。
+ * 1日失敗したら全部止める、ではなく日付ごとに成否を返して部分成功を許す。
+ */
+export async function bulkGenerateDailyTextbooksAction(dateKeys: string[]) {
+  await requireAuth();
+  const { generateDailyTextbook } = await import("@/lib/daily-textbook");
+  const targets = [
+    ...new Set(dateKeys.filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k))),
+  ].slice(0, 31);
+  const done: string[] = [];
+  const failed: string[] = [];
+  for (const dateKey of targets) {
+    try {
+      await generateDailyTextbook(dateKey);
+      done.push(dateKey);
+      revalidatePath(`/retro/${dateKey}`);
+    } catch {
+      failed.push(dateKey);
+    }
+  }
+  revalidatePath("/retro");
+  return { done, failed };
+}
+
 /** ADR-0020: 1章だけヘッドレス LLM でスロットを磨く（失敗時は規則文維持） */
 export async function polishTextbookChapterAction(
   chapterId: string,

@@ -12,7 +12,7 @@ export type RootCauseNext = {
 };
 
 export type RootCauseDeepLinks = {
-  /** 関連にっき詳細。無ければ一覧 */
+  /** 関連するうけばこ（Entry）詳細。無ければ一覧 */
   entryId?: string | null;
   /** Entry 未確定時の受信箱 */
   inboxId?: string | null;
@@ -40,13 +40,13 @@ export function rootCauseNextSteps(
       focus: "インプットを足してから、同じ概念でもう一度説明できるか試せ。",
       actions: [
         {
-          label: "にっきで学びを拾う",
+          label: "うけばこで学びを拾う",
           href: entryHref,
           reason: deep?.entryId
-            ? "関連にっきの詳細を開く"
+            ? "関連するうけばこの詳細を開く"
             : deep?.inboxId
               ? "このしれん由来の受信箱候補を開く"
-              : "足りない知識をにっきとして残す（関連が見つからず一覧へ）",
+              : "足りない知識をうけばこに残す（関連が見つからず一覧へ）",
         },
         {
           label: "ずかんで同系統を見る",

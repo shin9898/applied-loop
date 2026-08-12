@@ -3,6 +3,13 @@ import { AtlasShell } from "./atlas-shell";
 import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
+import {
+  ClearStamp,
+  GrandQuestBanner,
+  GrandQuestNails,
+  HuntSlots,
+  QuestConditions,
+} from "./atlas-goals";
 import { kdiConditions } from "@/lib/kdi-conditions";
 
 export type GoalEvidenceItem = {
@@ -63,57 +70,70 @@ export function AtlasGoalDetail({
             </Link>
           </div>
           <AtlasPageTitle title="もくひょう" sub="大きな使命の詳細" />
-          <div className="atlas-gq-board atlas-gq-board--detail">
-            <header className="atlas-gq-board__head">
-              <h2 className="atlas-gq-board__title">Grand Quest</h2>
-              <p className="atlas-gq-board__rule" aria-hidden />
-              <p className="atlas-gq-detail__meta">
-                {goal.period ?? "—"} · {goal.status}
-              </p>
-            </header>
-            <h3 className="atlas-gq-detail__title">{goal.title}</h3>
+          {/* 一覧と同じ「板にピン留めした羊皮紙」で統一。詳細は札が 1 枚だけ */}
+          <div className="atlas-gq-stage">
+            <div className="atlas-gq-board atlas-gq-board--detail">
+              <GrandQuestNails />
+              <div className="atlas-gq-rail" aria-hidden />
 
-            <section className="atlas-gq-card__conditions" aria-label="クリア条件">
-              {conditions.length > 0 ? (
-                <ul className="atlas-gq-card__cond-list">
-                  {conditions.map((c) => (
-                    <li key={c}>
-                      <span className="atlas-gq-card__check" aria-hidden>
-                        {cleared ? "☑" : "☐"}
-                      </span>
-                      <span className="atlas-gq-card__line">{c}</span>
-                    </li>
-                  ))}
+              <div className="atlas-gq-board__inner">
+                <header className="atlas-gq-board__head">
+                  <GrandQuestBanner />
+                </header>
+
+                <ul className="atlas-gq-list atlas-gq-list--single">
+                  <li
+                    className={`atlas-gq-slip atlas-gq-slip--b ${
+                      cleared ? "atlas-gq-slip--clear" : ""
+                    }`}
+                  >
+                    <span className="atlas-gq-slip__pin" aria-hidden />
+                    {thin ? (
+                      <span className="atlas-gq-slip__state">証跡うすい</span>
+                    ) : null}
+                    <div className="atlas-gq-slip__hang">
+                      <article className="atlas-gq-slip__paper">
+                        <div className="atlas-gq-slip__meta">
+                          <span className="atlas-gq-slip__code">
+                            {goal.period ?? "—"}
+                          </span>
+                          <span>{goal.status}</span>
+                        </div>
+
+                        <h3 className="atlas-gq-slip__title">{goal.title}</h3>
+                        <div className="atlas-gq-slip__hr" aria-hidden />
+
+                        <QuestConditions
+                          conditions={conditions}
+                          cleared={cleared}
+                        />
+
+                        <HuntSlots
+                          count={evidenceCount}
+                          target={evidenceTarget}
+                          label={`討伐進捗（今週の証跡・${thin ? "うすい" : "足りておる"}）`}
+                        />
+
+                        {goal.focusDomains && goal.focusDomains.length > 0 ? (
+                          <p className="atlas-gq-slip__next">
+                            戦場: {goal.focusDomains.join(" · ")}
+                          </p>
+                        ) : null}
+
+                        <div className="atlas-gq-slip__foot">
+                          <Link href="/goals" className="atlas-gq-btn atlas-gq-btn--ghost">
+                            けいじばんへ
+                          </Link>
+                          {cleared ? <ClearStamp /> : null}
+                        </div>
+                      </article>
+                    </div>
+                  </li>
                 </ul>
-              ) : (
-                <p className="atlas-gq-card__cond-empty">
-                  クリア条件（KDI）未設定。じゅもんで掲げよ。
-                </p>
-              )}
-            </section>
-
-            {goal.focusDomains && goal.focusDomains.length > 0 ? (
-              <p className="atlas-gq-card__focus">
-                戦場: {goal.focusDomains.join(" · ")}
-              </p>
-            ) : null}
-
-            <section className="atlas-gq-card__progress" aria-label="討伐進捗">
-              <div className="atlas-gq-card__progress-row">
-                <span>討伐進捗（今週の証跡）</span>
-                <span>
-                  {evidenceCount}/{evidenceTarget} · {thin ? "うすい" : "足りておる"}
-                </span>
               </div>
-              <div className="atlas-gq-card__bar">
-                <i
-                  className={thin ? "is-thin" : "is-ok"}
-                  style={{
-                    width: `${Math.min(100, Math.round((evidenceCount / evidenceTarget) * 100))}%`,
-                  }}
-                />
-              </div>
-            </section>
+
+              <div className="atlas-gq-rail" aria-hidden />
+            </div>
           </div>
         </AtlasReveal>
 

@@ -25,7 +25,7 @@ const INTENT_PLAIN: Record<AtlasAssistIntent, string> = {
   general:
     "ボタンで Claude/Codex が開き、Applied Loop MCP で登録・仕分け・処方・回答まで実行できる。",
   "goal-evidence":
-    "capture_learning_candidate → triage → record_application / approve_goal_link で証跡を残す。にっきは結果表示のみ。",
+    "capture_learning_candidate → triage → record_application / approve_goal_link で証跡を残す。うけばこは結果表示のみ。",
   triage:
     "triage_inbox で受信箱を accept/skip。必要なら capture_learning_candidate で追加捕捉。",
   harness:

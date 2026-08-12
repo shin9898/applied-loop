@@ -3,28 +3,70 @@ import { AtlasGateBattleClient } from "@/components/living-atlas/atlas-gate-batt
 import { AtlasAssist, AtlasAssistUnavailable } from "@/components/living-atlas/atlas-assist";
 import { AtlasReveal } from "@/components/living-atlas/atlas-reveal";
 import { AtlasShell } from "@/components/living-atlas/atlas-shell";
-import { loadGateById, loadStreakDays } from "@/components/living-atlas/load-atlas-data";
+import {
+  battleHref,
+  buildDungeons,
+  dungeonHref,
+  findDungeon,
+  isSystemKind,
+  nextFloorAfter,
+} from "@/components/living-atlas/atlas-dungeons";
+import {
+  loadGateById,
+  loadGateListLight,
+  loadStreakDays,
+} from "@/components/living-atlas/load-atlas-data";
 import { getTerminalWsToken } from "@/lib/terminal-token";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * バトル画面。`?d=<系統>` 付きで来たときだけ、ダンジョンの連続撃破導線
+ * （つぎのまものへ）を足す。バトルの中身そのものは変えない。
+ */
 export default async function GateBattlePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }> | { id: string };
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
 }) {
   const { id } = await Promise.resolve(params);
+  const sp = (await Promise.resolve(searchParams)) ?? {};
+  const rawDungeon = sp.d;
+  const dungeonKey = typeof rawDungeon === "string" ? rawDungeon : undefined;
   const [gate, streakDays] = await Promise.all([
     loadGateById(id),
     loadStreakDays(),
   ]);
   if (!gate) notFound();
   const wsToken = getTerminalWsToken();
+
+  let nextGate: { href: string; label: string } | null = null;
+  if (dungeonKey && isSystemKind(dungeonKey)) {
+    const { items } = await loadGateListLight();
+    const dungeon = findDungeon(buildDungeons(items), dungeonKey);
+    if (dungeon) {
+      const next = nextFloorAfter(dungeon, id);
+      nextGate = next
+        ? {
+            href: battleHref(next.gate.id, dungeonKey),
+            label: `つぎのまものへ（${next.floorLabel}）`,
+          }
+        : {
+            href: dungeonHref(dungeonKey),
+            label: `${dungeon.name}へもどる`,
+          };
+    }
+  }
+
   return (
     <AtlasChrome active="/gates/[id]" streakDays={streakDays}>
       <AtlasShell>
-        <AtlasGateBattleClient gate={gate} />
+        <AtlasGateBattleClient gate={gate} nextGate={nextGate} />
         <AtlasReveal as="section" delayIndex={1}>
           {wsToken ? (
             <AtlasAssist

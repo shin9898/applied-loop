@@ -23,6 +23,18 @@ export { AtlasZukanDex } from "./atlas-zukan-dex";
 export { AtlasZukanQuadrant } from "./atlas-zukan-quadrant";
 export { AtlasGatesList } from "./atlas-gates-list";
 export type { GateListItem } from "./atlas-gates-list";
+export { AtlasDungeonSelect } from "./atlas-dungeon-select";
+export { AtlasDungeonRun } from "./atlas-dungeon-run";
+export {
+  battleHref,
+  buildDungeons,
+  dungeonHref,
+  findDungeon,
+  isSystemKind,
+  nextFloorAfter,
+} from "./atlas-dungeons";
+export type { Dungeon, DungeonFloor } from "./atlas-dungeons";
+export { AtlasEnemySprite, AtlasDungeonIcon } from "./atlas-dungeon-sprites";
 export { AtlasHarness } from "./atlas-harness";
 export type { HarnessRepo } from "./atlas-harness";
 export { AtlasPrescription } from "./atlas-prescription";

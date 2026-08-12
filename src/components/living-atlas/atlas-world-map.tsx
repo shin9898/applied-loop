@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
 
 export type MapMarker = {
   id: string;
@@ -8,20 +9,46 @@ export type MapMarker = {
   label: string;
   left: string;
   top: string;
+  /** 指定時はクリックで直行（onSelect より優先） */
+  href?: string;
 };
 
 type AtlasWorldMapProps = {
   markers?: MapMarker[];
   activeId?: string;
   onSelect?: (id: string) => void;
+  /** 領（knowledge/harness/cache/design/fog）ごとの明度 0–1。未指定領は満点扱い */
+  regionBrightness?: Partial<Record<"knowledge" | "harness" | "cache" | "design" | "fog", number>>;
+};
+
+/** タイルの地形カラーを領の明度でnavyへ寄せる。未踏破でも真っ暗にしない下限を持つ */
+const BRIGHTNESS_FLOOR = 0.4;
+const DIM_BASE: [number, number, number] = [13, 47, 112]; // #0d2f70（水面と同系）
+
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function mixToDim(hex: string, brightness: number): string {
+  const t = BRIGHTNESS_FLOOR + (1 - BRIGHTNESS_FLOOR) * Math.max(0, Math.min(1, brightness));
+  const [r, g, b] = hexToRgb(hex);
+  const mr = Math.round(DIM_BASE[0] + (r - DIM_BASE[0]) * t);
+  const mg = Math.round(DIM_BASE[1] + (g - DIM_BASE[1]) * t);
+  const mb = Math.round(DIM_BASE[2] + (b - DIM_BASE[2]) * t);
+  return `rgb(${mr},${mg},${mb})`;
+}
+
+const TILE_REGION: Record<number, "knowledge" | "harness" | "cache" | "design" | "fog"> = {
+  1: "knowledge",
+  2: "harness",
+  3: "cache",
+  4: "design",
+  5: "fog",
 };
 
 const DEFAULT_MARKERS: MapMarker[] = [
-  { id: "clear-1", kind: "clear", label: "CLEAR", left: "20%", top: "27%" },
-  { id: "clear-2", kind: "clear", label: "CLEAR", left: "50%", top: "24%" },
-  { id: "quest-1", kind: "quest", label: "！", left: "56%", top: "60%" },
   { id: "you", kind: "you", label: "▼ あなた", left: "22%", top: "64%" },
-  { id: "clear-3", kind: "clear", label: "CLEAR", left: "80%", top: "24%" },
 ];
 
 /** キャンバス上の地形ブロブと対応する領名（ステータスの系統と揃える） */
@@ -30,14 +57,24 @@ const REGION_LABELS: {
   name: string;
   left: string;
   top: string;
-  tone: string;
 }[] = [
-  { id: "knowledge", name: "知識", left: "20%", top: "34%", tone: "#9dffb0" },
-  { id: "harness", name: "ハーネス", left: "50%", top: "32%", tone: "#7dff9a" },
-  { id: "cache", name: "キャッシュ", left: "80%", top: "34%", tone: "#ffe08a" },
-  { id: "design", name: "設計", left: "22%", top: "78%", tone: "#d0d4dc" },
-  { id: "fog", name: "霧帯", left: "62%", top: "78%", tone: "#9ec0ff" },
+  { id: "knowledge", name: "知識", left: "20%", top: "34%" },
+  { id: "harness", name: "ハーネス", left: "50%", top: "32%" },
+  { id: "cache", name: "キャッシュ", left: "80%", top: "34%" },
+  { id: "design", name: "設計", left: "22%", top: "78%" },
+  { id: "fog", name: "霧帯", left: "62%", top: "78%" },
 ];
+
+/** system キー → 地図上の領座標。未対応 system は霧帯へフォールバック */
+export const SYSTEM_REGION_POS: Record<string, { left: string; top: string }> = {
+  knowledge: { left: "20%", top: "40%" },
+  harness: { left: "50%", top: "38%" },
+  cache: { left: "80%", top: "40%" },
+  design: { left: "22%", top: "70%" },
+  verification: { left: "62%", top: "70%" },
+  premise: { left: "62%", top: "70%" },
+};
+export const FOG_REGION_POS = { left: "62%", top: "70%" };
 
 export const REGION_LEGEND = [
   { name: "知識", swatch: "#3caa4a" },
@@ -52,6 +89,7 @@ export function AtlasWorldMap({
   markers = DEFAULT_MARKERS,
   activeId,
   onSelect,
+  regionBrightness,
 }: AtlasWorldMapProps) {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -65,21 +103,26 @@ export function AtlasWorldMap({
     const H = 27;
     const TW = canvas.width / W;
     const TH = canvas.height / H;
+    const brightnessFor = (tile: number) => {
+      const region = TILE_REGION[tile];
+      if (!region) return 1;
+      return regionBrightness?.[region] ?? 1;
+    };
     const C: Record<number, string> = {
       0: "#0d2f70",
       6: "#1a4fa8",
-      1: "#3caa4a",
-      2: "#1f6b32",
-      3: "#d2b15a",
-      4: "#8b8f9a",
-      5: "#2a3a5a",
+      1: mixToDim("#3caa4a", brightnessFor(1)),
+      2: mixToDim("#1f6b32", brightnessFor(2)),
+      3: mixToDim("#d2b15a", brightnessFor(3)),
+      4: mixToDim("#8b8f9a", brightnessFor(4)),
+      5: mixToDim("#2a3a5a", brightnessFor(5)),
     };
     const shade: Record<number, string> = {
-      1: "#2a7a34",
-      2: "#145024",
-      3: "#b8943e",
-      4: "#6a6e78",
-      5: "#1a2838",
+      1: mixToDim("#2a7a34", brightnessFor(1)),
+      2: mixToDim("#145024", brightnessFor(2)),
+      3: mixToDim("#b8943e", brightnessFor(3)),
+      4: mixToDim("#6a6e78", brightnessFor(4)),
+      5: mixToDim("#1a2838", brightnessFor(5)),
       0: "#0a2458",
       6: "#144090",
     };
@@ -228,7 +271,8 @@ export function AtlasWorldMap({
       [33, 5],
       [9, 20],
     ].forEach(([x, y]) => town(x, y));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- regionBrightness は初回ロード時に確定するデータ
+  }, [regionBrightness]);
 
   return (
     <div className="relative w-full overflow-hidden border-4 border-black aspect-[16/11] bg-[#0d2f70] shadow-[inset_0_0_0_3px_#4a7fd4]">
@@ -244,34 +288,55 @@ export function AtlasWorldMap({
       {REGION_LABELS.map((r) => (
         <span
           key={r.id}
-          className="pointer-events-none absolute z-[5] -translate-x-1/2 -translate-y-1/2 border border-[#ffffff55] bg-[#000c4ae6] px-2 py-1 font-[family-name:var(--font-pixel)] text-[13px] leading-none tracking-wide drop-shadow-[2px_2px_0_#000]"
-          style={{ left: r.left, top: r.top, color: r.tone }}
+          className="pointer-events-none absolute z-[5] -translate-x-1/2 -translate-y-1/2 border border-[#ffffff55] bg-[#000c4ae6] px-2 py-1 font-[family-name:var(--font-pixel)] text-[12px] leading-none tracking-wide text-[#c9d6ff] drop-shadow-[2px_2px_0_#000]"
+          style={{ left: r.left, top: r.top }}
         >
           {r.name}
         </span>
       ))}
-      {markers.map((m) => (
-        <button
-          key={m.id}
-          type="button"
-          onClick={() => onSelect?.(m.id)}
-          className="absolute z-[6] -translate-x-1/2 -translate-y-full border-0 bg-transparent p-0"
-          style={{ left: m.left, top: m.top }}
-        >
-          <span
-            className={`inline-block whitespace-nowrap border-[3px] border-white px-1.5 py-1 font-[family-name:var(--font-pixel)] text-[8px] leading-none shadow-[3px_3px_0_#000] ${
-              m.kind === "quest"
-                ? "animate-[dq-bob_0.9s_steps(2)_infinite] bg-[#f0d25a] text-[#1a1000]"
-                : m.kind === "clear"
-                  ? "bg-[#001a8c] text-[#3ecf5a]"
-                  : "bg-[#001a8c] text-[#9ec0ff]"
-            } ${activeId === m.id ? "outline outline-2 outline-[#f0d25a]" : ""}`}
+      {markers.map((m) => {
+        const pinBody = (
+          <>
+            <span
+              className={`inline-block whitespace-nowrap border-[3px] border-white px-1.5 py-1 font-[family-name:var(--font-pixel)] text-[10px] leading-none shadow-[3px_3px_0_#000] ${
+                m.kind === "quest"
+                  ? "animate-[dq-bob_0.9s_steps(2)_infinite] bg-[#f0d25a] text-[#1a1000]"
+                  : m.kind === "clear"
+                    ? "bg-[#001a8c] text-[#3ecf5a]"
+                    : "bg-[#001a8c] text-[#9ec0ff]"
+              } ${activeId === m.id ? "outline outline-2 outline-[#f0d25a]" : ""}`}
+            >
+              {m.label}
+            </span>
+            <span className="mx-auto block h-0 w-0 border-x-[6px] border-t-[8px] border-x-transparent border-t-white" />
+          </>
+        );
+        const positionStyle = { left: m.left, top: m.top } as const;
+        if (m.href) {
+          return (
+            <Link
+              key={m.id}
+              href={m.href}
+              onClick={() => onSelect?.(m.id)}
+              className="absolute z-[6] -translate-x-1/2 -translate-y-full no-underline"
+              style={positionStyle}
+            >
+              {pinBody}
+            </Link>
+          );
+        }
+        return (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => onSelect?.(m.id)}
+            className="absolute z-[6] -translate-x-1/2 -translate-y-full border-0 bg-transparent p-0"
+            style={positionStyle}
           >
-            {m.label}
-          </span>
-          <span className="mx-auto block h-0 w-0 border-x-[6px] border-t-[8px] border-x-transparent border-t-white" />
-        </button>
-      ))}
+            {pinBody}
+          </button>
+        );
+      })}
     </div>
   );
 }

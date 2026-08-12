@@ -19,7 +19,10 @@ import { AtlasBattle, type BattleVerdict } from "./atlas-battle";
 
 export function AtlasGateBattleClient({
   gate,
+  nextGate = null,
 }: {
+  /** ダンジョン（?d=系統）から来たときの連続撃破導線 */
+  nextGate?: { href: string; label: string } | null;
   gate: {
     id: string;
     question: string;
@@ -64,6 +67,7 @@ export function AtlasGateBattleClient({
       relatedInboxId={gate.relatedInboxId ?? null}
       relatedMisconceptionId={gate.relatedMisconceptionId ?? null}
       initialNextReviewLabel={gate.nextReviewLabel ?? null}
+      nextGate={isTutorial ? null : nextGate}
       zukanHref={zukanHref}
       onFlee={() => router.push(isTutorial ? "/setup" : "/")}
       onGoGates={() => router.push("/gates")}
