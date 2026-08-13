@@ -525,6 +525,7 @@ export function AtlasDashboard({
       blurb="朝の仕分けも、証跡も、どうぐの見立ても——願うならここからじゅもんを。ひとつのしれんなら上の一手へ。"
       plain="ホーム用の全体操作。Claude/Codex が開き MCP で morning_briefing・仕分け・処方など。1問集中は上のプライマリ CTA。"
       defaultOpen={true}
+      compact
     />
   ) : (
     <AtlasAssistUnavailable />
