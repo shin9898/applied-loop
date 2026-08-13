@@ -146,7 +146,6 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     console.error("[home] scheduleDueGates failed:", e),
   );
 
-  const { resolveTaskMapForDisplay } = await import("@/lib/task-map");
   const { getWeaknessPatternsForDashboard } = await import("@/lib/weakness");
 
   const { loadTextbookGuidanceForToday } = await import(
@@ -162,8 +161,6 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     openMisconceptionCount,
     weakRepos,
     systemStars,
-    taskMap,
-    yesterdayTaskMap,
     weaknesses,
     textbookGuide,
   ] = await Promise.all([
@@ -191,47 +188,56 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     }),
     repoCacheReadRates(now, { take: 1 }),
     loadSystemStars(),
-    resolveTaskMapForDisplay(dateKeyJST(now)),
-    resolveTaskMapForDisplay(
-      dateKeyJST(new Date(dayStartJST(now).getTime() - 24 * 60 * 60 * 1000)),
-    ),
     getWeaknessPatternsForDashboard(),
     loadTextbookGuidanceForToday(dateKeyJST(now)),
   ]);
 
-  const todos: { title: string; meta: string }[] = [];
+  const todos: { title: string; meta: string; href?: string; cta?: string }[] =
+    [];
   if (textbookGuide.guidance) {
     todos.push({
       title: `① ${textbookGuide.guidance.title}`,
       meta: textbookGuide.guidance.label,
+      href: textbookGuide.guidance.href,
+      cta: textbookGuide.guidance.label,
     });
   }
   if (pendingGate) {
     todos.push({
       title: `${todos.length === 0 ? "①" : "②"} 未クリアゲートを1つ解く`,
       meta: "『たたかう』→ じゅもん（LLM）で回答",
+      href: `/gates/${pendingGate.id}`,
+      cta: "しれんへ",
     });
   }
   if (pendingCaptureCount > 0) {
     todos.push({
       title: "② 受信箱の学びを仕分ける",
       meta: `にっき → 未仕分け ${pendingCaptureCount} 件`,
+      href: "/entries",
+      cta: "うけばこへ",
     });
   }
   if (weaknesses && weaknesses.length > 0) {
     todos.push({
       title: `③ よわい観点「${weaknesses[0].aspect}」を意識して解く`,
       meta: `欠落率 ${Math.round(weaknesses[0].missRate * 100)}%`,
+      href: "/gates",
+      cta: "しれんへ",
     });
   } else if (weakRepos[0]) {
     todos.push({
       title: "③ 弱ってる repo の処方を見る",
       meta: `どうぐ → ${weakRepos[0].repo}`,
+      href: "/harness",
+      cta: "どうぐへ",
     });
   } else if (openMisconceptionCount > 0) {
     todos.push({
       title: "③ ずかんで未解明を見返す",
       meta: `開いているつまずき ${openMisconceptionCount} 件`,
+      href: "/zukan",
+      cta: "ずかんへ",
     });
   }
   if (todos.length === 0) {
@@ -260,9 +266,6 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     streakDays,
     adventurer,
     systemStars,
-    taskMap,
-    yesterdayTaskMap:
-      taskMap && taskMap.tasks.length > 0 ? null : yesterdayTaskMap,
     weaknesses,
     pendingGate: pendingGate
       ? {

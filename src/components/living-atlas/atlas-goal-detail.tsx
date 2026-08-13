@@ -8,6 +8,7 @@ import {
   GrandQuestBanner,
   GrandQuestNails,
   HuntSlots,
+  QuestAssay,
   QuestConditions,
 } from "./atlas-goals";
 import { kdiConditions } from "@/lib/kdi-conditions";
@@ -102,6 +103,11 @@ export function AtlasGoalDetail({
 
                         <h3 className="atlas-gq-slip__title">{goal.title}</h3>
                         <div className="atlas-gq-slip__hr" aria-hidden />
+
+                        <QuestAssay
+                          target={evidenceTarget}
+                          conditionCount={conditions.length}
+                        />
 
                         <QuestConditions
                           conditions={conditions}

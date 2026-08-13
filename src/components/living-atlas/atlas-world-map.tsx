@@ -48,7 +48,7 @@ const TILE_REGION: Record<number, "knowledge" | "harness" | "cache" | "design" |
 };
 
 const DEFAULT_MARKERS: MapMarker[] = [
-  { id: "you", kind: "you", label: "▼ あなた", left: "22%", top: "64%" },
+  { id: "you", kind: "you", label: "あなた", left: "22%", top: "64%" },
 ];
 
 /** キャンバス上の地形ブロブと対応する領名（ステータスの系統と揃える） */
@@ -295,22 +295,34 @@ export function AtlasWorldMap({
         </span>
       ))}
       {markers.map((m) => {
-        const pinBody = (
-          <>
-            <span
-              className={`inline-block whitespace-nowrap border-[3px] border-white px-1.5 py-1 font-[family-name:var(--font-pixel)] text-[10px] leading-none shadow-[3px_3px_0_#000] ${
-                m.kind === "quest"
-                  ? "animate-[dq-bob_0.9s_steps(2)_infinite] bg-[#f0d25a] text-[#1a1000]"
-                  : m.kind === "clear"
-                    ? "bg-[#001a8c] text-[#3ecf5a]"
-                    : "bg-[#001a8c] text-[#9ec0ff]"
-              } ${activeId === m.id ? "outline outline-2 outline-[#f0d25a]" : ""}`}
-            >
-              {m.label}
+        const pinBody =
+          m.kind === "you" ? (
+            <span className="flex flex-col items-center gap-0.5">
+              <span
+                className={`atlas-self-avatar ${activeId === m.id ? "atlas-self-avatar--active" : ""}`}
+                aria-hidden
+              >
+                <span className="atlas-self-avatar__frame atlas-self-avatar__frame--1" />
+                <span className="atlas-self-avatar__frame atlas-self-avatar__frame--2" />
+              </span>
+              <span className="inline-block whitespace-nowrap border-[3px] border-white bg-[#001a8c] px-1.5 py-0.5 font-[family-name:var(--font-pixel)] text-[9px] leading-none text-[#9ec0ff] shadow-[2px_2px_0_#000]">
+                {m.label}
+              </span>
             </span>
-            <span className="mx-auto block h-0 w-0 border-x-[6px] border-t-[8px] border-x-transparent border-t-white" />
-          </>
-        );
+          ) : (
+            <>
+              <span
+                className={`inline-block whitespace-nowrap border-[3px] border-white px-1.5 py-1 font-[family-name:var(--font-pixel)] text-[10px] leading-none shadow-[3px_3px_0_#000] ${
+                  m.kind === "quest"
+                    ? "animate-[dq-bob_0.9s_steps(2)_infinite] bg-[#f0d25a] text-[#1a1000]"
+                    : "bg-[#001a8c] text-[#3ecf5a]"
+                } ${activeId === m.id ? "outline outline-2 outline-[#f0d25a]" : ""}`}
+              >
+                {m.label}
+              </span>
+              <span className="mx-auto block h-0 w-0 border-x-[6px] border-t-[8px] border-x-transparent border-t-white" />
+            </>
+          );
         const positionStyle = { left: m.left, top: m.top } as const;
         if (m.href) {
           return (

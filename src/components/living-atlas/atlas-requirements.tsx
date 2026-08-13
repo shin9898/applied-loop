@@ -89,6 +89,73 @@ function Fuda({ item }: { item: RequirementItem }) {
   );
 }
 
+/** 板が空のときの案内。見本の札1枚 + 依頼が生まれる3手順で「どう使うか」を見せる */
+function EmptyBoardGuide() {
+  return (
+    <div className="atlas-yk-empty">
+      <p className="atlas-yk-board__empty">
+        板に 貼られた 札は ないようじゃ。まだ 依頼が 結ばれておらぬ。
+      </p>
+      <div className="atlas-yk-empty__body">
+        <div className="atlas-yk-fuda atlas-yk-fuda--sample" aria-hidden>
+          <span className="atlas-yk-fuda__sample-tag">見本</span>
+          <PixelSprite name="nail" className="atlas-yk-nail" />
+          <div className="atlas-yk-fuda__top">
+            <span className="atlas-yk-fuda__kind">とうばついらい</span>
+            <span className="atlas-yk-fuda__no">#XXXXXX</span>
+          </div>
+          <div className="atlas-yk-fuda__field">
+            <span className="atlas-yk-fuda__field-label">りょういき</span>
+            <PixelSprite name="dia-s" />
+            <span className="atlas-yk-fuda__field-value">キャッシュ</span>
+          </div>
+          <p className="atlas-yk-fuda__target">（要件の内容が ここに 入る）</p>
+          <div className="atlas-yk-fuda__terms">
+            <div className="atlas-yk-term">
+              <b>しれん</b>
+              <span>#XXXXXX 未踏</span>
+            </div>
+            <div className="atlas-yk-term">
+              <b>ほうしゅう</b>
+              <span>りかい +1 ・ この要件が 綴じへ 移る</span>
+            </div>
+          </div>
+        </div>
+        <ol className="atlas-yk-empty__steps">
+          <li>
+            <span className="atlas-yk-empty__step-no">1</span>
+            <div>
+              <p className="atlas-yk-empty__step-title">要件を書き記す</p>
+              <p className="atlas-yk-empty__step-body">
+                <code>register_requirement</code> で要件を1件 書き記す。
+              </p>
+            </div>
+          </li>
+          <li>
+            <span className="atlas-yk-empty__step-no">2</span>
+            <div>
+              <p className="atlas-yk-empty__step-title">しれんと結ぶ</p>
+              <p className="atlas-yk-empty__step-body">
+                <code>link_requirement</code> で理解チェックと紐付け、
+                <code>approve_requirement_link</code> で承認する。
+              </p>
+            </div>
+          </li>
+          <li>
+            <span className="atlas-yk-empty__step-no">3</span>
+            <div>
+              <p className="atlas-yk-empty__step-title">板に札が立つ</p>
+              <p className="atlas-yk-empty__step-body">
+                結びが承認されると、この板に依頼として現れる。下の じゅもん窓から すぐ試せる。
+              </p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
 /** 達成の綴じ 1 枚（理解確認ずみ） */
 function Slip({ item }: { item: RequirementItem }) {
   return (
@@ -164,9 +231,7 @@ export function AtlasRequirements({
             </span>
           </div>
           {next.length === 0 ? (
-            <p className="atlas-yk-board__empty">
-              板に 貼られた 札は ないようじゃ。いま 進む要件は 無い。
-            </p>
+            <EmptyBoardGuide />
           ) : (
             <ul className="atlas-yk-grid">
               {next.map((item) => (

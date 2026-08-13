@@ -110,10 +110,12 @@ export function AtlasNikkiShelf({
 }
 
 /**
- * めくった先の日ページ本文。章の先頭に「タイトル＋やったこと要約」を置く。
- * ページは固定寸法なので、章は 3 つまで・要約は clamp して紙面から溢れさせない。
+ * めくった先の日ページ本文。まず「この日のぼうけん」で大枠（全章に触れる）を見せ、
+ * そのあと章カードで個別の詳細に触れる。ページは固定寸法なので、
+ * 章カードは 2 つまで・要約は clamp して紙面から溢れさせない
+ * （大枠は overview 側ですでに全章を拾っているので、カード側を削っても取りこぼしにならない）。
  */
-const DAY_PAGE_MAX_CHAPTERS = 3;
+const DAY_PAGE_MAX_CHAPTERS = 2;
 
 function DayPageChapters({ entry }: { entry: NikkiDay }) {
   const chapters = entry.chapters ?? [];
@@ -121,20 +123,25 @@ function DayPageChapters({ entry }: { entry: NikkiDay }) {
     const shown = chapters.slice(0, DAY_PAGE_MAX_CHAPTERS);
     const rest = entry.chapterCount - shown.length;
     return (
-      <div className="atlas-nikki-day-page__chapters">
-        {shown.map((c) => (
-          <section key={c.index} className="atlas-nikki-day-chapter">
-            <p className="atlas-nikki-day-chapter__head">
-              <span className="atlas-nikki-day-chapter__no">第{c.index}章</span>
-              <span className="atlas-nikki-day-chapter__title">{c.title}</span>
-            </p>
-            <p className="atlas-nikki-day-chapter__did">{c.summary}</p>
-          </section>
-        ))}
-        {rest > 0 ? (
-          <p className="atlas-nikki-day-chapter__rest">ほか {rest} 章</p>
+      <>
+        {entry.overview ? (
+          <p className="atlas-nikki-day-page__overview">{entry.overview}</p>
         ) : null}
-      </div>
+        <div className="atlas-nikki-day-page__chapters">
+          {shown.map((c) => (
+            <section key={c.index} className="atlas-nikki-day-chapter">
+              <p className="atlas-nikki-day-chapter__head">
+                <span className="atlas-nikki-day-chapter__no">第{c.index}章</span>
+                <span className="atlas-nikki-day-chapter__title">{c.title}</span>
+              </p>
+              <p className="atlas-nikki-day-chapter__did">{c.summary}</p>
+            </section>
+          ))}
+          {rest > 0 ? (
+            <p className="atlas-nikki-day-chapter__rest">ほか {rest} 章</p>
+          ) : null}
+        </div>
+      </>
     );
   }
 
