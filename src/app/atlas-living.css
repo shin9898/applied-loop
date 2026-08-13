@@ -9339,7 +9339,7 @@ a.uke-trial__hypo:hover {
 }
 
 .atlas-console-top-screen {
-  height: 340px;
+  height: 440px;
 }
 
 .atlas-console-hinge {
@@ -9398,8 +9398,8 @@ a.uke-trial__hypo:hover {
 }
 
 .atlas-console-lower-screen [class*="min-h-[420px]"] {
-  height: 295px;
-  min-height: 295px;
+  height: 200px;
+  min-height: 200px;
 }
 
 .atlas-console-dpad {
