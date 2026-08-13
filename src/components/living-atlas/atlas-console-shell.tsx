@@ -19,13 +19,6 @@ export function AtlasConsoleShell({
   ]
     .filter(Boolean)
     .join(" ");
-  const glowClassLower = [
-    "atlas-console-glow",
-    "atlas-console-glow--lower",
-    connected ? "" : "atlas-console-glow--offline",
-  ]
-    .filter(Boolean)
-    .join(" ");
 
   return (
     <div className="atlas-console-shell">
@@ -36,7 +29,7 @@ export function AtlasConsoleShell({
           <div className="atlas-console-dpad" />
         </div>
         <div className="atlas-console-lower-screen">
-          <div className={glowClassLower}>{bottomScreen}</div>
+          <div className={glowClass}>{bottomScreen}</div>
         </div>
         <div className="atlas-console-side-pad" aria-hidden>
           <div className="atlas-console-abxy">
