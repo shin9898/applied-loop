@@ -25,6 +25,7 @@ import {
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import { AtlasSurfaceIcon, surfaceIdFromHref } from "./atlas-surface-icons";
+import { AtlasSessionDigestStrip } from "./atlas-session-digest";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
 import { resolveHomeCta } from "@/lib/home-cta";
 import type { TextbookGuidance } from "@/lib/textbook-guidance-shared";
@@ -366,6 +367,7 @@ export function AtlasDashboard({
   wsToken = null,
   setupDiagnosis = null,
   textbookGuidance = null,
+  sessionDigest = null,
 }: AtlasDashboardProps) {
   const [activeId, setActiveId] = useState(pendingGate ? "quest-1" : "you");
   const adventurer =
@@ -475,6 +477,9 @@ export function AtlasDashboard({
               </Link>
             </div>
           </div>
+          {sessionDigest ? (
+            <AtlasSessionDigestStrip digest={sessionDigest} />
+          ) : null}
         </AtlasReveal>
 
         <StatusCommandPanel
