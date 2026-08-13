@@ -387,6 +387,11 @@ export function AtlasDashboard({
   const [banner, setBanner] = useState<string | null>(null);
   const [bounceIcon, setBounceIcon] = useState(false);
   const lastSeqRef = useRef(0);
+  const pendingGateRef = useRef(pendingGate);
+
+  useEffect(() => {
+    pendingGateRef.current = pendingGate;
+  }, [pendingGate]);
 
   useEffect(() => {
     if (!lastEvent || lastEvent.seq === lastSeqRef.current) return;
@@ -397,7 +402,7 @@ export function AtlasDashboard({
 
     if (lastEvent.type === "gate_passed") {
       setOptimisticResolvedDelta((d) => d + 1);
-      if (pendingGate && lastEvent.gateId === pendingGate.id) {
+      if (pendingGateRef.current && lastEvent.gateId === pendingGateRef.current.id) {
         setClearedGateId(lastEvent.gateId);
       }
     } else if (lastEvent.type === "task_mapping_saved") {
@@ -419,7 +424,7 @@ export function AtlasDashboard({
     }
 
     return () => clearTimeout(pulseTimer);
-  }, [lastEvent, pendingGate]);
+  }, [lastEvent]);
 
   const adventurer =
     adventurerProp ?? adventurerLevelFromResolved(resolvedTotal + optimisticResolvedDelta);
