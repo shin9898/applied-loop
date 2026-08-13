@@ -168,3 +168,97 @@ describe("buildSessionDigest — sessions and direct repo attribution", () => {
     assert.equal(g.gateAnsweredCount, 1);
   });
 });
+
+describe("buildSessionDigest — time-window attribution", () => {
+  it("attributes captures/goalLinks/requirementLinks to the overlapping session's repo", () => {
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-13",
+      harnessRuns: [
+        {
+          sessionId: "s1",
+          repo: "applied-loop",
+          startedAt: new Date("2026-08-13T01:00:00Z"),
+          endedAt: new Date("2026-08-13T02:00:00Z"),
+          tools: null,
+        },
+      ],
+      captures: [
+        { title: "学びA", capturedAt: new Date("2026-08-13T01:30:00Z") },
+        { title: "学びB(窓外)", capturedAt: new Date("2026-08-13T03:00:00Z") },
+      ],
+      gatesAnswered: [],
+      devEvents: [],
+      goalLinks: [{ createdAt: new Date("2026-08-13T01:10:00Z") }],
+      requirementLinks: [{ createdAt: new Date("2026-08-13T01:50:00Z") }],
+      regionByRepo: {},
+    });
+
+    const g = digest.byRepo[0];
+    assert.equal(g.captureCount, 1);
+    assert.deepEqual(g.captureSamples, ["学びA"]);
+    assert.equal(g.goalLinkCount, 1);
+    assert.equal(g.requirementLinkCount, 1);
+  });
+
+  it("attributes to the most specific (shortest) overlapping session when windows overlap", () => {
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-13",
+      harnessRuns: [
+        {
+          sessionId: "long",
+          repo: "triple-list",
+          startedAt: new Date("2026-08-13T00:00:00Z"),
+          endedAt: new Date("2026-08-13T04:00:00Z"),
+          tools: null,
+        },
+        {
+          sessionId: "short",
+          repo: "applied-loop",
+          startedAt: new Date("2026-08-13T01:00:00Z"),
+          endedAt: new Date("2026-08-13T01:15:00Z"),
+          tools: null,
+        },
+      ],
+      captures: [
+        { title: "重なり中の学び", capturedAt: new Date("2026-08-13T01:10:00Z") },
+      ],
+      gatesAnswered: [],
+      devEvents: [],
+      goalLinks: [],
+      requirementLinks: [],
+      regionByRepo: {},
+    });
+
+    const appliedLoop = digest.byRepo.find((r) => r.repo === "applied-loop")!;
+    const tripleList = digest.byRepo.find((r) => r.repo === "triple-list")!;
+    assert.equal(appliedLoop.captureCount, 1);
+    assert.equal(tripleList.captureCount, 0);
+  });
+
+  it("caps captureSamples at 3 titles", () => {
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-13",
+      harnessRuns: [
+        {
+          sessionId: "s1",
+          repo: "applied-loop",
+          startedAt: new Date("2026-08-13T01:00:00Z"),
+          endedAt: new Date("2026-08-13T02:00:00Z"),
+          tools: null,
+        },
+      ],
+      captures: [1, 2, 3, 4].map((n) => ({
+        title: `学び${n}`,
+        capturedAt: new Date("2026-08-13T01:10:00Z"),
+      })),
+      gatesAnswered: [],
+      devEvents: [],
+      goalLinks: [],
+      requirementLinks: [],
+      regionByRepo: {},
+    });
+
+    assert.equal(digest.byRepo[0].captureCount, 4);
+    assert.equal(digest.byRepo[0].captureSamples.length, 3);
+  });
+});

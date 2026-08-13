@@ -188,13 +188,52 @@ export function buildSessionDigest(input: BuildSessionDigestInput): SessionDiges
   };
 }
 
-// Task 3 で実装。この Task では no-op。
 function attributeByTimeWindow(
-  _groups: SessionDigestByRepo[],
-  _runs: (HarnessRunLike & { repo: string })[],
-  _captures: CaptureLike[],
-  _goalLinks: GoalLinkLike[],
-  _requirementLinks: RequirementLinkLike[],
+  groups: SessionDigestByRepo[],
+  runs: (HarnessRunLike & { repo: string })[],
+  captures: CaptureLike[],
+  goalLinks: GoalLinkLike[],
+  requirementLinks: RequirementLinkLike[],
 ): void {
-  // Task 3 で実装
+  function findBestRun(timestamp: Date): (HarnessRunLike & { repo: string }) | null {
+    let best: (HarnessRunLike & { repo: string }) | null = null;
+    let bestDuration = Infinity;
+    for (const run of runs) {
+      const end = run.endedAt ?? run.startedAt;
+      if (timestamp < run.startedAt || timestamp > end) continue;
+      const duration = end.getTime() - run.startedAt.getTime();
+      if (duration < bestDuration) {
+        best = run;
+        bestDuration = duration;
+      }
+    }
+    return best;
+  }
+
+  function groupForRun(run: HarnessRunLike & { repo: string }): SessionDigestByRepo | undefined {
+    return groups.find((g) => repoKeysMatch(g.repo, run.repo));
+  }
+
+  for (const c of captures) {
+    const run = findBestRun(c.capturedAt);
+    if (!run) continue;
+    const g = groupForRun(run);
+    if (!g) continue;
+    g.captureCount += 1;
+    if (g.captureSamples.length < 3) g.captureSamples.push(c.title);
+  }
+
+  for (const gl of goalLinks) {
+    const run = findBestRun(gl.createdAt);
+    if (!run) continue;
+    const g = groupForRun(run);
+    if (g) g.goalLinkCount += 1;
+  }
+
+  for (const rl of requirementLinks) {
+    const run = findBestRun(rl.createdAt);
+    if (!run) continue;
+    const g = groupForRun(run);
+    if (g) g.requirementLinkCount += 1;
+  }
 }
