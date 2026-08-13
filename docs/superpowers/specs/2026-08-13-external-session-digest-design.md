@@ -89,6 +89,11 @@ koki は普段、Living Atlas 内の埋め込みターミナルではなく「�
 
 この判定方法の確定は実装時のタスクとする（設計時点でヒューリスティック案を複数残すに留める）。
 
+**実装で確定した判定（2026-08-13 最終レビュー修正時）**:
+
+- アプリ内じゅもん: `repo`（`normalizeRepoKey` で大小文字を吸収）が `applied-loop` かつ `tools` が `mcp__applied-loop__*` のみ → 除外。worktree ディレクトリ名（本リポジトリの規約は `.worktrees/<branch>` なので `repo` は `applied-loop` と接頭辞を共有しない）で走ったじゅもんは捕捉できない——既知の残課題として据え置く
+- 定期便: `HarnessRun.turns < 2`（人間の user ターンが1回以下）→ repo によらず除外。`turns` は `collect-harness.mjs` が「role=user かつ content が文字列」の行を数えた値
+
 ### repo 名の正規化
 
 `HarnessRun.repo` は LLM セッションの cwd basename（`collect-harness.mjs` の `repoFromPath`）、`DevEvent.repo` は git toplevel の basename（post-commit hook）で、由来が異なる。worktree（例: `applied-loop-feature-x`）やホーム直下起動（`repo` が `koki` になる等）では同一プロジェクトでも文字列が分裂しうる。
@@ -109,6 +114,8 @@ buildSessionDigestForDate(dateKey: string): SessionDigest
 3. 突き合わせは対象によって方式を分ける（時間窓の重なりではなく、repo を直接持つものは repo 一致を優先する）:
    - DevEvent（commit）/ Gate（しれん回答）: 自身が repo フィールドを持つため、「repo 正規化」節の方式で HarnessRun.repo と直接突き合わせる
    - Capture / GoalLink / RequirementLink: repo フィールドを持たないため、HarnessRun の [startedAt, endedAt] 時間窓との重なりで近似マッチする（下記「精度のトレードオフ」参照）
+
+   **重要（ステップ2との関係）**: ステップ2で除外したセッションも、**時間窓の重なり判定には参加させる**（集計対象からは外れたままで、帰属先にはならない）。除外セッションが「最も特定的な窓」として勝った時刻の Capture 等は、**より遠い（＝窓の広い）外部セッションへ付け替えず、どこにも帰属させない**。付け替えると、実際にはアプリ内じゅもん・定期便の最中に起きた出来事を外部 repo の成果として過大計上してしまうため。除外セッションを最初から見えなくすると、まさにこの付け替えが起きる（ステップの順序だけを素直に読むとそうなるが、本設計の意図は「精度のトレードオフ」節どおり単一帰属であり、付け替えではない）。
 4. repo → 領（`SystemKind`）の解決: その repo に紐づく直近の Gate（`DevEvent.repo` → `Gate.event`）に `classifySystem`（`atlas-taxonomy.ts`）を適用し多数決を取る——`load-atlas-data.ts` の `loadSystemStars` と同じ集計パターンを repo 単位に適用する。該当 Gate が無い repo は `region: null` とする（地図上の配置は Phase 3 側で `SYSTEM_REGION_POS[region] ?? FOG_REGION_POS` により解決し、`null` も含め該当エントリの無い kind は霧帯にフォールバックする——`atlas-world-map.tsx` の既存フォールバック規約どおり）
 5. リポジトリ単位に集約し、SessionDigest 構造体を返す
 ```
@@ -140,7 +147,7 @@ type SessionDigest = {
 
 MCP ツール呼び出し側（`src/app/api/mcp/route.ts`）は現状どのセッションからの呼び出しかを記録していない。`HarnessRun` は別プロセス（`collect-harness.mjs`）が事後にログファイルから収集するため、書き込み時点で正確な `sessionId` を `Capture` 等に持たせることができない。
 
-repo を直接持たない `Capture`/`GoalLink`/`RequirementLink` は時間窓の重なりによる近似マッチを採用する。複数セッションを同時並行で動かした場合、稀に取り違えが起きうる（例: 2つのターミナルで同時に Claude と Codex を動かし、ほぼ同時刻に別々の学びを捕捉した場合）。同一時間窓に複数の HarnessRun が重なった場合、対象の Capture 等は**最も時間窓が短い（＝最も特定的な）HarnessRun に単一帰属**させ、二重カウントしない。事後の振り返り・雰囲気を作ることが目的であり、監査精度は求められていないため、この近似を許容する。
+repo を直接持たない `Capture`/`GoalLink`/`RequirementLink` は時間窓の重なりによる近似マッチを採用する。複数セッションを同時並行で動かした場合、稀に取り違えが起きうる（例: 2つのターミナルで同時に Claude と Codex を動かし、ほぼ同時刻に別々の学びを捕捉した場合）。同一時間窓に複数の HarnessRun が重なった場合、対象の Capture 等は**最も時間窓が短い（＝最も特定的な）HarnessRun に単一帰属**させ、二重カウントしない。勝った HarnessRun が「外部セッションの定義」で除外されたものだった場合は、**帰属なし（どこにも数えない）**とする——次点の外部セッションへ繰り上げない。事後の振り返り・雰囲気を作ることが目的であり、監査精度は求められていないため、この近似を許容する。
 
 正確な紐付け（MCP呼び出し時に `sessionId` を受け取り `Capture.sourceContext` 等に埋め込む）は、将来精度が問題になった場合の拡張候補として記録に留め、本設計では実施しない。
 
@@ -189,7 +196,8 @@ repo を直接持たない `Capture`/`GoalLink`/`RequirementLink` は時間窓�
 
 - `regionBrightness` は面（領の塗りの明度）でドメイン習熟度を表す既存の別軸。今回の足あとピンは点（マーカー）なのでチャンネルが異なり、直接の衝突はない
 - 足あとピンは「！」ピン（緊急アクション・金色・クリックで `/gates/[id]` へ）とは意味が違うため、**別アイコン（小さな足あと）・控えめな色**にする。「行くべき場所」ではなく「今日いた場所」を示す情報系マーカーであり、目立たせすぎない
-- 同じ領に複数セッションがあれば、ピンを増やさず**数字バッジ**で集約
+- 同じ領に複数セッションがあれば、ピンを増やさず**数字バッジ**で集約。集約のキーは `SystemKind` の値そのものではなく**解決後の地図座標**にする——複数の `SystemKind` が同じ座標に落ちるため（`SYSTEM_REGION_POS` に無い `ops`/`other`、および `region: null` はすべて `FOG_REGION_POS`）。`SystemKind` 単位でまとめると、霧帯へフォールバックした複数 repo のピンが同座標に重なり、最後の1枚しかクリックできなくなる。ラベルは代表 repo 名＋「他N」、バッジはグループ内 `sessionCount` の合計とする
+- 足あとピンを作るのは Phase 2 ストリップが実際に描く **先頭 N 件（`STRIP_MAX_CARDS`）に限る**。ストリップに存在しない repo のピンを立てると、クリックしてもハイライトすべきカードが無い「死にクリック」になるため、ピン構築とストリップ描画は同じ上限を共有する（`STRIP_MAX_CARDS` を export して両者で使う）。上限外の repo はストリップ側の「+N」表記でのみ示す
 - スコープは**当日のみ**。過去の足あとは蓄積・永続表示しない（マップをクリーンに保つ）。恒久記録は Phase 1 のにっきのとびらが担う
 - クリック時はページ遷移せず、同一画面内の Phase 2「きょうのきろく」ストリップの該当カードをスクロール/ハイライトする（マップとストリップは同じ ちず＝ホーム 画面にあるため、遷移なしで接続を体感できる）
 
