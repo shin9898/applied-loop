@@ -257,7 +257,7 @@ function PulseSection({ health }: { health: MaterialCaptureHealth }) {
     <AtlasReveal as="section" className="atlas-win-px atlas-px-cut">
       <AtlasPageTitle
         title="しくみのこどう"
-        sub="どうぐの一次シグナル / ADR-0020"
+        sub="どうぐの一次シグナル"
       />
       {days.length === 0 ? (
         <p className="m-0 text-[14px] leading-relaxed text-[#c9c3a0]">
@@ -374,7 +374,7 @@ function FlowSection({ health }: { health: MaterialCaptureHealth }) {
       />
       <p className="atlas-win-px__lead">
         実装の足あとが、どこで どれだけ こぼれているか。管の中の粒が材料じゃ。
-        かまどの下に落ちた粒（droppedMaterialIds）は、だまって消えたのではなく
+        かまどの下に落ちた粒は、だまって消えたのではなく
         <span style={{ color: "var(--atlas-danger)" }}> とりこぼし </span>
         として残っておる。ひろい直せる。
       </p>
@@ -576,7 +576,7 @@ export function AtlasHarness({
             <p className="atlas-talk__body">
               ぼうけんしゃよ。ここは しくみの こどうを 見守る 部屋じゃ。
               <br />
-              一次シグナルは「材料を 漏れなく 拾えておるか」（ADR-0020）。
+              一次シグナルは「材料を 漏れなく 拾えておるか」。
               {todayPct != null ? (
                 <>
                   {" "}
@@ -604,7 +604,7 @@ export function AtlasHarness({
                 ? `けいやく ${watched.length} ひき`
                 : "まだ 1ひきも おらぬ"
           }
-          blurb="つないでおるのは くさり ではない。ここに あるのは ねどこと、ふわりと ともる もんしょう だけじゃ。もんしょうが ともっておれば 声が とどいておる しるし。げんき / そわそわ / しょんぼり は、いまはキャッシュ効率だけから出す参考の見立てじゃ（一次シグナルの材料キャプチャとは別軸）。元気が ないのは せめる ためではなく、手を さしのべる ための しるしじゃ。"
+          blurb="つないでおるのは くさり ではない。ねどこと、ふわりと ともる もんしょうだけじゃ。げんき / そわそわ / しょんぼりは、キャッシュ効率から見た参考の見立てじゃ。"
           repos={watched}
           empty="まだ けいやくを むすんだ けものが おらぬ。設定から供給対象を追加せよ。"
         />
@@ -615,7 +615,7 @@ export function AtlasHarness({
               ? `${discovered.length} ひき（もんしょう なし）`
               : "いまはなし"
           }
-          blurb="監視リストの外じゃが、HarnessRun 計測から 気配だけ 見えておる repo。作業はしているが 鉤（git hook）が 付いていないときに ここへ 出る。判定はここもキャッシュ効率発の参考指標。"
+          blurb="監視リストの外じゃが、気配だけ 見えておる repo。作業はしているが 連携が 付いていないときに ここへ 出る。"
           repos={discovered}
           empty="気配だけの けものは いま おらぬ。"
           delayIndex={1}

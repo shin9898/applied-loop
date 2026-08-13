@@ -74,9 +74,6 @@ export function AtlasNikkiShelf({
 
   return (
     <div className="atlas-nikki-shelf">
-      <p className="atlas-nikki-shelf__hint">
-        月の本を手に取ると、日付ページをめくれるぞ。
-      </p>
       {months.length === 0 ? (
         <p className="atlas-nikki-shelf__empty">
           まだ日記の本がない。材料がある日に「手元で生成」せよ。

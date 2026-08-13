@@ -129,35 +129,36 @@ export function AtlasUkebakoReception({
       <div className="uke-lower">
         <div className="dq-win uke-talk p-3.5">
           <span className="uke-talk__speaker">ともしび</span>
-          <p>
+          <p className={stale > 0 ? "is-warn" : undefined}>
             <i className="uke-mk" />
             おかえりなさい、ぼうけんしゃ どの。
+            {stale > 0 ? (
+              <>
+                {" "}
+                まずは ふるびた <b>{stale}つう</b> から ひらくが よい。
+              </>
+            ) : pending === 0 ? (
+              <>
+                {" "}
+                みしわけの ふみは <b>ない</b>。うけつけは しずかじゃ。
+              </>
+            ) : warn > 0 ? (
+              <>
+                {" "}
+                そろそろ ひらく ころあいの ふみが <b>{warn}つう</b>。
+              </>
+            ) : sleeping > 0 ? (
+              <>
+                {" "}
+                くらには ねむったままの まなびが <b>{sleeping}</b>。つかってこそ 身につく。
+              </>
+            ) : (
+              <>
+                {" "}
+                みしわけの ふみが <b>{pending}つう</b> とどいて おる。
+              </>
+            )}
           </p>
-          {pending === 0 ? (
-            <p>
-              みしわけの ふみは <b>ない</b>。うけつけは しずかじゃ。
-            </p>
-          ) : (
-            <p>
-              みしわけの ふみが <b>{pending}つう</b> とどいて おる。
-            </p>
-          )}
-          {stale > 0 ? (
-            <p className="is-warn">
-              されど そのうち <b>{stale}つう</b> は 14にち いじょう ひらかれておらぬ。
-            </p>
-          ) : warn > 0 ? (
-            <p>
-              そのうち <b>{warn}つう</b> は そろそろ ひらく ころあいじゃ。
-            </p>
-          ) : null}
-          {stale > 0 ? (
-            <p>まずは その {stale}つう から ひらくが よい。</p>
-          ) : sleeping > 0 ? (
-            <p>
-              くらには ねむったままの まなびが <b>{sleeping}</b>。つかってこそ 身につく。
-            </p>
-          ) : null}
 
           <div className="uke-steps-box">
             <p className="uke-steps__title">きょうの てじゅん</p>

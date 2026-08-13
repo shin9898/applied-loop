@@ -732,9 +732,6 @@ export function AtlasBattle({
                 </ul>
               </div>
             ) : null}
-            <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-              ……と、まものが言い放った。この問いにこたえて、あかりをともせ！
-            </p>
             <span
               className="absolute top-1/2 right-full hidden h-0 w-0 -translate-y-1/2 border-y-8 border-r-[12px] border-y-transparent border-r-white md:block"
               aria-hidden
@@ -750,13 +747,6 @@ export function AtlasBattle({
           <div className="dq-win p-3">
             <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[12px] text-[#f0d25a]">
               あなた
-            </div>
-            <div className="flex justify-between text-[14px]">
-              <span>理解ゲージ</span>
-              <span>85%</span>
-            </div>
-            <div className="mt-1 h-2.5 border-2 border-[#223] bg-black">
-              <i className="block h-full w-[85%] bg-[#3ecf5a]" />
             </div>
             <div className="mt-2 flex justify-between text-[14px]">
               <span>状態</span>
@@ -777,7 +767,7 @@ export function AtlasBattle({
           <div className="dq-win grid grid-cols-2 gap-2 p-3">
             {(
               [
-                ["answer", "こたえる", "直接書いて提出（MCPと同じ受理）"],
+                ["answer", "こたえる", "直接書いて提出"],
                 ["hint", "ヒント", "採点観点を見る（答えは出さない）"],
                 ["zukan", "ずかん", "同系統のつまずきを開く"],
                 ["run", "にげる", "ちずにもどる（進捗はそのまま）"],
@@ -1138,8 +1128,7 @@ export function AtlasBattle({
                     : ""}
                 </p>
                 <p className="m-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-                  つまり 下に書いた文を提出する。受理・採点は MCP answer_gate
-                  と同じ経路。対話で練るならページ下の『じゅもんをとなえる』。
+                  下に書いた文を、そのまま提出する。対話で練るならページ下の『じゅもんをとなえる』。
                 </p>
                 <textarea
                   className="min-h-[96px] w-full resize-y border-[3px] border-white bg-[#000c4a] p-2.5 font-[family-name:var(--font-jp)] text-[15px] text-[#f7f3d9]"

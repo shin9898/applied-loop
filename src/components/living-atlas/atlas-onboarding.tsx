@@ -1063,8 +1063,7 @@ function DepartScene({ lampOn }: { lampOn: boolean }) {
       </div>
 
       <p className="m-0 px-4 pb-4 text-[11px] leading-relaxed text-[#9ec0ff]">
-        任意の次: 下の青い／金カード『Cloud の生成AIからも…』（P3 B12-3b）。
-        解放条件は docs/surface-unlock.md。
+        任意の次: 下の青い／金カード『Cloud の生成AIからも…』。
       </p>
     </div>
   );

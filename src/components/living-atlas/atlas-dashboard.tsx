@@ -282,9 +282,6 @@ function StatusCommandPanel({
                   ),
                 )}
               </ul>
-              <p className="mb-0 pt-3 text-[11px] leading-relaxed text-[#c9c3a0]">
-                弱点は上のタブへ。移動は黒いコマンド窓じゃ。
-              </p>
             </div>
         </div>
 
@@ -439,8 +436,8 @@ export function AtlasDashboard({
             title="ちず"
             sub={
               pendingGate
-                ? `！＝いまのしれん（未クリア ${pendingGateCount ?? 1} 件）`
-                : "領＝学びの系統じゃ"
+                ? `未クリアのしれん ${pendingGateCount ?? 1} 件`
+                : undefined
             }
             surface="map"
           />

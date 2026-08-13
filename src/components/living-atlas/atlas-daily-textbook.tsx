@@ -405,9 +405,6 @@ export function AtlasDailyTextbook({
                           : "この章をLLMで磨く"}
                       </button>
                     </div>
-                    <p className="atlas-journal__note">
-                      深掘りはじゅもんへ。LLM研磨は章スロットだけを厚くする（失敗時は規則文のまま）。
-                    </p>
                   </div>
                   </div>
                 </article>
@@ -465,7 +462,7 @@ export function AtlasDailyTextbook({
                   context={jumonContext}
                   title={`じゅもん · 第${activeChapter.index}章`}
                   blurb={`「${activeChapter.title}」だけを賢者に渡して問え。`}
-                  plain="注入は選んだ1章＋なぜ／型の短縮＋一次情報のみ。日次全量や diff 本文は載せぬ（ADR-0020）。章を変えたらじゅもんを閉じてもう一度となえよ。"
+                  plain="注入は選んだ1章＋なぜ／型の短縮＋一次情報のみ。日次全量や diff 本文は載せぬ。章を変えたらじゅもんを閉じてもう一度となえよ。"
                   defaultCmd="codex"
                 />
               </section>

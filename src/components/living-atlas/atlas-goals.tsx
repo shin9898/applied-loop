@@ -213,15 +213,6 @@ export function GrandQuestBanner() {
 /** 討伐ランク（ギルドの査定）。証跡目標数＋クリア条件数から算出する flavor 表示で、実データの判定には使わない */
 export type QuestRank = "E" | "D" | "C" | "B" | "A" | "S";
 
-const RANK_REWARD: Record<QuestRank, number> = {
-  E: 50,
-  D: 120,
-  C: 250,
-  B: 450,
-  A: 800,
-  S: 1500,
-};
-
 export function questRank(target: number, conditionCount: number): QuestRank {
   const score = Math.max(1, target) + conditionCount;
   if (score <= 2) return "E";
@@ -232,7 +223,7 @@ export function questRank(target: number, conditionCount: number): QuestRank {
   return "S";
 }
 
-/** クエスト札の査定欄：討伐ランクと報奨金 */
+/** クエスト札の査定欄：討伐ランク */
 export function QuestAssay({
   target,
   conditionCount,
@@ -241,20 +232,12 @@ export function QuestAssay({
   conditionCount: number;
 }) {
   const rank = questRank(target, conditionCount);
-  const reward = RANK_REWARD[rank];
   return (
     <div className="atlas-gq-slip__assay">
       <span className="atlas-gq-rank" aria-hidden>
         {rank}
       </span>
       <span className="atlas-gq-slip__assay-label">討伐ランク</span>
-      <span className="atlas-gq-slip__assay-sep" aria-hidden>
-        ・
-      </span>
-      <span className="atlas-gq-slip__assay-reward">
-        <PixelGem className="atlas-gq-ico atlas-gq-ico--gem-sm" />
-        報奨金 {reward}G
-      </span>
     </div>
   );
 }

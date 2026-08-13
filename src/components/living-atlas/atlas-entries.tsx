@@ -376,16 +376,6 @@ export function AtlasEntries({
             ルミナの語りをきく
           </Link>
         </AtlasReveal>
-
-        <AtlasReveal as="section" delayIndex={6}>
-          <p className="uke-foot">
-            <i className="uke-mk uke-mk--sky" />
-            うけばこは <b>うけつけ</b> じゃ。ここで できるのは 「ひらく・よむ・えらぶ」。
-            <br />
-            しわけ・くらへの おさめ・きろくの のこしは、すべて <b>じゅもん（MCP）</b> が
-            おこなう。アプリに 入力フォームは 増やさぬ。
-          </p>
-        </AtlasReveal>
       </AtlasShell>
     </AtlasChrome>
   );
