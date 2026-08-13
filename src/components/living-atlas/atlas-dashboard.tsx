@@ -370,6 +370,7 @@ export function AtlasDashboard({
   sessionDigest = null,
 }: AtlasDashboardProps) {
   const [activeId, setActiveId] = useState(pendingGate ? "quest-1" : "you");
+  const [activeStripRepo, setActiveStripRepo] = useState<string | null>(null);
   const adventurer =
     adventurerProp ?? adventurerLevelFromResolved(resolvedTotal);
 
@@ -391,6 +392,29 @@ export function AtlasDashboard({
         ]
       : []),
   ];
+
+  const footprintMarkers: MapMarker[] = (sessionDigest?.byRepo ?? []).map(
+    (r) => {
+      const pos = r.region
+        ? (SYSTEM_REGION_POS[r.region] ?? FOG_REGION_POS)
+        : FOG_REGION_POS;
+      return {
+        id: `footprint-${r.repo}`,
+        kind: "footprint" as const,
+        label: r.repo,
+        left: pos.left,
+        top: pos.top,
+        count: r.sessionCount,
+      };
+    },
+  );
+  const allMapMarkers: MapMarker[] = [...mapMarkers, ...footprintMarkers];
+
+  function handleMapSelect(id: string) {
+    setActiveId(id);
+    const repo = footprintMarkers.find((m) => m.id === id)?.label;
+    if (repo) setActiveStripRepo(repo);
+  }
 
   const starByKey = new Map(systemStars.map((s) => [s.key, s.stars]));
   const regionBrightness = {
@@ -447,9 +471,9 @@ export function AtlasDashboard({
           />
           <div className="atlas-worldmap-frame">
             <AtlasWorldMap
-              markers={mapMarkers}
+              markers={allMapMarkers}
               activeId={activeId}
-              onSelect={setActiveId}
+              onSelect={handleMapSelect}
               regionBrightness={regionBrightness}
             />
           </div>
@@ -478,7 +502,10 @@ export function AtlasDashboard({
             </div>
           </div>
           {sessionDigest ? (
-            <AtlasSessionDigestStrip digest={sessionDigest} />
+            <AtlasSessionDigestStrip
+              digest={sessionDigest}
+              activeRepo={activeStripRepo}
+            />
           ) : null}
         </AtlasReveal>
 

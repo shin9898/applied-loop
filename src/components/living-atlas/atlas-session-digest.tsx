@@ -56,7 +56,13 @@ export function AtlasSessionDigestDoor({ digest }: { digest: SessionDigest }) {
 const STRIP_MAX_CARDS = 4;
 
 /** ホーム（ちず）のマップ直下・「いまの一手」CTAの下に置く横並びカード */
-export function AtlasSessionDigestStrip({ digest }: { digest: SessionDigest }) {
+export function AtlasSessionDigestStrip({
+  digest,
+  activeRepo,
+}: {
+  digest: SessionDigest;
+  activeRepo?: string | null;
+}) {
   if (digest.sessionCount === 0) return null;
 
   const shown = digest.byRepo.slice(0, STRIP_MAX_CARDS);
@@ -72,7 +78,9 @@ export function AtlasSessionDigestStrip({ digest }: { digest: SessionDigest }) {
           <Link
             key={r.repo}
             href={`/retro/${digest.dateKey}`}
-            className="dq-btn dq-btn-ghost !px-2.5 !py-1.5 text-left text-[11px] no-underline"
+            className={`dq-btn dq-btn-ghost !px-2.5 !py-1.5 text-left text-[11px] no-underline ${
+              activeRepo === r.repo ? "outline outline-2 outline-[#f0d25a]" : ""
+            }`}
           >
             <span className="block">{r.repo}</span>
             <span className="block text-[10px] text-[#c9c3a0]">
