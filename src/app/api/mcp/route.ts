@@ -12,7 +12,6 @@ import { generateWeeklyNarration } from "@/lib/audio-digest";
 import { runHeadlessLLM, parseLLMJson } from "@/lib/headless-llm";
 import { importanceLabel, scoreCaptureImportance } from "@/lib/inbox-score";
 import { saveTaskMappings } from "@/lib/task-map";
-import { emitAtlasEvent } from "@/lib/atlas-live-events";
 import { detectAndCaptureHarnessPatterns } from "@/lib/harness-patterns";
 import {
   linkRequirementManual,
@@ -122,7 +121,6 @@ const handler = createMcpHandler(
             dedupeKey,
           },
         });
-        emitAtlasEvent({ type: "capture_added", title: capture.title });
         // ADR-0012 §2: 重要度スコアリングは非同期。応答は即返す (llm_auto はまだ無効)
         after(() => {
           scoreCaptureImportance(capture.id).catch((e) =>
@@ -712,13 +710,6 @@ const handler = createMcpHandler(
       async ({ dateKey, mappings }) => {
         await requireAuth();
         const result = await saveTaskMappings({ dateKey, mappings });
-        if (result.savedCount > 0) {
-          emitAtlasEvent({
-            type: "task_mapping_saved",
-            dateKey: result.dateKey,
-            taskCount: result.savedCount,
-          });
-        }
         const lines = [
           `# タスクマッピングを保存しました`,
           `- dateKey: ${result.dateKey}`,

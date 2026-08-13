@@ -1,6 +1,6 @@
 ---
 type: design
-status: approved
+status: withdrawn
 date: 2026-08-13
 tags: [living-atlas, ui, mcp, realtime]
 source_refs:
@@ -12,6 +12,20 @@ source_refs:
 ---
 
 # DS風二画面ターミナル連動UI 設計
+
+## 撤回（2026-08-13、実装・マージ・筐体UI改善の全4ラウンド完了後）
+
+koki 判断により本設計は撤回し、PR #1（`feature/ds-dual-screen-terminal`）でマージした内容を全て元に戻した。理由（koki 発言）:
+
+> せっかくDSUI構築してくれたのですが、いいとこ取りしようとして見せたいものが見せれなくなる気がしたので、やめにしたい。埋め込みターミナルはかなり便利だと思ったのですが、基本的にはターミナル系のアプリやVSCODEでLLMを使用してこのシステムはその内容がUI上で綺麗に整理されてるかつワクワクして試練などを進めてずかんやにっきなどにまとめられているというのが最大の強みだと思ったので、その方向で尖っていけるようにしていこう！
+
+つまり、**常時開いた埋め込みターミナル＋DS筐体UIという「二画面常時表示」の枠組み自体**が、Living Atlas の本来の強み（外部のターミナル/VSCode等でLLMを使い、その活動がしれん・ずかん・にっき等にきれいに整理される体験）を見せる妨げになると判断された。埋め込みターミナル機能（`TerminalPanel`）自体は有用と評価されており、既存の開閉トグル式（`gates/[id]` のしれん画面、独立した `AtlasAssist` 呼び出し）はそのまま維持する。
+
+**ロールバック内容**: `git checkout 2ddd882 -- <files>` で PR #1 マージ直前の状態に実装ファイルを復元し、PR #1 で新規作成したファイル（`atlas-console-shell.tsx`, `atlas-live-events-context.tsx`, `atlas-live-events.ts`/`.test.ts`, `api/atlas-events/route.ts`）を削除。`npx tsc --noEmit` と `npm test`（106件）で復元後の健全性を確認済み。
+
+この設計ドキュメント自体は、同じ発想を将来再検討する際の参考として残す（撤回の経緯・技術調査結果は削除せず保持）。追補セクション（筐体UIのサイズ改善）も同様に撤回対象。
+
+---
 
 ## 背景・目的
 

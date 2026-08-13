@@ -50,7 +50,6 @@ export function AtlasAssist({
   plain,
   defaultOpen = false,
   defaultCmd = "codex",
-  compact = false,
 }: {
   wsToken: string;
   intent?: AtlasAssistIntent;
@@ -62,8 +61,6 @@ export function AtlasAssist({
   plain?: string;
   defaultOpen?: boolean;
   defaultCmd?: TerminalCmd;
-  /** DS筐体など高さ制約のある文脈向け。タイトル/ブラーブ/ひとことバナーを省略する */
-  compact?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [prefs, setPrefs] = useState<JumonCliPrefs>(() =>
@@ -103,23 +100,15 @@ export function AtlasAssist({
     >
       {open ? <div className="atlas-assist-aura" aria-hidden /> : null}
       <div className="relative flex flex-wrap items-start justify-between gap-3">
-        {!compact && (
-          <div className="min-w-0 flex-1">
-            <h2 className="dq-win-title mb-1">{title}</h2>
-            <AtlasVoicePlain voice={blurb} plain={plainText} />
-            <p className="mt-1.5 mb-0 text-[11px] text-[#9ec0ff]">
-              意図: {intent}
-              {gateId ? ` · gate ${gateId.slice(0, 8)}…` : ""}
-            </p>
-          </div>
-        )}
-        <div
-          className={
-            compact
-              ? "flex flex-row flex-wrap items-center gap-3"
-              : "flex flex-col items-stretch gap-2 sm:items-end"
-          }
-        >
+        <div className="min-w-0 flex-1">
+          <h2 className="dq-win-title mb-1">{title}</h2>
+          <AtlasVoicePlain voice={blurb} plain={plainText} />
+          <p className="mt-1.5 mb-0 text-[11px] text-[#9ec0ff]">
+            意図: {intent}
+            {gateId ? ` · gate ${gateId.slice(0, 8)}…` : ""}
+          </p>
+        </div>
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
           <div className="flex flex-wrap items-center justify-end gap-2">
             <span className="text-[10px] text-[#9a9470]">サービス</span>
             <div className="flex overflow-hidden border-[3px] border-white">
@@ -202,21 +191,19 @@ export function AtlasAssist({
       </div>
       {open ? (
         <div className="relative mt-3">
-          {!compact && (
-            <div className="mb-2 border-l-[3px] border-[#f0d25a] bg-[#001a8c] px-3 py-2">
-              <p className="m-0 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
-                ◆ ひとこと（あなた向け）
-              </p>
-              <p className="mt-1 mb-0 text-[13px] leading-relaxed text-[#f7f3d9]">
-                ターミナルに出る長い文は指示書じゃ。
-                <strong className="text-[#f0d25a]">編集せず Enter</strong>
-                で送ってほしい。
-              </p>
-              <p className="mt-1 mb-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-                サービス／モデルを変えるときは一度とじて選び直し、もう一度となえよ。
-              </p>
-            </div>
-          )}
+          <div className="mb-2 border-l-[3px] border-[#f0d25a] bg-[#001a8c] px-3 py-2">
+            <p className="m-0 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
+              ◆ ひとこと（あなた向け）
+            </p>
+            <p className="mt-1 mb-0 text-[13px] leading-relaxed text-[#f7f3d9]">
+              ターミナルに出る長い文は指示書じゃ。
+              <strong className="text-[#f0d25a]">編集せず Enter</strong>
+              で送ってほしい。
+            </p>
+            <p className="mt-1 mb-0 text-[11px] leading-relaxed text-[#9ec0ff]">
+              サービス／モデルを変えるときは一度とじて選び直し、もう一度となえよ。
+            </p>
+          </div>
           <TerminalPanel
             key={`${prefs.cmd}:${modelValue ?? "default"}`}
             gateId={gateId}

@@ -1,5 +1,4 @@
 import { AtlasBodyClass } from "@/components/living-atlas/atlas-body-class";
-import { AtlasLiveEventsProvider } from "@/components/living-atlas/atlas-live-events-context";
 
 export default function AppLayout({
   children,
@@ -9,9 +8,7 @@ export default function AppLayout({
   return (
     <>
       <AtlasBodyClass />
-      <main className="flex-1">
-        <AtlasLiveEventsProvider>{children}</AtlasLiveEventsProvider>
-      </main>
+      <main className="flex-1">{children}</main>
     </>
   );
 }

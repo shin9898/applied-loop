@@ -275,11 +275,11 @@ export function AtlasWorldMap({
   }, [regionBrightness]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden border-4 border-black bg-[#0d2f70] shadow-[inset_0_0_0_3px_#4a7fd4]">
+    <div className="relative w-full overflow-hidden border-4 border-black aspect-[16/11] bg-[#0d2f70] shadow-[inset_0_0_0_3px_#4a7fd4]">
       <canvas
         ref={ref}
         width={320}
-        height={160}
+        height={220}
         className="block h-full w-full"
         style={{ imageRendering: "pixelated" }}
         aria-hidden

@@ -25,6 +25,7 @@ export default async function AtlasHomePage() {
       <AtlasDashboard
         {...props}
         wsToken={getTerminalWsToken()}
+        setupDiagnosis={setupDiagnosis}
       />
     </AtlasChrome>
   );

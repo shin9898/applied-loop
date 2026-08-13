@@ -1,7 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { prisma } from "@/lib/db";
-import { emitAtlasEvent } from "@/lib/atlas-live-events";
 import { runHeadlessLLM, parseLLMJson, HeadlessLLMError } from "@/lib/headless-llm";
 import {
   activeGoalsPromptBlock,
@@ -792,7 +791,6 @@ export async function gradeGate(gateId: string): Promise<void> {
   });
 
   if (passed) {
-    emitAtlasEvent({ type: "gate_passed", gateId });
     await onGatePassed(gate, now, result?.goal_suggestions, rubric);
     await refreshRequirementsForGate(gateId).catch((e) =>
       console.error("[requirement] refresh after pass failed:", e)
