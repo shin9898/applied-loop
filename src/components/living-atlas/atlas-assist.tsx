@@ -114,9 +114,11 @@ export function AtlasAssist({
           </div>
         )}
         <div
-          className={`flex flex-col items-stretch sm:items-end ${
-            compact ? "gap-1" : "gap-2"
-          }`}
+          className={
+            compact
+              ? "flex flex-row flex-wrap items-center gap-3"
+              : "flex flex-col items-stretch gap-2 sm:items-end"
+          }
         >
           <div className="flex flex-wrap items-center justify-end gap-2">
             <span className="text-[10px] text-[#9a9470]">サービス</span>
