@@ -68,10 +68,54 @@ describe("isExternalSession", () => {
     assert.ok(!isExternalSession({ repo: "  applied-loop  ", tools }));
   });
 
-  it("excludes very short sessions (turns < 2) even in an external repo", () => {
-    // 1ターンの `claude -p`（launchd 定期便）は、どの repo で走っても数えない
-    assert.ok(!isExternalSession({ repo: "triple-list", tools: null, turns: 1 }));
-    assert.ok(!isExternalSession({ repo: "triple-list", tools: null, turns: 0 }));
+  it("excludes very short, low-turn sessions (turns < 2 and duration < 5min) even in an external repo", () => {
+    // 1ターン・2分の `claude -p`（launchd 定期便）は、どの repo で走っても数えない
+    const startedAt = new Date("2026-08-13T01:00:00Z");
+    assert.ok(
+      !isExternalSession({
+        repo: "triple-list",
+        tools: null,
+        turns: 1,
+        startedAt,
+        endedAt: new Date("2026-08-13T01:02:00Z"), // 2分後
+      }),
+    );
+    assert.ok(
+      !isExternalSession({
+        repo: "triple-list",
+        tools: null,
+        turns: 0,
+        startedAt,
+        endedAt: new Date("2026-08-13T01:02:00Z"),
+      }),
+    );
+  });
+
+  it("keeps low-turn but long-duration sessions (fire-and-forget agentic runs)", () => {
+    // turns: 1 でも6時間動いていれば cron 定期便ではなく実質的なセッション
+    const startedAt = new Date("2026-08-13T01:00:00Z");
+    assert.ok(
+      isExternalSession({
+        repo: "triple-list",
+        tools: null,
+        turns: 1,
+        startedAt,
+        endedAt: new Date("2026-08-13T07:00:00Z"), // 6時間後
+      }),
+    );
+  });
+
+  it("keeps low-turn sessions with unknown duration (open/in-progress sessions)", () => {
+    // endedAt: null（進行中セッション）は duration 不明として「短い」と決めつけない
+    assert.ok(
+      isExternalSession({
+        repo: "triple-list",
+        tools: null,
+        turns: 1,
+        startedAt: new Date("2026-08-13T01:00:00Z"),
+        endedAt: null,
+      }),
+    );
   });
 
   it("keeps multi-turn sessions in an external repo (and when turns is omitted)", () => {

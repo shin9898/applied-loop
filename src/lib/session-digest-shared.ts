@@ -65,9 +65,13 @@ type ToolUsage = { name?: string };
 
 /**
  * v1ヒューリスティック（design doc「外部セッションの定義」）:
- * - `turns` が極端に少ない（< 2）セッションは launchd 定期便（`claude -p` 等の
- *   cron 実行）とみなし、repo によらず除外する。1ターンの定期便はどの repo で
- *   走っても「手元で LLM を使った」体験ではないため、applied-loop 以外も落とす
+ * - `turns` が極端に少なく（< 2）かつセッション時間が5分未満のセッションは launchd
+ *   定期便相当とみなし除外する。時間が不明（進行中セッション等）な場合や、低ターン数
+ *   でも長時間動いたセッション（fire-and-forget 型のエージェント実行等）は除外しない。
+ *   実データ計測で `turns < 2` 単体は「実質的な」セッション（5分以上・ツール呼び出し
+ *   10件以上）の73%を誤って落とすことが判明したための修正（`HarnessRun.turns` は
+ *   人間の会話ターンのみを数えており、長時間の自律実行やヘッドレス実行では低いまま
+ *   になりうる）
  * - applied-loop 自身の repo で、かつ tools が mcp__applied-loop__* のみ
  *   （他のツール呼び出しが皆無）なら、アプリ内じゅもん（埋め込みターミナル）
  *   由来と判定して除外する
@@ -76,8 +80,18 @@ export function isExternalSession(run: {
   repo: string | null;
   tools: string | null;
   turns?: number;
+  startedAt?: Date;
+  endedAt?: Date | null;
 }): boolean {
-  if (typeof run.turns === "number" && run.turns < 2) return false;
+  if (typeof run.turns === "number" && run.turns < 2) {
+    const durationMs =
+      run.startedAt && run.endedAt
+        ? run.endedAt.getTime() - run.startedAt.getTime()
+        : null;
+    // duration が不明（進行中セッション等）な場合は「短い」と決めつけず除外しない。
+    // 5分未満かつ低ターン数のみを cron 定期便相当として除外する
+    if (durationMs !== null && durationMs < 5 * 60 * 1000) return false;
+  }
   // normalizeRepoKey 化は大文字小文字の揺れを直すだけで、worktree ディレクトリ名は
   // 直らない（例: このブランチ自身の worktree で走ったセッションは repo が
   // "external-session-digest" になり applied-loop と接頭辞を共有しないため、
