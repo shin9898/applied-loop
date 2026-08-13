@@ -29,7 +29,6 @@ import { AtlasConsoleShell } from "./atlas-console-shell";
 import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import { AtlasSurfaceIcon, surfaceIdFromHref } from "./atlas-surface-icons";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
-import { resolveHomeCta } from "@/lib/home-cta";
 import type { TextbookGuidance } from "@/lib/textbook-guidance-shared";
 
 /** デイリークエスト1件。href があれば行全体がクリッカブルになる */
@@ -253,12 +252,12 @@ function StatusCommandPanel({
                 ◆ デイリークエスト
               </h3>
               <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-                {todos.map((t) =>
+                {todos.slice(0, 2).map((t) =>
                   t.href ? (
                     <li key={t.title}>
                       <Link
                         href={t.href}
-                        className="flex items-center gap-2.5 border-2 border-[#002070] bg-white/[0.04] px-2 py-2 no-underline transition-colors hover:border-[#f0d25a]"
+                        className="flex items-center gap-2 border-2 border-[#002070] bg-white/[0.04] px-1.5 py-1.5 no-underline transition-colors hover:border-[#f0d25a]"
                       >
                         <span className="flex h-[26px] w-[26px] flex-none items-center justify-center bg-[#001a8c] shadow-[inset_-2px_-2px_0_rgba(0,0,0,0.6),2px_2px_0_rgba(0,0,0,0.25)]">
                           <AtlasSurfaceIcon
@@ -267,10 +266,10 @@ function StatusCommandPanel({
                           />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] text-[#f7f3d9]">
+                          <span className="block truncate text-[11px] text-[#f7f3d9]">
                             {t.title}
                           </span>
-                          <span className="mt-0.5 block truncate text-[11px] text-[#c9c3a0]">
+                          <span className="mt-0.5 block truncate text-[9px] text-[#c9c3a0]">
                             {t.meta}
                           </span>
                         </span>
@@ -462,16 +461,6 @@ export function AtlasDashboard({
       5,
   };
 
-  const primaryCta = resolveHomeCta({
-    essentialsReady: setupDiagnosis?.essentialsReady ?? true,
-    tutorialSampleSubmitted:
-      setupDiagnosis?.tutorialSampleSubmitted ?? true,
-    tutorialReady: setupDiagnosis?.tutorialReady ?? true,
-    pendingGateId: pendingGate?.id ?? null,
-    pendingGateTitle: pendingGate?.title ?? null,
-    gitHookInstalled: setupDiagnosis?.gitHookInstalled ?? false,
-    textbookGuidance,
-  });
   const assistContext = [
     textbookGuidance
       ? `きょうのしょ導線: ${textbookGuidance.briefingLine}`
@@ -515,24 +504,6 @@ export function AtlasDashboard({
           <span>領＝学びの系統</span>
         </div>
 
-        <div className="mt-auto border-t-2 border-[#002070] pt-3">
-          <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
-            ◆ いまの一手
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="m-0 text-[15px] font-normal leading-relaxed">
-                {primaryCta.title}
-              </h2>
-              <p className="mt-1 mb-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-                {primaryCta.body}
-              </p>
-            </div>
-            <Link href={primaryCta.href} className="dq-btn shrink-0">
-              {primaryCta.label}
-            </Link>
-          </div>
-        </div>
       </AtlasReveal>
 
       <StatusCommandPanel
