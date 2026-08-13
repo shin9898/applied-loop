@@ -6,7 +6,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   adventurerLevelFromResolved,
   formatStars,
@@ -23,6 +23,8 @@ import {
   type MapMarker,
 } from "./atlas-world-map";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
+import { useAtlasLiveEvents } from "./atlas-live-events-context";
+import { AtlasConsoleShell } from "./atlas-console-shell";
 import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import { AtlasSurfaceIcon, surfaceIdFromHref } from "./atlas-surface-icons";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
@@ -79,6 +81,7 @@ function StatusCommandPanel({
   systemStars,
   todos,
   weaknesses,
+  bounceIcon = false,
 }: {
   adventurer: AdventurerLevel;
   resolvedTotal: number;
@@ -87,6 +90,7 @@ function StatusCommandPanel({
   systemStars: SystemStar[];
   todos: DashboardTodo[];
   weaknesses: AtlasDashboardProps["weaknesses"];
+  bounceIcon?: boolean;
 }) {
   const weakCount = weaknesses?.length ?? 0;
   const [tab, setTab] = useState<StatusTab>("status");
@@ -108,7 +112,14 @@ function StatusCommandPanel({
       className="dq-win flex h-full min-h-0 min-w-0 flex-col gap-2.5 p-3.5"
     >
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="dq-win-title mb-0">ぼうけんしゃ</h2>
+        <h2 className="dq-win-title mb-0">
+          ぼうけんしゃ
+          {bounceIcon && (
+            <span className="atlas-capture-bounce" aria-hidden>
+              📥
+            </span>
+          )}
+        </h2>
         <p className="m-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
           司令塔
         </p>
@@ -369,8 +380,49 @@ export function AtlasDashboard({
   textbookGuidance = null,
 }: AtlasDashboardProps) {
   const [activeId, setActiveId] = useState(pendingGate ? "quest-1" : "you");
+  const { lastEvent } = useAtlasLiveEvents();
+  const [optimisticResolvedDelta, setOptimisticResolvedDelta] = useState(0);
+  const [clearedGateId, setClearedGateId] = useState<string | null>(null);
+  const [pulse, setPulse] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
+  const [bounceIcon, setBounceIcon] = useState(false);
+  const lastSeqRef = useRef(0);
+
+  useEffect(() => {
+    if (!lastEvent || lastEvent.seq === lastSeqRef.current) return;
+    lastSeqRef.current = lastEvent.seq;
+
+    setPulse(true);
+    const pulseTimer = setTimeout(() => setPulse(false), 900);
+
+    if (lastEvent.type === "gate_passed") {
+      setOptimisticResolvedDelta((d) => d + 1);
+      if (pendingGate && lastEvent.gateId === pendingGate.id) {
+        setClearedGateId(lastEvent.gateId);
+      }
+    } else if (lastEvent.type === "task_mapping_saved") {
+      setBanner(
+        `今の任務と関連しそうな学びを検知しました（${lastEvent.taskCount}件）`,
+      );
+      const bannerTimer = setTimeout(() => setBanner(null), 6000);
+      return () => {
+        clearTimeout(pulseTimer);
+        clearTimeout(bannerTimer);
+      };
+    } else if (lastEvent.type === "capture_added") {
+      setBounceIcon(true);
+      const bounceTimer = setTimeout(() => setBounceIcon(false), 1200);
+      return () => {
+        clearTimeout(pulseTimer);
+        clearTimeout(bounceTimer);
+      };
+    }
+
+    return () => clearTimeout(pulseTimer);
+  }, [lastEvent, pendingGate]);
+
   const adventurer =
-    adventurerProp ?? adventurerLevelFromResolved(resolvedTotal);
+    adventurerProp ?? adventurerLevelFromResolved(resolvedTotal + optimisticResolvedDelta);
 
   const questPos = pendingGate
     ? (SYSTEM_REGION_POS[pendingGate.systemKey ?? ""] ?? FOG_REGION_POS)
@@ -381,7 +433,7 @@ export function AtlasDashboard({
       ? [
           {
             id: "quest-1",
-            kind: "quest" as const,
+            kind: clearedGateId === pendingGate.id ? ("clear" as const) : ("quest" as const),
             label: "！",
             left: questPos.left,
             top: questPos.top,
@@ -429,81 +481,92 @@ export function AtlasDashboard({
     .filter(Boolean)
     .join("\n");
 
+  const topScreenContent = (
+    <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1.6fr_0.9fr]">
+      <AtlasReveal as="section" className="dq-win flex h-full flex-col gap-3 p-3.5">
+        <AtlasPageTitle
+          title="ちず"
+          sub={
+            pendingGate
+              ? `！＝いまのしれん（未クリア ${pendingGateCount ?? 1} 件）`
+              : "領＝学びの系統じゃ"
+          }
+          surface="map"
+        />
+        <div className="atlas-worldmap-frame">
+          <AtlasWorldMap
+            markers={mapMarkers}
+            activeId={activeId}
+            onSelect={setActiveId}
+            regionBrightness={regionBrightness}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-[#c9c3a0]">
+          <span className="text-[#f0d25a]">！＝未クリアのしれん</span>
+          <span>自キャラ＝いま</span>
+          <span>領＝学びの系統</span>
+        </div>
+
+        <div className="mt-auto border-t-2 border-[#002070] pt-3">
+          <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
+            ◆ いまの一手
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="m-0 text-[15px] font-normal leading-relaxed">
+                {primaryCta.title}
+              </h2>
+              <p className="mt-1 mb-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+                {primaryCta.body}
+              </p>
+            </div>
+            <Link href={primaryCta.href} className="dq-btn shrink-0">
+              {primaryCta.label}
+            </Link>
+          </div>
+        </div>
+      </AtlasReveal>
+
+      <StatusCommandPanel
+        adventurer={adventurer}
+        resolvedTotal={resolvedTotal}
+        thisWeekDelta={thisWeekDelta}
+        streakDays={streakDays}
+        systemStars={systemStars}
+        todos={todos}
+        weaknesses={weaknesses}
+        bounceIcon={bounceIcon}
+      />
+    </div>
+  );
+
+  const bottomScreenContent = wsToken ? (
+    <AtlasAssist
+      wsToken={wsToken}
+      intent="general"
+      context={assistContext}
+      title="じゅもんで今日を進める"
+      blurb="朝の仕分けも、証跡も、どうぐの見立ても——願うならここからじゅもんを。ひとつのしれんなら上の一手へ。"
+      plain="ホーム用の全体操作。Claude/Codex が開き MCP で morning_briefing・仕分け・処方など。1問集中は上のプライマリ CTA。"
+      defaultOpen={true}
+    />
+  ) : (
+    <AtlasAssistUnavailable />
+  );
+
   return (
     <AtlasShell>
       <AtlasWorldIntroModal />
-
-      <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1.6fr_0.9fr]">
-        <AtlasReveal as="section" className="dq-win flex h-full flex-col gap-3 p-3.5">
-          <AtlasPageTitle
-            title="ちず"
-            sub={
-              pendingGate
-                ? `！＝いまのしれん（未クリア ${pendingGateCount ?? 1} 件）`
-                : "領＝学びの系統じゃ"
-            }
-            surface="map"
-          />
-          <div className="atlas-worldmap-frame">
-            <AtlasWorldMap
-              markers={mapMarkers}
-              activeId={activeId}
-              onSelect={setActiveId}
-              regionBrightness={regionBrightness}
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-[#c9c3a0]">
-            <span className="text-[#f0d25a]">！＝未クリアのしれん</span>
-            <span>自キャラ＝いま</span>
-            <span>領＝学びの系統</span>
-          </div>
-
-          <div className="mt-auto border-t-2 border-[#002070] pt-3">
-            <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
-              ◆ いまの一手
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="m-0 text-[15px] font-normal leading-relaxed">
-                  {primaryCta.title}
-                </h2>
-                <p className="mt-1 mb-0 text-[12px] leading-relaxed text-[#c9c3a0]">
-                  {primaryCta.body}
-                </p>
-              </div>
-              <Link href={primaryCta.href} className="dq-btn shrink-0">
-                {primaryCta.label}
-              </Link>
-            </div>
-          </div>
-        </AtlasReveal>
-
-        <StatusCommandPanel
-          adventurer={adventurer}
-          resolvedTotal={resolvedTotal}
-          thisWeekDelta={thisWeekDelta}
-          streakDays={streakDays}
-          systemStars={systemStars}
-          todos={todos}
-          weaknesses={weaknesses}
-        />
-      </div>
-
-      <AtlasReveal as="section" delayIndex={2}>
-        {wsToken ? (
-          <AtlasAssist
-            wsToken={wsToken}
-            intent="general"
-            context={assistContext}
-            title="じゅもんで今日を進める"
-            blurb="朝の仕分けも、証跡も、どうぐの見立ても——願うならここからじゅもんを。ひとつのしれんなら上の一手へ。"
-            plain="ホーム用の全体操作。Claude/Codex が開き MCP で morning_briefing・仕分け・処方など。1問集中は上のプライマリ CTA。"
-            defaultOpen={false}
-          />
-        ) : (
-          <AtlasAssistUnavailable />
-        )}
-      </AtlasReveal>
+      <AtlasConsoleShell
+        topScreen={topScreenContent}
+        bottomScreen={bottomScreenContent}
+        pulse={pulse}
+      />
+      {banner && (
+        <div className="atlas-live-banner" role="status">
+          💬 {banner}
+        </div>
+      )}
     </AtlasShell>
   );
 }
