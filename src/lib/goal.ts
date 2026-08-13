@@ -100,6 +100,20 @@ export async function weeklyEvidenceCounts(
   return { entries, applications, resolvedMisconceptions };
 }
 
+/**
+ * 承認待ち (llm_suggested) の証跡件数。週次カウントには含めない (未承認のため) が、
+ * suggestLinksForTarget の生成物が週をまたいで滞留するケースがあるため期間で絞らない。
+ */
+export async function pendingApprovalCount(goalId: string): Promise<number> {
+  return prisma.goalLink.count({
+    where: {
+      goalId,
+      confidence: "llm_suggested",
+      targetType: { in: ["entry", "application", "misconception"] },
+    },
+  });
+}
+
 /** 紐付き証跡のタイムライン (直近)。llm_suggested は未承認なので除外。 */
 export async function evidenceTimeline(
   goalId: string,
@@ -252,19 +266,19 @@ export type GoalSuggestion = {
  */
 export async function createSuggestedLinks(
   suggestions: GoalSuggestion[]
-): Promise<number> {
-  if (suggestions.length === 0) return 0;
+): Promise<string[]> {
+  if (suggestions.length === 0) return [];
   const activeIds = new Set((await listActiveGoals()).map((g) => g.id));
-  if (activeIds.size === 0) return 0;
+  if (activeIds.size === 0) return [];
 
-  let created = 0;
+  const linkIds: string[] = [];
   for (const s of suggestions) {
     if (!activeIds.has(s.goalId)) continue;
     if (!["entry", "gate", "application", "misconception"].includes(s.targetType)) {
       continue;
     }
     try {
-      await prisma.goalLink.create({
+      const link = await prisma.goalLink.create({
         data: {
           goalId: s.goalId,
           targetType: s.targetType,
@@ -272,12 +286,12 @@ export async function createSuggestedLinks(
           confidence: "llm_suggested",
         },
       });
-      created += 1;
+      linkIds.push(link.id);
     } catch {
       // unique 制約違反など: 既にあるならスキップ
     }
   }
-  return created;
+  return linkIds;
 }
 
 /**
@@ -289,9 +303,9 @@ export async function suggestLinksForTarget(input: {
   targetType: GoalTargetType;
   targetId: string;
   title: string;
-}): Promise<number> {
+}): Promise<string[]> {
   const goals = await listActiveGoals();
-  if (goals.length === 0) return 0;
+  if (goals.length === 0) return [];
 
   const goalLines = goals.map((g) => {
     const focus = formatFocusDomains(g.focusDomains);
@@ -355,7 +369,7 @@ export async function suggestLinksForTarget(input: {
     return created;
   } catch (e) {
     console.error("[goal] suggestLinksForTarget failed:", e);
-    return 0;
+    return [];
   }
 }
 
