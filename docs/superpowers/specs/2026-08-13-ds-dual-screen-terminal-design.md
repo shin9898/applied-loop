@@ -24,7 +24,7 @@ koki 確定の狙い（2026-08-13 brainstorming セッションより）: **実�
 ### MVP（本設計の対象）
 
 - 配置: トップページ（`src/app/(app)/page.tsx` → `AtlasDashboard`）に常設
-- 反応対象の MCP ツール3種: `submit_gate_answer` / `save_task_mappings` / `capture_add`
+- 反応対象の MCP ツール3種（正式名、2026-08-13 実装調査で訂正済み）: `answer_gate`（しれん回答） / `save_task_mappings`（任務紐付け） / `capture_learning_candidate`（うけばこ登録）
 - 単一ユーザー・ローカル `next dev` 実行のみを前提
 
 ### 明示的にスコープ外（将来検討・Obsidian human_task 起票済み）
@@ -54,17 +54,31 @@ Web 調査済み（2026-08-13）: Next.js App Router の Route Handler は Web S
 
 ### データフロー
 
+イベント発行ポイントはツールごとに異なる（2026-08-13 実装調査で確定）。
+
+**`save_task_mappings` / `capture_learning_candidate`**（同期的に完結する処理）:
+
 ```
 [ターミナル内 Claude/Codex]
-  → MCP ツール呼び出し (submit_gate_answer 等)
-  → route.ts の既存 registerTool ラッパー（サーフェスフィルタ用、行70-75）に相乗り
-  → ツール呼び出し成功時のみ、in-memory pub/sub にイベント発行
+  → MCP ツール呼び出し
+  → route.ts の各ハンドラ内で DB 保存が成功した直後にイベント発行
   → SSE Route Handler が購読中の接続へ配信
-  → ブラウザの EventSource が受信
-  → 上画面（マップ／ステータス）が対応する演出を発火
+  → ブラウザの EventSource が受信 → 演出発火
 ```
 
-- イベント発行は**ツール呼び出しが成功した場合のみ**。失敗時は演出を出さない
+**`answer_gate`**（合否は非同期採点で確定するため、ツール呼び出し自体ではフックできない）:
+
+```
+[ターミナル内 Claude/Codex]
+  → answer_gate 呼び出し → acceptGateAnswer が status:"answered" を保存し即座に応答を返す
+  → （応答後、Next.js の after() フックで）gradeGate(gateId) が非同期に走る
+  → gradeGate 内、status を "passed"/"failed" に更新した直後（src/lib/gate.ts:791 付近）にイベント発行
+  → SSE Route Handler が購読中の接続へ配信 → ブラウザが受信 → 演出発火
+```
+
+`gradeGate` は `gate-answer.ts`（MCP/terminal/battle 共通経路）・`actions.ts`（Server Action）・`requeue-failed-grading.ts`（再採点キュー）の計4箇所から呼ばれるが、フックを `gradeGate` 内部に置くことで呼び出し元ごとの個別対応なしに全経路をカバーできる。
+
+- イベント発行は**成功した場合のみ**（`answer_gate` は pass 判定時のみ、他2ツールは処理成功時のみ）。失敗・fail 判定時は演出を出さない
 - MVP は単一ブラウザ・単一セッション想定のため、イベントに宛先ルーティング（誰宛か）は持たせない。将来の複数タブ対応は将来検討事項
 
 ## レイアウト・コンポーネント設計
@@ -81,9 +95,11 @@ koki 承認済みモック（visual companion、2026-08-13）: DS実機風の筐
 
 | ツール | 演出 |
 |---|---|
-| `submit_gate_answer` 成功 | マップの該当 gate ピンが撃破済み表示に変化 **＋** ステータスパネルの EXP バーがその場で伸びるアニメーション（両方同時） |
+| `answer_gate`（`gradeGate` で pass 確定時） | マップの quest ピンが撃破済み表示に変化 **＋** ステータスパネルの EXP バーがその場で伸びるアニメーション（両方同時） |
 | `save_task_mappings` | 画面下部に薄い通知バナー（「今の任務と関連しそうな学びを検知」等） |
-| `capture_add` | マップ／ステータス脇に小さなアイコンがバウンドする軽量アニメーション |
+| `capture_learning_candidate` | マップ／ステータス脇に小さなアイコンがバウンドする軽量アニメーション |
+
+**制約（2026-08-13 実装調査で判明）**: `AtlasWorldMap` の quest ピン（！マーク）は `pendingGate`（単数）からのみ生成され、`id: "quest-1"` 固定。複数 gate の個別ピンは存在しない。そのため「quest ピンが撃破済みに変化」演出は、**今 pass したゲートが、現在表示中の唯一の quest ピンと一致する場合のみ**成立する。一致しない場合（別のゲートを裏で採点していた等）はピン演出をスキップし、EXP バー伸長のみ発火する。
 
 - 通知バナーが複数同時発火した場合はスタックして縦に積み、数秒で自動フェードアウトする
 
@@ -95,8 +111,9 @@ koki 承認済みモック（visual companion、2026-08-13）: DS実機風の筐
 
 ## テスト方針
 
-- イベント発行ロジック（`registerTool` ラッパーへの相乗り、成功時のみ発火）は単体テストで検証
-- SSE Route Handler の疎通・イベント配信はブラウザ実機で確認（`npm run dev:all` 起動状態で対象ツールを実際に叫び、演出が発火するか目視）
+- このプロジェクトのテストは Node.js 組み込み test runner（`tsx --test src/lib/*.test.ts`、Vitest/Jest ではない）。UI コンポーネントの自動テストの慣習はなく、ブラウザ実機確認が正
+- イベント発行ロジック（`gradeGate` 内フック・各ハンドラ内フックが成功時のみ発火するか）は `src/lib/*.test.ts` で単体テスト
+- SSE Route Handler の疎通・イベント配信・演出はブラウザ実機で確認（`npm run dev:all` 起動状態で対象ツールを実際に叫び、演出が発火するか目視）
 - 既存の `TerminalPanel` / `AtlasAssist` の動作（xterm.js 接続、認証、再起動 UI）は無改造なので回帰テスト対象外
 
 ## 将来の拡張（本設計のスコープ外）
