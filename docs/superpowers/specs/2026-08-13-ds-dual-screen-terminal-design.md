@@ -145,7 +145,7 @@ koki 承認済みの方向性（visual companion、2026-08-13 追補セッショ
 - ヒンジ: 26px
 - 下画面（グロー枠込み）: 303px
 
-**上画面（348px）の内訳**: `AtlasConsoleShell` 内で上画面コンテナに `height: 340px` を明示指定し、中を `display: flex` でマップ（`flex: 1.6`）とステータスパネル（`flex: 0.9`）に横並び分割する。既存の `AtlasWorldMap` の `aspect-[16/11]` は撤去し、コンテナ高さいっぱいに描画されるよう変更する（Canvas の `width`/`height` 属性、および `fillBlob` 等の内部座標も新しい比率に合わせて調整が必要）。ステータスパネル側は、デイリークエストの表示件数を4件から2件に絞り（3件目以降は非表示。別動線は設けない）、フォントサイズを縮小して収める。
+**上画面（348px）の内訳**: `AtlasConsoleShell` 内で上画面コンテナに `height: 340px` を明示指定し、中を `display: flex` でマップ（`flex: 1.6`）とステータスパネル（`flex: 0.9`）に横並び分割する。既存の `AtlasWorldMap` の `aspect-[16/11]` は撤去し、コンテナ高さいっぱいに描画されるよう変更する（Canvas の `width`/`height` 属性、および `fillBlob` 等の内部座標も新しい比率に合わせて調整が必要）。ステータスパネル側は、デイリークエストの表示件数を4件から2件に絞り（3件目以降は非表示。別動線は設けない）、フォントサイズを縮小して収める。マップ側の「いまの一手」CTA（`primaryCta` 表示）はステータスパネルのデイリークエストと内容が重複するため、DS筐体内の上画面からは削除する（koki 確認済み）。
 
 **下画面（303px）の内訳**: `TerminalPanel` 自体は無改造のまま、`AtlasConsoleShell` の下画面ラッパー（`.atlas-console-lower-screen` 配下）に、`TerminalPanel` のルート要素（`h-[60vh] min-h-[420px]` を持つ div）の高さを上書きする CSS を追加する方式で実現する（`TerminalPanel` に新規 prop は追加しない）。他の呼び出し元（`gate-terminal-section.tsx`、独立した `AtlasAssist` 呼び出し）は `AtlasConsoleShell` 配下ではないため、CSS の影響を受けず見た目は変更されない。
 
