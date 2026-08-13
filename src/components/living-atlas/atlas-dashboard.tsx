@@ -28,6 +28,7 @@ import { AtlasSurfaceIcon, surfaceIdFromHref } from "./atlas-surface-icons";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
 import { resolveHomeCta } from "@/lib/home-cta";
 import type { TextbookGuidance } from "@/lib/textbook-guidance-shared";
+import type { SessionDigest } from "@/lib/session-digest-shared";
 
 /** デイリークエスト1件。href があれば行全体がクリッカブルになる */
 export type DashboardTodo = {
@@ -66,6 +67,7 @@ export type AtlasDashboardProps = {
   setupDiagnosis?: SetupDiagnosis | null;
   /** ADR-0020 C3-3: 昨日 Mastery / きょうのしょ 導線 */
   textbookGuidance?: TextbookGuidance | null;
+  sessionDigest?: SessionDigest | null;
 };
 
 type StatusTab = "status" | "weak";
