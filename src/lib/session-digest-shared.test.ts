@@ -261,4 +261,67 @@ describe("buildSessionDigest — time-window attribution", () => {
     assert.equal(digest.byRepo[0].captureCount, 4);
     assert.equal(digest.byRepo[0].captureSamples.length, 3);
   });
+
+  it("attributes captures to an open session (endedAt: null) when timestamp is after startedAt", () => {
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-13",
+      harnessRuns: [
+        {
+          sessionId: "open-session",
+          repo: "applied-loop",
+          startedAt: new Date("2026-08-13T01:00:00Z"),
+          endedAt: null, // Open/in-progress session
+          tools: null,
+        },
+      ],
+      captures: [
+        { title: "学びA", capturedAt: new Date("2026-08-13T02:00:00Z") }, // 1 hour after start
+      ],
+      gatesAnswered: [],
+      devEvents: [],
+      goalLinks: [],
+      requirementLinks: [],
+      regionByRepo: {},
+    });
+
+    const g = digest.byRepo[0];
+    assert.equal(g.captureCount, 1);
+    assert.deepEqual(g.captureSamples, ["学びA"]);
+  });
+
+  it("prefers closed session over open session when both cover the same timestamp", () => {
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-13",
+      harnessRuns: [
+        {
+          sessionId: "open-long",
+          repo: "triple-list",
+          startedAt: new Date("2026-08-13T00:00:00Z"),
+          endedAt: null, // Open session with infinite duration
+          tools: null,
+        },
+        {
+          sessionId: "closed-short",
+          repo: "applied-loop",
+          startedAt: new Date("2026-08-13T01:00:00Z"),
+          endedAt: new Date("2026-08-13T01:30:00Z"), // Closed session: 30 min duration
+          tools: null,
+        },
+      ],
+      captures: [
+        { title: "学びA", capturedAt: new Date("2026-08-13T01:15:00Z") },
+      ],
+      gatesAnswered: [],
+      devEvents: [],
+      goalLinks: [],
+      requirementLinks: [],
+      regionByRepo: {},
+    });
+
+    const appliedLoop = digest.byRepo.find((r) => r.repo === "applied-loop")!;
+    const tripleList = digest.byRepo.find((r) => r.repo === "triple-list")!;
+    // The closed session (30 min) should win over the open session (Infinity duration)
+    assert.equal(appliedLoop.captureCount, 1);
+    assert.equal(tripleList.captureCount, 0);
+  });
 });

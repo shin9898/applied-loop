@@ -199,10 +199,18 @@ function attributeByTimeWindow(
     let best: (HarnessRunLike & { repo: string }) | null = null;
     let bestDuration = Infinity;
     for (const run of runs) {
-      const end = run.endedAt ?? run.startedAt;
-      if (timestamp < run.startedAt || timestamp > end) continue;
-      const duration = end.getTime() - run.startedAt.getTime();
-      if (duration < bestDuration) {
+      // Window check: timestamp must be >= startedAt and either endedAt is null (open session)
+      // or timestamp <= endedAt (closed session)
+      if (timestamp < run.startedAt) continue;
+      if (run.endedAt && timestamp > run.endedAt) continue;
+
+      // Calculate duration: Infinity for open sessions (endedAt === null),
+      // so closed sessions (bounded duration) win tie-breaks
+      const duration = run.endedAt
+        ? run.endedAt.getTime() - run.startedAt.getTime()
+        : Infinity;
+
+      if (duration <= bestDuration) {
         best = run;
         bestDuration = duration;
       }
