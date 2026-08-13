@@ -20,7 +20,7 @@ export function AtlasSessionDigestDoor({ digest }: { digest: SessionDigest }) {
   return (
     <div className="atlas-session-digest-door">
       <p className="atlas-journal__meta">
-        本日の外部セッション: {digest.sessionCount}件・{digest.repoCount} repo
+        この日の外部セッション: {digest.sessionCount}件・{digest.repoCount} repo
         {summaryParts.length > 0 ? ` → ${summaryParts.join("・")}` : ""}
       </p>
       <details className="atlas-session-digest-door__details mt-1">
