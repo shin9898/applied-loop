@@ -25,7 +25,10 @@ import {
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import { AtlasSurfaceIcon, surfaceIdFromHref } from "./atlas-surface-icons";
-import { AtlasSessionDigestStrip } from "./atlas-session-digest";
+import {
+  AtlasSessionDigestStrip,
+  STRIP_MAX_CARDS,
+} from "./atlas-session-digest";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
 import { resolveHomeCta } from "@/lib/home-cta";
 import type { TextbookGuidance } from "@/lib/textbook-guidance-shared";
@@ -370,7 +373,7 @@ export function AtlasDashboard({
   sessionDigest = null,
 }: AtlasDashboardProps) {
   const [activeId, setActiveId] = useState(pendingGate ? "quest-1" : "you");
-  const [activeStripRepo, setActiveStripRepo] = useState<string | null>(null);
+  const [activeStripRepos, setActiveStripRepos] = useState<string[]>([]);
   const adventurer =
     adventurerProp ?? adventurerLevelFromResolved(resolvedTotal);
 
@@ -393,27 +396,60 @@ export function AtlasDashboard({
       : []),
   ];
 
-  const footprintMarkers: MapMarker[] = (sessionDigest?.byRepo ?? []).map(
-    (r) => {
-      const pos = r.region
-        ? (SYSTEM_REGION_POS[r.region] ?? FOG_REGION_POS)
-        : FOG_REGION_POS;
-      return {
-        id: `footprint-${r.repo}`,
-        kind: "footprint" as const,
-        label: r.repo,
+  /*
+    足あとピンは「解決後の座標」でまとめる。SystemKind 単位ではなく座標単位なのは、
+    複数の SystemKind が同じ座標に落ちる（verification / premise / 未対応 kind / null が
+    すべて霧帯）ため。座標が同じピンを重ねると最後の1つしか押せない。
+    さらに、ストリップが描くのは先頭 STRIP_MAX_CARDS 件だけなので、ピンも同じ上限で
+    切った集合から作る（カードの無い repo を指すピン＝死にクリックを作らない）。
+  */
+  const shownRepos = (sessionDigest?.byRepo ?? []).slice(0, STRIP_MAX_CARDS);
+  const footprintGroups = new Map<
+    string,
+    { left: string; top: string; repos: string[]; totalSessions: number }
+  >();
+  for (const r of shownRepos) {
+    const pos = r.region
+      ? (SYSTEM_REGION_POS[r.region] ?? FOG_REGION_POS)
+      : FOG_REGION_POS;
+    const key = `${pos.left}|${pos.top}`;
+    const existing = footprintGroups.get(key);
+    if (existing) {
+      existing.repos.push(r.repo);
+      existing.totalSessions += r.sessionCount;
+    } else {
+      footprintGroups.set(key, {
         left: pos.left,
         top: pos.top,
-        count: r.sessionCount,
-      };
-    },
-  );
+        repos: [r.repo],
+        totalSessions: r.sessionCount,
+      });
+    }
+  }
+  const footprintMarkers: MapMarker[] = [];
+  /** ピンID → そのピンが代表する repo 名（クリック時のストリップ・ハイライト用） */
+  const footprintRepoIndex = new Map<string, string[]>();
+  for (const [key, g] of footprintGroups) {
+    const id = `footprint-${key}`;
+    footprintMarkers.push({
+      id,
+      kind: "footprint" as const,
+      label:
+        g.repos.length > 1
+          ? `${g.repos[0]} 他${g.repos.length - 1}`
+          : g.repos[0],
+      left: g.left,
+      top: g.top,
+      count: g.totalSessions,
+    });
+    footprintRepoIndex.set(id, g.repos);
+  }
   const allMapMarkers: MapMarker[] = [...mapMarkers, ...footprintMarkers];
 
   function handleMapSelect(id: string) {
     setActiveId(id);
-    const repo = footprintMarkers.find((m) => m.id === id)?.label;
-    if (repo) setActiveStripRepo(repo);
+    const repos = footprintRepoIndex.get(id);
+    if (repos) setActiveStripRepos(repos);
   }
 
   const starByKey = new Map(systemStars.map((s) => [s.key, s.stars]));
@@ -504,7 +540,7 @@ export function AtlasDashboard({
           {sessionDigest ? (
             <AtlasSessionDigestStrip
               digest={sessionDigest}
-              activeRepo={activeStripRepo}
+              activeRepos={activeStripRepos}
             />
           ) : null}
         </AtlasReveal>

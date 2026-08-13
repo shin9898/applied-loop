@@ -353,6 +353,9 @@ export function AtlasWorldMap({
             key={m.id}
             type="button"
             onClick={() => onSelect?.(m.id)}
+            // 足あとピンは絵文字(aria-hidden)＋数字だけで可視ラベルを持たないため、
+            // アクセシブル名を補う。他の kind はピン内にラベル文字を出しているので不要。
+            aria-label={m.kind === "footprint" ? m.label : undefined}
             className="absolute z-[6] -translate-x-1/2 -translate-y-full border-0 bg-transparent p-0"
             style={positionStyle}
           >

@@ -1,12 +1,27 @@
 import Link from "next/link";
 import type { SessionDigest } from "@/lib/session-digest-shared";
 
+/**
+ * Server Component 境界を越えると Date がシリアライズされた文字列で届きうるため、
+ * new Date(...) で包み直してから整形する（Date でも文字列でも同じ結果になる）。
+ */
+function formatSessionTime(value: Date): string {
+  return new Date(value).toLocaleTimeString("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 /** にっき日次詳細ページ冒頭の「とびら」。教科書 生成済み/未生成 どちらの分岐でも使う */
 export function AtlasSessionDigestDoor({ digest }: { digest: SessionDigest }) {
   if (digest.sessionCount === 0) {
     return (
       <p className="atlas-journal__meta atlas-session-digest-door">
         まだ外部セッションの記録が無い。
+        {digest.unresolvedRepoSessionCount > 0
+          ? `（repo不明のセッション ${digest.unresolvedRepoSessionCount} 件あり）`
+          : ""}
       </p>
     );
   }
@@ -38,6 +53,17 @@ export function AtlasSessionDigestDoor({ digest }: { digest: SessionDigest }) {
                   ? `・しれん回答+${r.gateAnsweredCount}`
                   : ""}
               </p>
+              {r.sessions.length > 0 ? (
+                <p className="m-0 text-[11px] text-[#9ec0ff]">
+                  {r.sessions
+                    .map((s) =>
+                      s.endedAt
+                        ? `${formatSessionTime(s.startedAt)}-${formatSessionTime(s.endedAt)}`
+                        : `${formatSessionTime(s.startedAt)}〜`,
+                    )
+                    .join(", ")}
+                </p>
+              ) : null}
               {r.captureSamples.length > 0 ? (
                 <ul className="atlas-session-digest-door__samples mt-0.5 list-none pl-3 text-[12px] text-[#c9c3a0]">
                   {r.captureSamples.map((title, i) => (
@@ -53,15 +79,17 @@ export function AtlasSessionDigestDoor({ digest }: { digest: SessionDigest }) {
   );
 }
 
-const STRIP_MAX_CARDS = 4;
+/** ストリップに出す最大 repo 数。足あとピンの構築側もこの上限を共有する（死にクリック防止） */
+export const STRIP_MAX_CARDS = 4;
 
 /** ホーム（ちず）のマップ直下・「いまの一手」CTAの下に置く横並びカード */
 export function AtlasSessionDigestStrip({
   digest,
-  activeRepo,
+  activeRepos,
 }: {
   digest: SessionDigest;
-  activeRepo?: string | null;
+  /** 足あとピン（複数 repo をまとめうる）で選択中の repo 群。空＝ハイライト無し */
+  activeRepos?: string[];
 }) {
   if (digest.sessionCount === 0) return null;
 
@@ -79,7 +107,9 @@ export function AtlasSessionDigestStrip({
             key={r.repo}
             href={`/retro/${digest.dateKey}`}
             className={`dq-btn dq-btn-ghost !px-2.5 !py-1.5 text-left text-[11px] no-underline ${
-              activeRepo === r.repo ? "outline outline-2 outline-[#f0d25a]" : ""
+              activeRepos?.includes(r.repo)
+                ? "outline outline-2 outline-[#f0d25a]"
+                : ""
             }`}
           >
             <span className="block">{r.repo}</span>
