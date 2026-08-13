@@ -135,19 +135,28 @@ koki 承認済みの方向性（visual companion、2026-08-13 追補セッショ
 
 **この時点で判明した重要な事実**: 筐体の見た目（グロー・ヒンジ・ボタン装飾）だけを調整しても 13インチには収まらない。マップの表示サイズ、ステータスパネルの情報量、ターミナルの高さという「中身のレイアウト」まで踏み込んで圧縮する必要がある。koki 確認の上、**スコープをこの3要素の圧縮まで拡大**することで合意した（旧版のこのセクションは「筐体の見た目のみ」を前提にしており、誤りだったため全面差し替え）。
 
-### サイズ
+### サイズ（実装中の3ラウンド調整を経て確定）
 
-実寸 1440×750 ビューポートを想定し、以下の高さ配分で収める（実測合計 749px、750px 枠をほぼ使い切り。visual companion で2ラウンド調整して確定）:
+当初は実寸 1440×750 に上画面348px/下画面303pxで収める設計だったが、実装・ブラウザ実測を重ねる中で以下の事実が判明し、方針を修正した:
 
-- ヘッダー等の余白: 40px
-- 筐体 padding: 32px
-- 上画面（グロー枠込み）: 348px
-- ヒンジ: 26px
-- 下画面（グロー枠込み）: 303px
+1. `TerminalPanel` 本体の高さ上書きだけでは足りない。**`AtlasAssist`自体のヘッダー（タイトル/セリフ/意図表示、約123px）と「ひとこと」通知バナー（約76.5px）が `TerminalPanel` の外側にあり**、下画面の実測高さが目標303pxに対し619.6pxまで膨らんだ
+2. koki 実機確認の結果、**上画面（ちず/ステータス）をメイン、下画面（ターミナル）をコンパクトな脇役**とする方針に転換（当初の「ほぼ均等配分」から変更）
+3. ステータスパネルの表示も、Lv./EXP行とステータス一覧タブを縦積みにする従来構成では嵩張るため、**ステータス一覧を常時 Lv. 表示の横に配置し、タブ切り替え（ステータス/弱点）自体を廃止**する構成に変更（弱点は常時表示の件数バッジのみに縮小）
 
-**上画面（348px）の内訳**: `AtlasConsoleShell` 内で上画面コンテナに `height: 340px` を明示指定し、中を `display: flex` でマップ（`flex: 1.6`）とステータスパネル（`flex: 0.9`）に横並び分割する。既存の `AtlasWorldMap` の `aspect-[16/11]` は撤去し、コンテナ高さいっぱいに描画されるよう変更する（Canvas の `width`/`height` 属性、および `fillBlob` 等の内部座標も新しい比率に合わせて調整が必要）。ステータスパネル側は、デイリークエストの表示件数を4件から2件に絞り（3件目以降は非表示。別動線は設けない）、フォントサイズを縮小して収める。マップ側の「いまの一手」CTA（`primaryCta` 表示）はステータスパネルのデイリークエストと内容が重複するため、DS筐体内の上画面からは削除する（koki 確認済み）。
+**確定した数値**:
+- 上画面（グロー枠込み）: **440px**（メイン画面。`.atlas-console-top-screen { height: 440px }`）
+- 下画面のターミナル本体: **200px**（`.atlas-console-lower-screen [class*="min-h-[420px]"] { height: 200px; min-height: 200px; }`）。ヘッダー・接続済み表示を含む下画面全体の実測は約355px
 
-**下画面（303px）の内訳**: `TerminalPanel` 自体は無改造のまま、`AtlasConsoleShell` の下画面ラッパー（`.atlas-console-lower-screen` 配下）に、`TerminalPanel` のルート要素（`h-[60vh] min-h-[420px]` を持つ div）の高さを上書きする CSS を追加する方式で実現する（`TerminalPanel` に新規 prop は追加しない）。他の呼び出し元（`gate-terminal-section.tsx`、独立した `AtlasAssist` 呼び出し）は `AtlasConsoleShell` 配下ではないため、CSS の影響を受けず見た目は変更されない。
+**上画面の内訳**: `AtlasConsoleShell` 内で上画面コンテナに `height: 440px` を明示指定し、中を `display: flex` でマップ（`flex: 1.6`）とステータスパネル（`flex: 0.9`）に横並び分割する。既存の `AtlasWorldMap` の `aspect-[16/11]` は撤去し、コンテナ高さいっぱいに描画されるよう変更（Canvas は `width={320} height={160}` に変更。タイル座標系は `TW`/`TH` がCanvas解像度から自動導出されるため `fillBlob` 等の座標値自体は無改造）。ステータスパネル側は、デイリークエストの表示件数を4件から2件に絞り（3件目以降は非表示。別動線は設けない）、フォントサイズを縮小。マップ側の「いまの一手」CTA（`primaryCta` 表示）は削除済み（koki 確認済み）。**ステータス一覧（キャッシュ/ハーネス/設計判断/知識/確認の5項目、★表示）は Lv./EXP と同じブロック内、Lv. 表示の横に常時表示**し、既存の「ステータス/弱点」タブ切り替え UI は廃止する。弱点は「⚠ 弱点N件 →」の小さいバッジ表示のみ残し、クリックで詳細（`/gates` 等の既存導線）に飛べるようにする。
+
+**下画面の内訳**: `TerminalPanel` 自体は無改造のまま、CSS 属性セレクタ（`.atlas-console-lower-screen [class*="min-h-[420px]"]`）で `TerminalPanel` のルート要素の高さだけを上書きする。加えて `AtlasAssist`（`src/components/living-atlas/atlas-assist.tsx`）に新規 `compact?: boolean` prop を追加し、`compact` 時は次を変更する（`compact` 未指定時は完全に無変更、他の呼び出し元 `gate-terminal-section.tsx` 等には一切影響しない）:
+- タイトル／`AtlasVoicePlain`（セリフ・説明）／意図表示のブロックを非表示
+- 「ひとこと（あなた向け）」通知バナーを非表示
+- サービス選択・モデル選択・開閉ボタンの3行スタック（`flex flex-col ... sm:items-end`）を、`compact` 時のみ横一列（`flex flex-row flex-wrap items-center gap-3`）に変更。機能は完全に維持
+
+`atlas-dashboard.tsx` の `bottomScreenContent` 内 `<AtlasAssist .../>` 呼び出しに `compact` を追加する。
+
+**実測 shellHeight**: 853.6px（1440幅ビューポートで実測。旧目標749pxからは超過しているが、「上画面をメインにする」という方針転換によるトレードオフとして koki 承認済み）。
 
 ### ディテール（立体感）
 
@@ -165,6 +174,8 @@ visual companion で承認済みの意匠要素（CSSのみ、画像不使用の
 - `AtlasWorldMap`（`src/components/living-atlas/atlas-world-map.tsx`）: `aspect-[16/11]` を撤去し、親コンテナの高さに追従する形へ変更。Canvas 内部解像度・地形描画座標も新比率に合わせて調整
 - `StatusCommandPanel`（`atlas-dashboard.tsx` 内）: デイリークエスト表示件数の削減、フォントサイズ調整による圧縮
 - `TerminalPanel` の高さをDS筐体内でのみ CSS で上書きする仕組みの追加（`TerminalPanel` 自体は無改造）
+- `AtlasAssist`（`src/components/living-atlas/atlas-assist.tsx`）に `compact?: boolean` prop を追加し、DS筐体内でのみタイトル/説明/通知バナーを省略、サービス/モデル選択を横一列化（他の呼び出し元は無影響）
+- `StatusCommandPanel`（`atlas-dashboard.tsx` 内）のレイアウト再構成: 「ステータス/弱点」タブ切り替えを廃止し、ステータス一覧を常時 Lv./EXP 表示の横に配置。弱点は件数バッジのみに縮小
 
 それ以外（SSE配信・イベント発行ロジック・演出トリガーの仕組み）は無変更。
 
