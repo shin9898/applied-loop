@@ -134,7 +134,23 @@ export function buildSessionDigest(input: BuildSessionDigestInput): SessionDiges
   const groups: SessionDigestByRepo[] = [];
   function findOrCreateGroup(repo: string): SessionDigestByRepo {
     const existing = groups.find((g) => repoKeysMatch(g.repo, repo));
-    if (existing) return existing;
+    if (existing) {
+      // Canonicalize: if existing group has a different repo name, adopt the shorter
+      // (parent) name and re-resolve region if needed
+      if (existing.repo !== repo) {
+        const shorter = existing.repo.length < repo.length ? existing.repo : repo;
+        if (existing.repo !== shorter) {
+          existing.repo = shorter;
+          // Re-resolve region using the new canonical repo name
+          const newRegion = regionByRepo[normalizeRepoKey(shorter)];
+          // Only overwrite if lookup produces a non-null value
+          if (newRegion !== null && newRegion !== undefined) {
+            existing.region = newRegion;
+          }
+        }
+      }
+      return existing;
+    }
     const g = newGroup(repo, regionByRepo);
     groups.push(g);
     return g;

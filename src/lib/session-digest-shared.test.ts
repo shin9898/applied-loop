@@ -122,4 +122,49 @@ describe("buildSessionDigest — sessions and direct repo attribution", () => {
     assert.equal(digest.unresolvedRepoSessionCount, 1);
     assert.equal(digest.sessionCount, 0);
   });
+
+  it("canonicalizes repo name even when worktree session appears first", () => {
+    // Regression test: same sessions as first test, but worktree-suffixed session first
+    // to verify canonicalization is order-independent
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-13",
+      harnessRuns: [
+        {
+          sessionId: "s2",
+          repo: "applied-loop-feature-x",
+          startedAt: new Date("2026-08-13T05:00:00Z"),
+          endedAt: new Date("2026-08-13T05:30:00Z"),
+          tools: null,
+        },
+        {
+          sessionId: "s1",
+          repo: "applied-loop",
+          startedAt: new Date("2026-08-13T01:00:00Z"),
+          endedAt: new Date("2026-08-13T02:00:00Z"),
+          tools: null,
+        },
+      ],
+      captures: [],
+      gatesAnswered: [
+        { repo: "applied-loop", answeredAt: new Date("2026-08-13T01:30:00Z") },
+      ],
+      devEvents: [
+        { repo: "applied-loop", receivedAt: new Date("2026-08-13T01:45:00Z") },
+      ],
+      goalLinks: [],
+      requirementLinks: [],
+      regionByRepo: { "applied-loop": "harness" },
+    });
+
+    assert.equal(digest.sessionCount, 2);
+    assert.equal(digest.repoCount, 1);
+    const g = digest.byRepo[0];
+    // Should canonicalize to the shorter (parent) repo name
+    assert.equal(g.repo, "applied-loop");
+    // Should resolve region using the canonical parent name, not the worktree
+    assert.equal(g.region, "harness");
+    assert.equal(g.sessionCount, 2);
+    assert.equal(g.commitCount, 1);
+    assert.equal(g.gateAnsweredCount, 1);
+  });
 });
