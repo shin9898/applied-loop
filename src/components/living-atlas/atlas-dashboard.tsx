@@ -28,7 +28,6 @@ import { useAtlasLiveEvents } from "./atlas-live-events-context";
 import { AtlasConsoleShell } from "./atlas-console-shell";
 import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import { AtlasSurfaceIcon, surfaceIdFromHref } from "./atlas-surface-icons";
-import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
 import type { TextbookGuidance } from "@/lib/textbook-guidance-shared";
 
 /** デイリークエスト1件。href があれば行全体がクリッカブルになる */
@@ -65,7 +64,6 @@ export type AtlasDashboardProps = {
   weaknesses?: { aspect: string; missRate: number; sampleCount: number }[] | null;
   /** UI→LLM→MCP。未設定ならじゅもん案内のみ */
   wsToken?: string | null;
-  setupDiagnosis?: SetupDiagnosis | null;
   /** ADR-0020 C3-3: 昨日 Mastery / きょうのしょ 導線 */
   textbookGuidance?: TextbookGuidance | null;
 };
@@ -376,7 +374,6 @@ export function AtlasDashboard({
   ],
   weaknesses = null,
   wsToken = null,
-  setupDiagnosis = null,
   textbookGuidance = null,
 }: AtlasDashboardProps) {
   const router = useRouter();
