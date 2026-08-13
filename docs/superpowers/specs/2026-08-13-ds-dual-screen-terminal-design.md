@@ -125,17 +125,29 @@ koki が実機（`npm run dev:all`）でトップページを確認した結果�
 
 koki 承認済みの方向性（visual companion、2026-08-13 追補セッション）: **横長レイアウトは許容**（"横長は仕方ないね" — 13インチの横幅に対して縦を大胆に圧縮する形で解決する）。
 
+### 実測調査（重要な前提修正）
+
+ブラウザ実機（`npm run dev:all`、1440×868 ビューポート）で `AtlasConsoleShell` 導入後のトップページを計測したところ、筐体全体の実測高さは **1670.78px**（ビューポート高さの約1.9倍）だった。内訳:
+
+- 上画面（`items-stretch` でマップとステータスパネルの高い方に揃う）: 755px — マップ本体（`AtlasWorldMap`、`aspect-[16/11]`）は459pxだが、ステータスパネル側（Lv./EXP、ステータス一覧5項目、デイリークエスト4項目）がそれより高く、そちらに引き伸ばされている
+- ヒンジ: 12px
+- 下段（`TerminalPanel` の `h-[60vh]` が支配的）: 843px
+
+**この時点で判明した重要な事実**: 筐体の見た目（グロー・ヒンジ・ボタン装飾）だけを調整しても 13インチには収まらない。マップの表示サイズ、ステータスパネルの情報量、ターミナルの高さという「中身のレイアウト」まで踏み込んで圧縮する必要がある。koki 確認の上、**スコープをこの3要素の圧縮まで拡大**することで合意した（旧版のこのセクションは「筐体の見た目のみ」を前提にしており、誤りだったため全面差し替え）。
+
 ### サイズ
 
-実寸 1440×750 ビューポートを想定し、以下の高さ配分で余裕を持って収める（実測合計 ≒683px、67pxの余裕）:
+実寸 1440×750 ビューポートを想定し、以下の高さ配分で収める（実測合計 749px、750px 枠をほぼ使い切り。visual companion で2ラウンド調整して確定）:
 
-- ヘッダー等の余白: 60px
-- 筐体 padding: 34px（`18px 20px 16px` 相当）
-- 上画面（ちず＋ステータス）: 349px（高さ固定。既存の `AtlasWorldMap` の aspect-ratio 依存から、筐体側で高さを明示指定する形に変更）
-- ヒンジ: 29px（高さ＋上下マージン込み）
-- 下画面（ターミナル）: 211px（既存 `TerminalPanel` の `h-[60vh] min-h-[420px]` を、DS筐体内で使う場合に限り大幅に縮小する必要がある）
+- ヘッダー等の余白: 40px
+- 筐体 padding: 32px
+- 上画面（グロー枠込み）: 348px
+- ヒンジ: 26px
+- 下画面（グロー枠込み）: 303px
 
-下画面の高さを 211px まで縮めるのは `TerminalPanel` 単体のデフォルト（`min-h-[420px]`）から見て大きな逸脱のため、`TerminalPanel` 自体は無改造のまま、`AtlasConsoleShell` の下画面ラッパー（`.atlas-console-lower-screen` 配下）に、`TerminalPanel` のルート要素の高さを上書きする CSS を追加する方式で実現する（`TerminalPanel` に新規 prop は追加しない）。他の呼び出し元（`gate-terminal-section.tsx`、独立した `AtlasAssist` 呼び出し）は `AtlasConsoleShell` 配下ではないため、CSS の影響を受けず見た目は変更されない。
+**上画面（348px）の内訳**: `AtlasConsoleShell` 内で上画面コンテナに `height: 340px` を明示指定し、中を `display: flex` でマップ（`flex: 1.6`）とステータスパネル（`flex: 0.9`）に横並び分割する。既存の `AtlasWorldMap` の `aspect-[16/11]` は撤去し、コンテナ高さいっぱいに描画されるよう変更する（Canvas の `width`/`height` 属性、および `fillBlob` 等の内部座標も新しい比率に合わせて調整が必要）。ステータスパネル側は、デイリークエストの表示件数を4件から2件に絞り（3件目以降は非表示。別動線は設けない）、フォントサイズを縮小して収める。
+
+**下画面（303px）の内訳**: `TerminalPanel` 自体は無改造のまま、`AtlasConsoleShell` の下画面ラッパー（`.atlas-console-lower-screen` 配下）に、`TerminalPanel` のルート要素（`h-[60vh] min-h-[420px]` を持つ div）の高さを上書きする CSS を追加する方式で実現する（`TerminalPanel` に新規 prop は追加しない）。他の呼び出し元（`gate-terminal-section.tsx`、独立した `AtlasAssist` 呼び出し）は `AtlasConsoleShell` 配下ではないため、CSS の影響を受けず見た目は変更されない。
 
 ### ディテール（立体感）
 
@@ -147,9 +159,14 @@ visual companion で承認済みの意匠要素（CSSのみ、画像不使用の
 - 十字キー／ABXYボタン: inset ハイライト＋シャドウで凹凸感、ABXYは放射グラデーションで光沢
 - ブランドプレート「Living Atlas」の刻印風テキスト、スピーカーグリル風のドットパターン装飾
 
-### スコープ
+### スコープ（実測後に拡大）
 
-`AtlasConsoleShell`（`src/components/living-atlas/atlas-console-shell.tsx`）と `src/app/atlas-living.css` の該当ルール、および `TerminalPanel` の高さをDS筐体内でのみ上書きする仕組みの追加。それ以外（SSE配信・イベント発行ロジック・演出トリガーの仕組み）は無変更。
+- `AtlasConsoleShell`（`src/components/living-atlas/atlas-console-shell.tsx`）と `src/app/atlas-living.css` の該当ルール（筐体の見た目）
+- `AtlasWorldMap`（`src/components/living-atlas/atlas-world-map.tsx`）: `aspect-[16/11]` を撤去し、親コンテナの高さに追従する形へ変更。Canvas 内部解像度・地形描画座標も新比率に合わせて調整
+- `StatusCommandPanel`（`atlas-dashboard.tsx` 内）: デイリークエスト表示件数の削減、フォントサイズ調整による圧縮
+- `TerminalPanel` の高さをDS筐体内でのみ CSS で上書きする仕組みの追加（`TerminalPanel` 自体は無改造）
+
+それ以外（SSE配信・イベント発行ロジック・演出トリガーの仕組み）は無変更。
 
 ## 将来の拡張（本設計のスコープ外）
 
