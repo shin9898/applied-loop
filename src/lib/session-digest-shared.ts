@@ -86,3 +86,99 @@ export function isExternalSession(run: {
   );
   return !onlyAppliedLoopMcp;
 }
+
+export type BuildSessionDigestInput = {
+  dateKey: string;
+  harnessRuns: HarnessRunLike[];
+  captures: CaptureLike[];
+  gatesAnswered: GateAnsweredLike[];
+  devEvents: DevEventLike[];
+  goalLinks: GoalLinkLike[];
+  requirementLinks: RequirementLinkLike[];
+  /** normalizeRepoKey された repo をキーとする領の解決結果 */
+  regionByRepo: Record<string, SystemKind | null>;
+};
+
+function newGroup(repo: string, regionByRepo: Record<string, SystemKind | null>): SessionDigestByRepo {
+  return {
+    repo,
+    region: regionByRepo[normalizeRepoKey(repo)] ?? null,
+    sessionCount: 0,
+    captureCount: 0,
+    captureSamples: [],
+    gateAnsweredCount: 0,
+    goalLinkCount: 0,
+    requirementLinkCount: 0,
+    commitCount: 0,
+    sessions: [],
+  };
+}
+
+export function buildSessionDigest(input: BuildSessionDigestInput): SessionDigest {
+  const {
+    dateKey,
+    harnessRuns,
+    captures,
+    gatesAnswered,
+    devEvents,
+    goalLinks,
+    requirementLinks,
+    regionByRepo,
+  } = input;
+
+  const resolvedRuns = harnessRuns.filter(
+    (r): r is HarnessRunLike & { repo: string } => Boolean(r.repo),
+  );
+  const unresolvedRepoSessionCount = harnessRuns.length - resolvedRuns.length;
+
+  const groups: SessionDigestByRepo[] = [];
+  function findOrCreateGroup(repo: string): SessionDigestByRepo {
+    const existing = groups.find((g) => repoKeysMatch(g.repo, repo));
+    if (existing) return existing;
+    const g = newGroup(repo, regionByRepo);
+    groups.push(g);
+    return g;
+  }
+
+  for (const run of resolvedRuns) {
+    const g = findOrCreateGroup(run.repo);
+    g.sessionCount += 1;
+    g.sessions.push({
+      sessionId: run.sessionId,
+      startedAt: run.startedAt,
+      endedAt: run.endedAt,
+    });
+  }
+
+  for (const ev of devEvents) {
+    const g = groups.find((g) => repoKeysMatch(g.repo, ev.repo));
+    if (g) g.commitCount += 1;
+  }
+
+  for (const gate of gatesAnswered) {
+    if (!gate.repo) continue;
+    const g = groups.find((g) => repoKeysMatch(g.repo, gate.repo!));
+    if (g) g.gateAnsweredCount += 1;
+  }
+
+  attributeByTimeWindow(groups, resolvedRuns, captures, goalLinks, requirementLinks);
+
+  return {
+    dateKey,
+    sessionCount: resolvedRuns.length,
+    repoCount: groups.length,
+    byRepo: groups.sort((a, b) => b.sessionCount - a.sessionCount),
+    unresolvedRepoSessionCount,
+  };
+}
+
+// Task 3 で実装。この Task では no-op。
+function attributeByTimeWindow(
+  _groups: SessionDigestByRepo[],
+  _runs: (HarnessRunLike & { repo: string })[],
+  _captures: CaptureLike[],
+  _goalLinks: GoalLinkLike[],
+  _requirementLinks: RequirementLinkLike[],
+): void {
+  // Task 3 で実装
+}
