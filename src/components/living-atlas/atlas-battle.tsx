@@ -20,6 +20,7 @@ import {
 } from "@/lib/micro-progress";
 import { AtlasMicroDrill, AtlasRecallDrill } from "./atlas-micro-drill";
 import { formatRubricHint } from "@/lib/gate-hint";
+import type { GateTaskLink } from "@/lib/task-map";
 
 export type BattleVerdict =
   | "pass"
@@ -100,6 +101,8 @@ export type AtlasBattleProps = {
    * バトルの中身は変えず、結果／採点待ちの導線に 1 本足すだけ。
    */
   nextGate?: { href: string; label: string } | null;
+  /** この gate に紐づく今日の任務（デブリーフ「きょうの任務との関わり」用） */
+  taskLinks?: GateTaskLink[];
 };
 
 type Phase =
@@ -116,6 +119,38 @@ function normalizePoll(raw: PollResult | BattleVerdict): PollResult {
   return raw;
 }
 
+/** ◆ きょうの任務との関わり（デブリーフ末尾。今日の DailyTaskMap にこの gate が紐づいていれば出す） */
+function TaskLinkNote({ taskLinks }: { taskLinks: GateTaskLink[] }) {
+  return (
+    <div className="border-[3px] border-[#9ec0ff] bg-[#000c4a] p-3">
+      <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[10px] text-[#9ec0ff]">
+        ◆ きょうの任務との関わり
+      </div>
+      {taskLinks.length > 0 ? (
+        <ul className="m-0 list-none space-y-2 p-0">
+          {taskLinks.map((l, i) => (
+            <li
+              key={`${l.task.slice(0, 40)}-${i}`}
+              className="border-l-[3px] border-[#9ec0ff] pl-2"
+            >
+              <p className="m-0 text-[13px] leading-snug text-[#f7f3d9]">
+                「{l.task}」
+              </p>
+              <p className="m-0 mt-0.5 text-[11px] text-[#c9c3a0]">
+                {l.reason || "このしれんの学びに紐づく任務じゃ。"}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="m-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+          きょうはまだ任務との紐づけがない。
+        </p>
+      )}
+    </div>
+  );
+}
+
 function DebriefPanel({
   verdict,
   debrief,
@@ -123,6 +158,7 @@ function DebriefPanel({
   relatedInboxId = null,
   relatedMisconceptionId = null,
   nextReviewLabel = null,
+  taskLinks = [],
 }: {
   verdict: Extract<BattleVerdict, "pass" | "retry">;
   debrief: GateDebrief | null;
@@ -131,6 +167,7 @@ function DebriefPanel({
   relatedMisconceptionId?: string | null;
   /** B5-5: CLEAR 時の再出題予告（YYYY-MM-DD など） */
   nextReviewLabel?: string | null;
+  taskLinks?: GateTaskLink[];
 }) {
   if (verdict === "pass") {
     const leftover = debrief?.weakAspects ?? [];
@@ -176,6 +213,7 @@ function DebriefPanel({
             </ul>
           </div>
         ) : null}
+        <TaskLinkNote taskLinks={taskLinks} />
       </div>
     );
   }
@@ -279,6 +317,7 @@ function DebriefPanel({
           </section>
         ) : null}
       </div>
+      <TaskLinkNote taskLinks={taskLinks} />
     </div>
   );
 }
@@ -317,6 +356,7 @@ export function AtlasBattle({
   initialNextReviewLabel = null,
   onGoZukan,
   nextGate = null,
+  taskLinks = [],
 }: AtlasBattleProps) {
   const def = enemy ?? DEFAULT_ENEMY;
   const displayName = enemyName ?? def.name;
@@ -827,6 +867,7 @@ export function AtlasBattle({
                 relatedInboxId={relatedInboxId}
                 relatedMisconceptionId={relatedMisconceptionId}
                 nextReviewLabel={nextReviewLabel}
+                taskLinks={taskLinks}
               />
             ) : null}
 

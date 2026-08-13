@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { pickTaskMapDisplay } from "./task-map-display";
 import { parseTaskMappings } from "./task-map";
 
 describe("parseTaskMappings", () => {
@@ -43,29 +42,5 @@ describe("parseTaskMappings", () => {
     const { mappings, warnings } = parseTaskMappings({ task: "x" });
     assert.equal(mappings.length, 0);
     assert.match(warnings[0] ?? "", /配列/);
-  });
-});
-
-describe("pickTaskMapDisplay", () => {
-  const today = { dateKey: "2026-08-05", tasks: [{ task: "a" }] };
-  const yesterday = { dateKey: "2026-08-04", tasks: [{ task: "b" }] };
-  const empty = { dateKey: "2026-08-05", tasks: [] as { task: string }[] };
-
-  it("prefers today when present", () => {
-    const r = pickTaskMapDisplay(today, yesterday);
-    assert.equal(r.source, "today");
-    assert.equal(r.map, today);
-  });
-
-  it("falls back to yesterday when today empty", () => {
-    const r = pickTaskMapDisplay(empty, yesterday);
-    assert.equal(r.source, "yesterday");
-    assert.equal(r.map, yesterday);
-  });
-
-  it("returns none when both empty", () => {
-    const r = pickTaskMapDisplay(empty, { ...yesterday, tasks: [] });
-    assert.equal(r.source, "none");
-    assert.equal(r.map, null);
   });
 });

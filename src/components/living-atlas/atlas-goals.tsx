@@ -143,6 +143,28 @@ function PixelStar({ className }: { className?: string }) {
   );
 }
 
+/** 看板の飾り紋章（ダイヤ型）。GRAND QUEST の両脇を飾る */
+function PixelGem({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 10 10"
+      shapeRendering="crispEdges"
+      aria-hidden
+      focusable="false"
+    >
+      <g fill="currentColor">
+        <rect x="4" y="0" width="2" height="2" />
+        <rect x="2" y="2" width="6" height="2" />
+        <rect x="0" y="4" width="10" height="2" />
+        <rect x="2" y="6" width="6" height="2" />
+        <rect x="4" y="8" width="2" height="2" />
+      </g>
+      <rect x="4" y="2" width="2" height="2" fill="#f7f3d9" />
+    </svg>
+  );
+}
+
 function PixelFlame({ frame, className }: { frame: "a" | "b"; className?: string }) {
   return (
     <svg
@@ -181,9 +203,58 @@ function PixelFlame({ frame, className }: { frame: "a" | "b"; className?: string
 export function GrandQuestBanner() {
   return (
     <div className="atlas-gq-banner">
-      <PixelSlime className="atlas-gq-ico atlas-gq-ico--slime" />
+      <PixelGem className="atlas-gq-ico atlas-gq-ico--gem" />
       <h2 className="atlas-gq-board__title">GRAND QUEST</h2>
-      <PixelSlime className="atlas-gq-ico atlas-gq-ico--slime atlas-gq-ico--flip" />
+      <PixelGem className="atlas-gq-ico atlas-gq-ico--gem" />
+    </div>
+  );
+}
+
+/** 討伐ランク（ギルドの査定）。証跡目標数＋クリア条件数から算出する flavor 表示で、実データの判定には使わない */
+export type QuestRank = "E" | "D" | "C" | "B" | "A" | "S";
+
+const RANK_REWARD: Record<QuestRank, number> = {
+  E: 50,
+  D: 120,
+  C: 250,
+  B: 450,
+  A: 800,
+  S: 1500,
+};
+
+export function questRank(target: number, conditionCount: number): QuestRank {
+  const score = Math.max(1, target) + conditionCount;
+  if (score <= 2) return "E";
+  if (score <= 4) return "D";
+  if (score <= 6) return "C";
+  if (score <= 8) return "B";
+  if (score <= 10) return "A";
+  return "S";
+}
+
+/** クエスト札の査定欄：討伐ランクと報奨金 */
+export function QuestAssay({
+  target,
+  conditionCount,
+}: {
+  target: number;
+  conditionCount: number;
+}) {
+  const rank = questRank(target, conditionCount);
+  const reward = RANK_REWARD[rank];
+  return (
+    <div className="atlas-gq-slip__assay">
+      <span className="atlas-gq-rank" aria-hidden>
+        {rank}
+      </span>
+      <span className="atlas-gq-slip__assay-label">討伐ランク</span>
+      <span className="atlas-gq-slip__assay-sep" aria-hidden>
+        ・
+      </span>
+      <span className="atlas-gq-slip__assay-reward">
+        <PixelGem className="atlas-gq-ico atlas-gq-ico--gem-sm" />
+        報奨金 {reward}G
+      </span>
     </div>
   );
 }
@@ -435,6 +506,8 @@ function GrandQuestSlip({ goal: g }: { goal: GoalItem }) {
 
           <h3 className="atlas-gq-slip__title">{g.title}</h3>
           <div className="atlas-gq-slip__hr" aria-hidden />
+
+          <QuestAssay target={target} conditionCount={conditions.length} />
 
           <QuestConditions conditions={conditions} cleared={cleared} />
 

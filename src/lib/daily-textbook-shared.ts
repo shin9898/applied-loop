@@ -782,6 +782,30 @@ export function chapterDidSummary(input: {
 }
 
 /**
+ * その日の「大枠」を1つの日記文にする（全章に必ず触れる。3章までに切らない）。
+ * 章の先頭カードだけでは全体像が見えない、という指摘を受けて追加。
+ * 新しい生成は足さず、既存の oneLiner だけを冒険者日記の文体でつなぐ。
+ */
+export function dayDigest(
+  chapters: Array<{ title: string; oneLiner: string }>,
+): string {
+  if (chapters.length === 0) return "";
+  const core = (oneLiner: string) =>
+    oneLiner
+      .replace(/^核:\s*/, "")
+      .replace(/\s*／\s*ついでに\s*.*$/, "")
+      .trim();
+
+  const top = chapters[0]!;
+  if (chapters.length === 1) {
+    return `この日は「${top.title}」ひとすじの一日じゃった。${core(top.oneLiner)}`;
+  }
+
+  const trail = chapters.map((c) => `「${c.title}」`).join("・");
+  return `この日は ${trail} と、${chapters.length}つの現場を渡り歩いた。いちばんの一手は「${top.title}」——${core(top.oneLiner)}`;
+}
+
+/**
  * 材料を repo 単位で章に圧縮。超過は dropped に残す（捨てない＝証跡）。
  */
 export function clusterMaterialsIntoChapters(

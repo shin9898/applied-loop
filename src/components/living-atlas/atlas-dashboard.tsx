@@ -24,17 +24,17 @@ import {
 } from "./atlas-world-map";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { AtlasWorldIntroModal } from "./atlas-onboarding";
+import { AtlasSurfaceIcon, surfaceIdFromHref } from "./atlas-surface-icons";
 import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
-import { pickTaskMapDisplay } from "@/lib/task-map-display";
 import { resolveHomeCta } from "@/lib/home-cta";
 import type { TextbookGuidance } from "@/lib/textbook-guidance-shared";
 
-export type TaskMapView = {
-  dateKey: string;
-  tasks: {
-    task: string;
-    related: { title: string; href: string; reason?: string }[];
-  }[];
+/** デイリークエスト1件。href があれば行全体がクリッカブルになる */
+export type DashboardTodo = {
+  title: string;
+  meta: string;
+  href?: string;
+  cta?: string;
 };
 
 export type AtlasDashboardProps = {
@@ -58,11 +58,7 @@ export type AtlasDashboardProps = {
   };
   /** 未クリアしれんの総数（！ピンの脇に表示） */
   pendingGateCount?: number;
-  todos?: { title: string; meta: string }[];
-  /** 今日のタスク × 学び (ADR-0013) */
-  taskMap?: TaskMapView | null;
-  /** 今日が空のときの昨日フォールバック */
-  yesterdayTaskMap?: TaskMapView | null;
+  todos?: DashboardTodo[];
   /** 弱点観点トップ (ADR-0011) */
   weaknesses?: { aspect: string; missRate: number; sampleCount: number }[] | null;
   /** UI→LLM→MCP。未設定ならじゅもん案内のみ */
@@ -72,9 +68,9 @@ export type AtlasDashboardProps = {
   textbookGuidance?: TextbookGuidance | null;
 };
 
-type StatusTab = "status" | "tasks" | "weak";
+type StatusTab = "status" | "weak";
 
-/** 右カラム: ステータス / 任務 / 弱点を1窓にタブ集約 */
+/** 右カラム: ステータス / 弱点を1窓にタブ集約 */
 function StatusCommandPanel({
   adventurer,
   resolvedTotal,
@@ -82,42 +78,22 @@ function StatusCommandPanel({
   streakDays,
   systemStars,
   todos,
-  taskMap,
-  yesterdayTaskMap = null,
   weaknesses,
-  pendingGate = null,
 }: {
   adventurer: AdventurerLevel;
   resolvedTotal: number;
   thisWeekDelta: number;
   streakDays: number;
   systemStars: SystemStar[];
-  todos: { title: string; meta: string }[];
-  taskMap: AtlasDashboardProps["taskMap"];
-  yesterdayTaskMap?: AtlasDashboardProps["yesterdayTaskMap"];
+  todos: DashboardTodo[];
   weaknesses: AtlasDashboardProps["weaknesses"];
-  pendingGate?: AtlasDashboardProps["pendingGate"];
 }) {
-  const { map: activeMap, source: taskSource } = pickTaskMapDisplay(
-    taskMap,
-    yesterdayTaskMap,
-  );
-  const showingYesterday = taskSource === "yesterday";
-  const taskCount = activeMap?.tasks.length ?? 0;
-  const relatedCount =
-    activeMap?.tasks.reduce((n, t) => n + t.related.length, 0) ?? 0;
   const weakCount = weaknesses?.length ?? 0;
   const [tab, setTab] = useState<StatusTab>("status");
   const expPct = Math.round(adventurer.expRatio * 100);
-  const fightHref = pendingGate ? `/gates/${pendingGate.id}` : "/gates";
 
   const tabs: { id: StatusTab; label: string; badge?: string }[] = [
     { id: "status", label: "ステータス" },
-    {
-      id: "tasks",
-      label: "任務",
-      badge: taskCount > 0 ? String(taskCount) : undefined,
-    },
     {
       id: "weak",
       label: "弱点",
@@ -136,6 +112,53 @@ function StatusCommandPanel({
         <p className="m-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
           司令塔
         </p>
+      </div>
+
+      {/* Lv./EXP は面キャラの「今の自分」表示。タブ切り替えに関係なく常時表示 */}
+      <div>
+        <div className="flex items-end justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="atlas-self-avatar atlas-self-avatar--panel" aria-hidden>
+              <span className="atlas-self-avatar__frame atlas-self-avatar__frame--1" />
+              <span className="atlas-self-avatar__frame atlas-self-avatar__frame--2" />
+            </span>
+            <div>
+              <p className="m-0 font-[family-name:var(--font-pixel)] text-[18px] text-[#f0d25a]">
+                Lv.{adventurer.level}
+              </p>
+              <p className="mt-1 mb-0 text-[14px] text-[#f7f3d9]">
+                {adventurer.title}
+              </p>
+            </div>
+          </div>
+          <div className="text-right text-[12px] text-[#c9c3a0]">
+            <div>撃破 {resolvedTotal}</div>
+            <div className="text-[#f0d25a]">今週 +{thisWeekDelta}</div>
+          </div>
+        </div>
+        <div className="mt-2.5">
+          <div className="mb-1 flex justify-between font-[family-name:var(--font-pixel)] text-[9px] text-[#c9c3a0]">
+            <span>EXP</span>
+            <span>
+              {adventurer.expInLevel} / {adventurer.expToNext}
+            </span>
+          </div>
+          <div className="h-3.5 border-2 border-[#223] bg-black">
+            <i
+              className="block h-full bg-gradient-to-r from-[#3ecf5a] to-[#f0d25a]"
+              style={{ width: `${expPct}%` }}
+            />
+          </div>
+        </div>
+        {streakDays > 0 ? (
+          <p className="mt-2 mb-0 font-[family-name:var(--font-pixel)] text-[11px] text-[#3ecf5a]">
+            れんぞく {streakDays}日
+          </p>
+        ) : (
+          <p className="mt-2 mb-0 text-[11px] text-[#c9c3a0]">
+            れんぞくはまだこれからじゃ
+          </p>
+        )}
       </div>
 
       <div
@@ -182,46 +205,6 @@ function StatusCommandPanel({
             tab === "status" ? "" : "invisible pointer-events-none"
           }`}
         >
-            <div>
-              <div className="flex items-end justify-between gap-2">
-                <div>
-                  <p className="m-0 font-[family-name:var(--font-pixel)] text-[18px] text-[#f0d25a]">
-                    Lv.{adventurer.level}
-                  </p>
-                  <p className="mt-1 mb-0 text-[14px] text-[#f7f3d9]">
-                    {adventurer.title}
-                  </p>
-                </div>
-                <div className="text-right text-[12px] text-[#c9c3a0]">
-                  <div>撃破 {resolvedTotal}</div>
-                  <div className="text-[#f0d25a]">今週 +{thisWeekDelta}</div>
-                </div>
-              </div>
-              <div className="mt-2.5">
-                <div className="mb-1 flex justify-between font-[family-name:var(--font-pixel)] text-[9px] text-[#c9c3a0]">
-                  <span>EXP</span>
-                  <span>
-                    {adventurer.expInLevel} / {adventurer.expToNext}
-                  </span>
-                </div>
-                <div className="h-3.5 border-2 border-[#223] bg-black">
-                  <i
-                    className="block h-full bg-gradient-to-r from-[#3ecf5a] to-[#f0d25a]"
-                    style={{ width: `${expPct}%` }}
-                  />
-                </div>
-              </div>
-              {streakDays > 0 ? (
-                <p className="mt-2 mb-0 font-[family-name:var(--font-pixel)] text-[11px] text-[#3ecf5a]">
-                  れんぞく {streakDays}日
-                </p>
-              ) : (
-                <p className="mt-2 mb-0 text-[11px] text-[#c9c3a0]">
-                  れんぞくはまだこれからじゃ
-                </p>
-              )}
-            </div>
-
             <div className="border-t-2 border-[#002070] pt-3">
               <h3 className="m-0 mb-2 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
                 ◆ ステータス（領）
@@ -257,123 +240,52 @@ function StatusCommandPanel({
               <h3 className="m-0 mb-2 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
                 ◆ デイリークエスト
               </h3>
-              <ul className="m-0 list-none p-0">
-                {todos.map((t, i) => (
-                  <li
-                    key={t.title}
-                    className={`py-2 text-[14px] leading-snug ${
-                      i ? "border-t-2 border-[#002070]" : "pt-0"
-                    }`}
-                  >
-                    {t.title}
-                    <span className="mt-0.5 block text-[12px] text-[#c9c3a0]">
-                      {t.meta}
-                    </span>
-                  </li>
-                ))}
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+                {todos.map((t) =>
+                  t.href ? (
+                    <li key={t.title}>
+                      <Link
+                        href={t.href}
+                        className="flex items-center gap-2.5 border-2 border-[#002070] bg-white/[0.04] px-2 py-2 no-underline transition-colors hover:border-[#f0d25a]"
+                      >
+                        <span className="flex h-[26px] w-[26px] flex-none items-center justify-center bg-[#001a8c] shadow-[inset_-2px_-2px_0_rgba(0,0,0,0.6),2px_2px_0_rgba(0,0,0,0.25)]">
+                          <AtlasSurfaceIcon
+                            surface={surfaceIdFromHref(t.href)}
+                            size={14}
+                          />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] text-[#f7f3d9]">
+                            {t.title}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[11px] text-[#c9c3a0]">
+                            {t.meta}
+                          </span>
+                        </span>
+                        {t.cta ? (
+                          <span className="flex-none font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
+                            {t.cta} →
+                          </span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  ) : (
+                    <li
+                      key={t.title}
+                      className="border-2 border-transparent px-2 py-2 text-[14px] leading-snug"
+                    >
+                      {t.title}
+                      <span className="mt-0.5 block text-[12px] text-[#c9c3a0]">
+                        {t.meta}
+                      </span>
+                    </li>
+                  ),
+                )}
               </ul>
               <p className="mb-0 pt-3 text-[11px] leading-relaxed text-[#c9c3a0]">
-                任務・弱点は上のタブへ。移動は黒いコマンド窓じゃ。
+                弱点は上のタブへ。移動は黒いコマンド窓じゃ。
               </p>
             </div>
-        </div>
-
-        <div
-          role="tabpanel"
-          aria-hidden={tab !== "tasks"}
-          className={`[grid-area:stack] ${
-            tab === "tasks" ? "" : "invisible pointer-events-none"
-          }`}
-        >
-            <p className="m-0 mb-2 text-[12px] text-[#c9c3a0]">
-              {activeMap
-                ? `${showingYesterday ? "昨日の控え · " : ""}${activeMap.dateKey} · ${taskCount} 任務 · 学び ${relatedCount}`
-                : "きょうのマッピングはまだないぞ"}
-            </p>
-            {showingYesterday ? (
-              <p className="m-0 mb-2 text-[11px] leading-relaxed text-[#f0d25a]">
-                今日分は未保存。morning_briefing → save_task_mappings で更新せよ。
-              </p>
-            ) : null}
-            {activeMap && activeMap.tasks.length > 0 ? (
-              <ul className="m-0 list-none p-0">
-                {activeMap.tasks.map((t, i) => (
-                  <li
-                    key={`${t.task.slice(0, 40)}-${i}`}
-                    className={`min-w-0 py-2 ${
-                      i ? "border-t-2 border-[#002070]" : "pt-0"
-                    }`}
-                  >
-                    <p
-                      className="m-0 line-clamp-2 break-words text-[13px] leading-snug text-[#f7f3d9]"
-                      title={t.task}
-                    >
-                      {t.task}
-                    </p>
-                    {t.related.length > 0 ? (
-                      <ul className="mt-1 mb-0 list-none space-y-0.5 p-0">
-                        {t.related.slice(0, 3).map((r) => (
-                          <li key={r.href + r.title} className="min-w-0">
-                            <Link
-                              href={r.href}
-                              title={
-                                r.reason ? `${r.title} — ${r.reason}` : r.title
-                              }
-                              className="block truncate text-[11px] text-[#9ec0ff] no-underline hover:underline"
-                            >
-                              {r.title}
-                            </Link>
-                          </li>
-                        ))}
-                        {t.related.length > 3 ? (
-                          <li className="text-[10px] text-[#c9c3a0]">
-                            +{t.related.length - 3} 件
-                          </li>
-                        ) : null}
-                      </ul>
-                    ) : (
-                      <p className="mt-1 mb-0 text-[11px] text-[#c9c3a0]">
-                        関連学びなし
-                      </p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="space-y-2.5">
-                <p className="m-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-                  昨日の控えもない。朝の結びつきがまだない朝じゃ。
-                </p>
-                <p className="m-0 border-l-[3px] border-[#9ec0ff] pl-2 text-[12px] leading-relaxed text-[#f7f3d9]">
-                  <span className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
-                    つまり{" "}
-                  </span>
-                  じゅもんで morning_briefing → 必要なら save_task_mappings。
-                  手順が不安なら{" "}
-                  <Link href="/setup" className="text-[#9ec0ff] underline">
-                    じゅんび
-                  </Link>
-                  。
-                </p>
-                {pendingGate ? (
-                  <div className="border-t-2 border-[#002070] pt-2.5">
-                    <p className="m-0 mb-2 text-[12px] text-[#c9c3a0]">
-                      任務の代わりに、いま解けるしれんがあるぞ。
-                    </p>
-                    <p className="m-0 mb-2 line-clamp-2 text-[13px] text-[#f7f3d9]">
-                      {pendingGate.title ?? "未クリアのしれん"}
-                    </p>
-                    <Link href={fightHref} className="dq-btn inline-block">
-                      たたかう
-                    </Link>
-                  </div>
-                ) : (
-                  <p className="m-0 border-t-2 border-[#002070] pt-2.5 text-[12px] text-[#c9c3a0]">
-                    しれんもまだない。学びを拾うか、じゅんびを点検せよ。
-                  </p>
-                )}
-              </div>
-            )}
         </div>
 
         <div
@@ -432,12 +344,25 @@ export function AtlasDashboard({
   pendingGate,
   pendingGateCount,
   todos = [
-    { title: "① 未クリアのしれんを1つ解く", meta: "『たたかう』→ じゅもん（LLM）で回答" },
-    { title: "② 受信箱の学びを仕分ける", meta: "にっき → 候補を確認" },
-    { title: "③ 弱ってる repo の処方を見る", meta: "どうぐ → cache / harness 処方" },
+    {
+      title: "① 未クリアのしれんを1つ解く",
+      meta: "『たたかう』→ じゅもん（LLM）で回答",
+      href: "/gates",
+      cta: "しれんへ",
+    },
+    {
+      title: "② 受信箱の学びを仕分ける",
+      meta: "にっき → 候補を確認",
+      href: "/entries",
+      cta: "うけばこへ",
+    },
+    {
+      title: "③ 弱ってる repo の処方を見る",
+      meta: "どうぐ → cache / harness 処方",
+      href: "/harness",
+      cta: "どうぐへ",
+    },
   ],
-  taskMap = null,
-  yesterdayTaskMap = null,
   weaknesses = null,
   wsToken = null,
   setupDiagnosis = null,
@@ -451,7 +376,7 @@ export function AtlasDashboard({
     ? (SYSTEM_REGION_POS[pendingGate.systemKey ?? ""] ?? FOG_REGION_POS)
     : null;
   const mapMarkers: MapMarker[] = [
-    { id: "you", kind: "you", label: "▼ あなた", left: "22%", top: "64%" },
+    { id: "you", kind: "you", label: "あなた", left: "22%", top: "64%" },
     ...(pendingGate && questPos
       ? [
           {
@@ -529,7 +454,7 @@ export function AtlasDashboard({
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-[#c9c3a0]">
             <span className="text-[#f0d25a]">！＝未クリアのしれん</span>
-            <span>▼＝いま</span>
+            <span>自キャラ＝いま</span>
             <span>領＝学びの系統</span>
           </div>
 
@@ -560,10 +485,7 @@ export function AtlasDashboard({
           streakDays={streakDays}
           systemStars={systemStars}
           todos={todos}
-          taskMap={taskMap}
-          yesterdayTaskMap={yesterdayTaskMap}
           weaknesses={weaknesses}
-          pendingGate={pendingGate}
         />
       </div>
 

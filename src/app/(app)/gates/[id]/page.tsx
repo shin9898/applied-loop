@@ -17,6 +17,7 @@ import {
   loadStreakDays,
 } from "@/components/living-atlas/load-atlas-data";
 import { getTerminalWsToken } from "@/lib/terminal-token";
+import { findTaskLinksForGate } from "@/lib/task-map";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -38,9 +39,10 @@ export default async function GateBattlePage({
   const sp = (await Promise.resolve(searchParams)) ?? {};
   const rawDungeon = sp.d;
   const dungeonKey = typeof rawDungeon === "string" ? rawDungeon : undefined;
-  const [gate, streakDays] = await Promise.all([
+  const [gate, streakDays, taskLinks] = await Promise.all([
     loadGateById(id),
     loadStreakDays(),
+    findTaskLinksForGate(id),
   ]);
   if (!gate) notFound();
   const wsToken = getTerminalWsToken();
@@ -66,7 +68,7 @@ export default async function GateBattlePage({
   return (
     <AtlasChrome active="/gates/[id]" streakDays={streakDays}>
       <AtlasShell>
-        <AtlasGateBattleClient gate={gate} nextGate={nextGate} />
+        <AtlasGateBattleClient gate={gate} nextGate={nextGate} taskLinks={taskLinks} />
         <AtlasReveal as="section" delayIndex={1}>
           {wsToken ? (
             <AtlasAssist

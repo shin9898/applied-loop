@@ -56,3 +56,6 @@ scripts/harness-collect.log
 
 # git worktrees (superpowers:using-git-worktrees)
 /.worktrees/
+
+# superpowers scratch (brainstorm visual companion, SDD workspace)
+/.superpowers/

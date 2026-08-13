@@ -25,11 +25,6 @@ function isRelatedType(v: unknown): v is TaskRelatedType {
   return v === "entry" || v === "misconception" || v === "gate";
 }
 
-export {
-  pickTaskMapDisplay,
-  type TaskMapDisplaySource,
-} from "@/lib/task-map-display";
-
 /** mappings JSON を寛容にパース。不正要素は落とす。 */
 export function parseTaskMappings(raw: unknown): {
   mappings: TaskMapping[];
@@ -278,4 +273,40 @@ export async function resolveTaskMapForDisplay(dateKey: string): Promise<{
   }));
 
   return { dateKey, tasks };
+}
+
+export type GateTaskLink = {
+  task: string;
+  reason?: string;
+};
+
+/**
+ * しれんデブリーフ「きょうの任務との関わり」用。
+ * 今日の DailyTaskMap の related に、この gateId が含まれる任務だけを拾う。
+ */
+export async function findTaskLinksForGate(
+  gateId: string,
+  dateKey?: string | null,
+): Promise<GateTaskLink[]> {
+  const key =
+    dateKey?.trim() && /^\d{4}-\d{2}-\d{2}$/.test(dateKey.trim())
+      ? dateKey.trim()
+      : dateKeyJST();
+  const row = await prisma.dailyTaskMap.findUnique({ where: { dateKey: key } });
+  if (!row) return [];
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(row.mappings);
+  } catch {
+    return [];
+  }
+  const { mappings } = parseTaskMappings(raw);
+
+  const links: GateTaskLink[] = [];
+  for (const m of mappings) {
+    const hit = m.related.find((r) => r.type === "gate" && r.id === gateId);
+    if (hit) links.push({ task: m.task, reason: hit.reason });
+  }
+  return links;
 }

@@ -10,6 +10,7 @@ import {
   chapterDidSummary,
   chaptersHaveLessonSlots,
   clusterMaterialsIntoChapters,
+  dayDigest,
   dayRangeFromDateKey,
   distillChecks,
   isMasteryState,
@@ -233,6 +234,7 @@ export async function listTextbookDates(limit = 14): Promise<
     materialCount: number;
     title: string;
     lead: string | null;
+    overview: string;
     lines: string[];
     chapters: Array<{ index: number; title: string; summary: string }>;
   }>
@@ -259,6 +261,13 @@ export async function listTextbookDates(limit = 14): Promise<
     materialCount: r.materialCount,
     title: r.title,
     lead: r.lead,
+    // その日の大枠（全章に触れる冒険者日記文）。日ページの先頭に出す
+    overview: dayDigest(
+      r.chapters.map((c) => ({
+        title: c.title,
+        oneLiner: c.oneLiner?.trim() || c.title,
+      })),
+    ),
     lines: r.chapters.map((c) => c.oneLiner?.trim() || c.title).filter(Boolean),
     // めくった先の日ページに「章タイトル＋やったこと要約」を出すための組
     chapters: r.chapters.map((c) => ({

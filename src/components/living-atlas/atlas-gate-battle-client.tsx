@@ -12,6 +12,7 @@ import {
   type GateBattleVerdict,
 } from "@/lib/actions";
 import type { GateDebrief } from "@/lib/grade-payload";
+import type { GateTaskLink } from "@/lib/task-map";
 import { TUTORIAL_GATE_ID } from "@/lib/tutorial-constants";
 import type { SystemKind } from "@/lib/atlas-taxonomy";
 import { enemyForGate } from "./atlas-enemies";
@@ -20,9 +21,12 @@ import { AtlasBattle, type BattleVerdict } from "./atlas-battle";
 export function AtlasGateBattleClient({
   gate,
   nextGate = null,
+  taskLinks = [],
 }: {
   /** ダンジョン（?d=系統）から来たときの連続撃破導線 */
   nextGate?: { href: string; label: string } | null;
+  /** この gate に紐づく今日の任務（デブリーフ「きょうの任務との関わり」用） */
+  taskLinks?: GateTaskLink[];
   gate: {
     id: string;
     question: string;
@@ -68,6 +72,7 @@ export function AtlasGateBattleClient({
       relatedMisconceptionId={gate.relatedMisconceptionId ?? null}
       initialNextReviewLabel={gate.nextReviewLabel ?? null}
       nextGate={isTutorial ? null : nextGate}
+      taskLinks={taskLinks}
       zukanHref={zukanHref}
       onFlee={() => router.push(isTutorial ? "/setup" : "/")}
       onGoGates={() => router.push("/gates")}

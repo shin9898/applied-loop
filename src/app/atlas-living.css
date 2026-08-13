@@ -1710,6 +1710,51 @@ body.atlas-dq [class*="scroll-pt"] {
     2px 2px 0 rgba(0, 0, 0, 0.25);
 }
 
+/* 査定欄（討伐ランク・報奨金） */
+.atlas-gq-slip__assay {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 10px 0 0;
+  padding: 6px 8px;
+  background: rgba(0, 12, 74, 0.07);
+  box-shadow: inset 0 0 0 2px rgba(0, 12, 74, 0.22);
+}
+.atlas-gq-rank {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: #f0d25a;
+  background: #000c4a;
+  box-shadow:
+    inset -2px -2px 0 rgba(0, 0, 0, 0.6),
+    2px 2px 0 rgba(0, 0, 0, 0.25);
+}
+.atlas-gq-slip__assay-label {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: #4a3617;
+}
+.atlas-gq-slip__assay-sep {
+  color: #a8905c;
+}
+.atlas-gq-slip__assay-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: #8a5a12;
+}
+
 .atlas-gq-slip__title {
   margin: 12px 0 0;
   font-family: var(--font-jp);
@@ -1862,6 +1907,18 @@ body.atlas-dq [class*="scroll-pt"] {
 .atlas-gq-ico--slime-sm {
   width: 16px;
   height: 12px;
+}
+
+.atlas-gq-ico--gem {
+  width: 18px;
+  height: 18px;
+  color: #f0d25a;
+}
+
+.atlas-gq-ico--gem-sm {
+  width: 12px;
+  height: 12px;
+  color: #8a5a12;
 }
 
 .atlas-gq-ico--sword,
@@ -2238,6 +2295,65 @@ a.atlas-gq-cmd__item:hover {
 .atlas-worldmap-frame::after {
   bottom: -3px;
   right: -3px;
+}
+
+/* —— ちず「あなた」マーカー（LPC 生成の人型スプライト。呼吸2フレームで待機） —— */
+.atlas-self-avatar {
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 32px;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.6));
+}
+
+.atlas-self-avatar--active {
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 4px #f0d25a);
+}
+
+/* ぼうけんしゃパネル内は面キャラ表示。ちずマーカーより3段階ほど大きく（koki FB） */
+.atlas-self-avatar--panel {
+  width: 72px;
+  height: 72px;
+}
+
+.atlas-self-avatar__frame {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: contain;
+  image-rendering: pixelated;
+}
+
+.atlas-self-avatar__frame--1 {
+  background-image: url("/sprites/lpc/self-avatar-idle-1.png");
+  animation: atlas-self-avatar-blink 1.4s steps(1) infinite;
+}
+
+.atlas-self-avatar__frame--2 {
+  background-image: url("/sprites/lpc/self-avatar-idle-2.png");
+  animation: atlas-self-avatar-blink 1.4s steps(1) infinite reverse;
+}
+
+@keyframes atlas-self-avatar-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-self-avatar__frame--1,
+  .atlas-self-avatar__frame--2 {
+    animation: none;
+  }
+  .atlas-self-avatar__frame--2 {
+    opacity: 0;
+  }
 }
 
 /* —— ずかん カテゴリ導線 —— */
@@ -2621,6 +2737,22 @@ a.atlas-gq-cmd__item:hover {
   color: #3a6a4e;
 }
 
+/* この日のぼうけん（大枠）。全章に触れる冒険者日記文を、章カードより先に読ませる */
+.atlas-nikki-day-page__overview {
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(58, 106, 78, 0.4);
+  font-family: var(--font-handwriting);
+  font-size: clamp(14px, 1.7vw, 17px);
+  line-height: 1.75;
+  color: #1a3024;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
 /* めくった先の日ページ: 章の先頭に「タイトル＋やったこと要約」。
    紙面は固定寸法なので、はみ出しは clamp と overflow で紙の中に閉じる。 */
 .atlas-nikki-day-page__chapters {
@@ -2666,8 +2798,8 @@ a.atlas-gq-cmd__item:hover {
   color: #2a4034;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
 }
 
@@ -4825,6 +4957,88 @@ a.atlas-gq-cmd__item:hover {
 .atlas-yk-fuda--draft {
   background-color: #b5a480;
   opacity: 0.95;
+}
+
+/* 板が空のとき：見本の札 + 依頼が生まれる3手順 */
+.atlas-yk-empty {
+  margin-top: 6px;
+}
+.atlas-yk-empty__body {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) 1fr;
+  gap: 30px;
+  margin-top: 22px;
+  align-items: start;
+}
+.atlas-yk-fuda--sample {
+  opacity: 0.88;
+  outline: 3px dashed rgba(255, 255, 255, 0.35);
+  outline-offset: 6px;
+  max-width: 300px;
+}
+.atlas-yk-fuda__sample-tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0;
+  color: #fff8e4;
+  background: #6b4a17;
+  padding: 3px 7px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+.atlas-yk-empty__steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 16px;
+}
+.atlas-yk-empty__steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.atlas-yk-empty__step-no {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  color: #2b1d0a;
+  background: #f0d25a;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+.atlas-yk-empty__step-title {
+  margin: 0 0 4px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0;
+  color: #f2dfae;
+  text-shadow: 2px 2px 0 #000;
+}
+.atlas-yk-empty__step-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #d8c49a;
+}
+.atlas-yk-empty__step-body code {
+  color: #ffe9a8;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 1px 4px;
+}
+@media (max-width: 720px) {
+  .atlas-yk-empty__body {
+    grid-template-columns: 1fr;
+  }
+  .atlas-yk-fuda--sample {
+    max-width: 100%;
+  }
 }
 
 /* 達成の綴じ（判子つきの控え） */
