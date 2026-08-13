@@ -5,7 +5,11 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { dateKeyJST, dayOfWeekJST, dayStartJST } from "@/lib/date";
 import { gradeGate, scheduleDueGates } from "@/lib/gate";
-import { generateWeeklyReviews, weeklyEvidenceCounts } from "@/lib/goal";
+import {
+  generateWeeklyReviews,
+  weeklyEvidenceCounts,
+  pendingApprovalCount,
+} from "@/lib/goal";
 import { triageCapture } from "@/lib/capture";
 import { generateYesterdayDigestIfNeeded } from "@/lib/obsidian-digest";
 import { generateWeeklyNarration } from "@/lib/audio-digest";
@@ -185,11 +189,11 @@ const handler = createMcpHandler(
         });
         // Goal 証跡の能動提案 (ADR-0008 / 0012)
         const { suggestLinksForTarget } = await import("@/lib/goal");
-        const linked = await suggestLinksForTarget({
+        const linkIds = await suggestLinksForTarget({
           targetType: "application",
           targetId: app.id,
           title: `${entry?.title ?? "学び"} → ${appliedTo.trim()}`,
-        }).catch(() => 0);
+        }).catch(() => [] as string[]);
 
         const applied = appliedTo.trim();
         const repoHint =
@@ -198,8 +202,8 @@ const handler = createMcpHandler(
             : null;
         const followUp = [
           `実務使用の記録を登録しました (id: ${app.id})。証跡タイムラインに追加されます。`,
-          linked > 0
-            ? `Goal への紐付け提案を ${linked} 件作成しました。approve_goal_link で確定できます。`
+          linkIds.length > 0
+            ? `Goal への紐付け提案を ${linkIds.length} 件作成しました (linkId: ${linkIds.join(", ")})。approve_goal_link で確定できます。`
             : null,
           repoHint
             ? [
@@ -1019,6 +1023,7 @@ const handler = createMcpHandler(
           activeGoals.map(async (g) => ({
             title: g.title,
             counts: await weeklyEvidenceCounts(g.id, now),
+            pending: await pendingApprovalCount(g.id),
           }))
         );
 
@@ -1194,7 +1199,8 @@ const handler = createMcpHandler(
               e.counts.applications +
               e.counts.resolvedMisconceptions;
             lines.push(
-              `- ${e.title}: 学び ${e.counts.entries} / 実務使用 ${e.counts.applications} / つまずき解消 ${e.counts.resolvedMisconceptions} (計 ${total})`
+              `- ${e.title}: 学び ${e.counts.entries} / 実務使用 ${e.counts.applications} / つまずき解消 ${e.counts.resolvedMisconceptions} (計 ${total})` +
+                (e.pending > 0 ? ` ／ 承認待ち ${e.pending}件` : "")
             );
           }
           lines.push("");
