@@ -476,8 +476,8 @@ export function AtlasDashboard({
     .join("\n");
 
   const topScreenContent = (
-    <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1.6fr_0.9fr]">
-      <AtlasReveal as="section" className="dq-win flex h-full flex-col gap-3 p-3.5">
+    <div className="grid h-full grid-cols-1 items-stretch gap-3 md:grid-cols-[1.6fr_0.9fr]">
+      <AtlasReveal as="section" className="dq-win flex h-full min-h-0 flex-col gap-2 p-3">
         <AtlasPageTitle
           title="ちず"
           sub={
@@ -487,7 +487,7 @@ export function AtlasDashboard({
           }
           surface="map"
         />
-        <div className="atlas-worldmap-frame">
+        <div className="atlas-worldmap-frame min-h-0 flex-1">
           <AtlasWorldMap
             markers={mapMarkers}
             activeId={activeId}
@@ -495,7 +495,7 @@ export function AtlasDashboard({
             regionBrightness={regionBrightness}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-[#c9c3a0]">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-[#c9c3a0]">
           <span className="text-[#f0d25a]">！＝未クリアのしれん</span>
           <span>自キャラ＝いま</span>
           <span>領＝学びの系統</span>

@@ -19,10 +19,13 @@ export function AtlasConsoleShell({
   ]
     .filter(Boolean)
     .join(" ");
+  const topGlowClass = `${glowClass} atlas-console-top-screen`;
 
   return (
     <div className="atlas-console-shell">
-      <div className={glowClass}>{topScreen}</div>
+      <div className="atlas-console-brand">Living Atlas</div>
+      <div className="atlas-console-speaker" aria-hidden />
+      <div className={topGlowClass}>{topScreen}</div>
       <div className="atlas-console-hinge" aria-hidden />
       <div className="atlas-console-lower-row">
         <div className="atlas-console-side-pad" aria-hidden>

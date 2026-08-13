@@ -9239,21 +9239,68 @@ a.uke-trial__hypo:hover {
 }
 
 .atlas-console-shell {
-  padding: 20px 22px 18px;
+  padding: 17px 20px 15px;
   border-radius: 22px;
-  background: linear-gradient(155deg, #3a3d46 0%, #23252b 55%, #17181c 100%);
+  background:
+    radial-gradient(ellipse 130% 80% at 20% -15%, rgba(255, 255, 255, 0.14), transparent 50%),
+    linear-gradient(
+      160deg,
+      #52555f 0%,
+      #3a3c44 25%,
+      #26272c 55%,
+      #16171a 85%,
+      #0c0d0f 100%
+    );
   box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 24px 50px rgba(0, 0, 0, 0.55),
+    0 6px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -6px 14px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.atlas-console-shell::before {
+  content: "";
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  bottom: -14px;
+  height: 20px;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.35), transparent 70%);
+  filter: blur(3px);
+  z-index: -1;
+}
+
+.atlas-console-brand {
+  position: absolute;
+  top: 6px;
+  right: 20px;
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  color: rgba(210, 212, 220, 0.4);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.atlas-console-speaker {
+  position: absolute;
+  top: 9px;
+  left: 18px;
+  width: 30px;
+  height: 9px;
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.6) 0.8px, transparent 0.8px);
+  background-size: 4px 4px;
+  opacity: 0.85;
 }
 
 .atlas-console-glow {
-  border-radius: 6px;
-  padding: 3px;
-  background: linear-gradient(160deg, #0a0a0c, #000);
+  border-radius: 7px;
+  padding: 4px;
+  background: linear-gradient(150deg, #08090a 0%, #000 60%, #08090a 100%);
   box-shadow:
-    inset 0 0 0 2px rgba(240, 210, 90, 0.35),
-    0 0 16px rgba(240, 210, 90, 0.18);
+    inset 0 0 0 1.5px rgba(240, 210, 90, 0.35),
+    inset 0 0 14px rgba(240, 210, 90, 0.14),
+    inset 0 2px 4px rgba(0, 0, 0, 0.8);
   position: relative;
   overflow: hidden;
   transition: box-shadow 0.25s ease;
@@ -9264,10 +9311,12 @@ a.uke-trial__hypo:hover {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    115deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.02) 22%,
-    transparent 45%
+    122deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.03) 18%,
+    transparent 32%,
+    transparent 68%,
+    rgba(255, 255, 255, 0.05) 100%
   );
   pointer-events: none;
 }
@@ -9289,40 +9338,50 @@ a.uke-trial__hypo:hover {
   transition: width 0.6s ease;
 }
 
+.atlas-console-top-screen {
+  height: 340px;
+}
+
 .atlas-console-hinge {
   height: 12px;
-  margin: 6px auto;
-  width: 92%;
+  margin: 7px auto;
+  width: 90%;
   border-radius: 6px;
-  background: linear-gradient(180deg, #111214, #050506);
+  background: linear-gradient(
+    180deg,
+    #24262b 0%,
+    #0a0a0c 45%,
+    #24262b 55%,
+    #050506 100%
+  );
   position: relative;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.8);
 }
 
 .atlas-console-hinge::before,
 .atlas-console-hinge::after {
   content: "";
   position: absolute;
-  top: 2px;
-  width: 8px;
-  height: 8px;
+  top: 1.5px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #6b6f78, #1a1b1e);
+  background: radial-gradient(circle at 32% 28%, #9a9ea8 0%, #55585f 45%, #0e0f11 100%);
 }
 
 .atlas-console-hinge::before {
-  left: -4px;
+  left: -4.5px;
 }
 
 .atlas-console-hinge::after {
-  right: -4px;
+  right: -4.5px;
 }
 
 .atlas-console-lower-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .atlas-console-side-pad {
@@ -9338,46 +9397,62 @@ a.uke-trial__hypo:hover {
   min-width: 0;
 }
 
+.atlas-console-lower-screen [class*="min-h-[420px]"] {
+  height: 295px;
+  min-height: 295px;
+}
+
 .atlas-console-dpad {
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   position: relative;
-  opacity: 0.85;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.7));
 }
 
 .atlas-console-dpad::before,
 .atlas-console-dpad::after {
   content: "";
   position: absolute;
-  background: #55585f;
-  border-radius: 2px;
+  background: linear-gradient(160deg, #7a7e88 0%, #45474f 45%, #1c1d21 100%);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.6);
 }
 
 .atlas-console-dpad::before {
-  width: 30px;
-  height: 10px;
-  top: 10px;
+  width: 36px;
+  height: 12px;
+  top: 12px;
   left: 0;
 }
 
 .atlas-console-dpad::after {
-  width: 10px;
-  height: 30px;
+  width: 12px;
+  height: 36px;
   top: 0;
-  left: 10px;
+  left: 12px;
 }
 
 .atlas-console-abxy {
   display: grid;
-  grid-template-columns: repeat(2, 13px);
-  grid-template-rows: repeat(2, 13px);
-  gap: 3px;
+  grid-template-columns: repeat(2, 17px);
+  grid-template-rows: repeat(2, 17px);
+  gap: 4px;
 }
 
 .atlas-console-abxy span {
   border-radius: 50%;
-  background: #55585f;
-  opacity: 0.85;
+  background: radial-gradient(
+    circle at 32% 26%,
+    #9a9ea8 0%,
+    #6a6e78 30%,
+    #3a3c42 65%,
+    #17181b 100%
+  );
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.4);
 }
 
 @media (prefers-reduced-motion: reduce) {
