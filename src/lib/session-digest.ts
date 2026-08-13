@@ -69,12 +69,16 @@ export async function buildSessionDigestForDate(
       startedAt: true,
       endedAt: true,
       tools: true,
+      // turns: 定期便（1ターンの `claude -p` 等）除外ヒューリスティックに使う
+      turns: true,
     },
   });
   const harnessRuns = runsRaw.filter(isExternalSession);
 
   const [captures, gatesRaw, devEvents, goalLinks, requirementLinks] =
     await Promise.all([
+      // status で絞らないのは意図的。ダイジェストは「セッション中に何が起きたか」を数えるもので
+      // 仕分け状態（pending/accepted/ignored/expired）は問わないため、ignored/expired も含める。
       prisma.capture.findMany({
         where: { capturedAt: { gte: start, lt: end } },
         select: { title: true, capturedAt: true },
@@ -114,6 +118,9 @@ export async function buildSessionDigestForDate(
   return buildSessionDigest({
     dateKey,
     harnessRuns,
+    // 時間窓判定は除外セッションも含めて行う（Fix 4）。除外セッションが最も特定的だった
+    // 時刻の Capture 等は、より遠い外部セッションへ付け替えずに落とす。
+    allRuns: runsRaw,
     captures,
     gatesAnswered,
     devEvents,
