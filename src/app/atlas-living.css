@@ -9279,10 +9279,14 @@ a.uke-trial__hypo:hover {
 }
 
 .atlas-console-glow--offline {
+  background: linear-gradient(160deg, #1a1a1c, #050505);
   box-shadow:
     inset 0 0 0 2px rgba(140, 140, 140, 0.25),
     0 0 0 rgba(0, 0, 0, 0);
-  filter: grayscale(0.4);
+}
+
+.atlas-exp-fill {
+  transition: width 0.6s ease;
 }
 
 .atlas-console-hinge {
@@ -9377,7 +9381,8 @@ a.uke-trial__hypo:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .atlas-console-glow {
+  .atlas-console-glow,
+  .atlas-exp-fill {
     transition: none;
   }
 }

@@ -6,6 +6,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   adventurerLevelFromResolved,
@@ -156,7 +157,7 @@ function StatusCommandPanel({
           </div>
           <div className="h-3.5 border-2 border-[#223] bg-black">
             <i
-              className="block h-full bg-gradient-to-r from-[#3ecf5a] to-[#f0d25a]"
+              className="atlas-exp-fill block h-full bg-gradient-to-r from-[#3ecf5a] to-[#f0d25a]"
               style={{ width: `${expPct}%` }}
             />
           </div>
@@ -379,9 +380,9 @@ export function AtlasDashboard({
   setupDiagnosis = null,
   textbookGuidance = null,
 }: AtlasDashboardProps) {
+  const router = useRouter();
   const [activeId, setActiveId] = useState(pendingGate ? "quest-1" : "you");
   const { lastEvent } = useAtlasLiveEvents();
-  const [optimisticResolvedDelta, setOptimisticResolvedDelta] = useState(0);
   const [clearedGateId, setClearedGateId] = useState<string | null>(null);
   const [pulse, setPulse] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
@@ -401,7 +402,7 @@ export function AtlasDashboard({
     const pulseTimer = setTimeout(() => setPulse(false), 900);
 
     if (lastEvent.type === "gate_passed") {
-      setOptimisticResolvedDelta((d) => d + 1);
+      router.refresh();
       if (pendingGateRef.current && lastEvent.gateId === pendingGateRef.current.id) {
         setClearedGateId(lastEvent.gateId);
       }
@@ -413,6 +414,7 @@ export function AtlasDashboard({
       return () => {
         clearTimeout(pulseTimer);
         clearTimeout(bannerTimer);
+        setBanner(null);
       };
     } else if (lastEvent.type === "capture_added") {
       setBounceIcon(true);
@@ -420,6 +422,7 @@ export function AtlasDashboard({
       return () => {
         clearTimeout(pulseTimer);
         clearTimeout(bounceTimer);
+        setBounceIcon(false);
       };
     }
 
@@ -427,7 +430,7 @@ export function AtlasDashboard({
   }, [lastEvent]);
 
   const adventurer =
-    adventurerProp ?? adventurerLevelFromResolved(resolvedTotal + optimisticResolvedDelta);
+    adventurerProp ?? adventurerLevelFromResolved(resolvedTotal);
 
   const questPos = pendingGate
     ? (SYSTEM_REGION_POS[pendingGate.systemKey ?? ""] ?? FOG_REGION_POS)

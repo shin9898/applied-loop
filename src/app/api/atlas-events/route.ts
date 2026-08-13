@@ -25,6 +25,10 @@ export async function GET(request: Request) {
         }
       };
 
+      // ヘッダーは最初の enqueue まで flush されないため、即座にコメント行を
+      // 送って接続確立（EventSource.onopen / connected 状態）を即時発火させる。
+      controller.enqueue(encoder.encode(": connected\n\n"));
+
       const unsubscribe = subscribeAtlasEvents((event) => {
         if (disposed) return;
         try {
