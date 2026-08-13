@@ -68,9 +68,6 @@ export type AtlasDashboardProps = {
   textbookGuidance?: TextbookGuidance | null;
 };
 
-type StatusTab = "status" | "weak";
-
-/** 右カラム: ステータス / 弱点を1窓にタブ集約 */
 function StatusCommandPanel({
   adventurer,
   resolvedTotal,
@@ -91,17 +88,16 @@ function StatusCommandPanel({
   bounceIcon?: boolean;
 }) {
   const weakCount = weaknesses?.length ?? 0;
-  const [tab, setTab] = useState<StatusTab>("status");
   const expPct = Math.round(adventurer.expRatio * 100);
-
-  const tabs: { id: StatusTab; label: string; badge?: string }[] = [
-    { id: "status", label: "ステータス" },
-    {
-      id: "weak",
-      label: "弱点",
-      badge: weakCount > 0 ? String(weakCount) : undefined,
-    },
-  ];
+  const starList =
+    systemStars.length > 0
+      ? systemStars
+      : [
+          { key: "cache", label: "キャッシュ", stars: 0, count: 0 },
+          { key: "harness", label: "ハーネス", stars: 0, count: 0 },
+          { key: "design", label: "設計判断", stars: 0, count: 0 },
+          { key: "knowledge", label: "知識", stars: 0, count: 0 },
+        ];
 
   return (
     <AtlasReveal
@@ -123,222 +119,115 @@ function StatusCommandPanel({
         </p>
       </div>
 
-      {/* Lv./EXP は面キャラの「今の自分」表示。タブ切り替えに関係なく常時表示 */}
-      <div>
-        <div className="flex items-end justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <span className="atlas-self-avatar atlas-self-avatar--panel" aria-hidden>
-              <span className="atlas-self-avatar__frame atlas-self-avatar__frame--1" />
-              <span className="atlas-self-avatar__frame atlas-self-avatar__frame--2" />
-            </span>
-            <div>
-              <p className="m-0 font-[family-name:var(--font-pixel)] text-[18px] text-[#f0d25a]">
-                Lv.{adventurer.level}
-              </p>
-              <p className="mt-1 mb-0 text-[14px] text-[#f7f3d9]">
-                {adventurer.title}
-              </p>
-            </div>
-          </div>
-          <div className="text-right text-[12px] text-[#c9c3a0]">
-            <div>撃破 {resolvedTotal}</div>
-            <div className="text-[#f0d25a]">今週 +{thisWeekDelta}</div>
-          </div>
+      <div className="flex gap-3">
+        <div className="flex w-16 flex-shrink-0 flex-col items-center gap-1 text-center">
+          <span className="atlas-self-avatar atlas-self-avatar--panel" aria-hidden>
+            <span className="atlas-self-avatar__frame atlas-self-avatar__frame--1" />
+            <span className="atlas-self-avatar__frame atlas-self-avatar__frame--2" />
+          </span>
+          <p className="m-0 font-[family-name:var(--font-pixel)] text-[16px] text-[#f0d25a]">
+            Lv.{adventurer.level}
+          </p>
+          <p className="m-0 text-[10px] text-[#f7f3d9]">{adventurer.title}</p>
+          <p className="m-0 text-[9px] leading-tight text-[#c9c3a0]">
+            撃破{resolvedTotal}
+            <br />
+            今週+{thisWeekDelta}
+          </p>
         </div>
-        <div className="mt-2.5">
-          <div className="mb-1 flex justify-between font-[family-name:var(--font-pixel)] text-[9px] text-[#c9c3a0]">
-            <span>EXP</span>
-            <span>
-              {adventurer.expInLevel} / {adventurer.expToNext}
-            </span>
-          </div>
-          <div className="h-3.5 border-2 border-[#223] bg-black">
-            <i
-              className="atlas-exp-fill block h-full bg-gradient-to-r from-[#3ecf5a] to-[#f0d25a]"
-              style={{ width: `${expPct}%` }}
-            />
-          </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          {starList.map((s) => (
+            <div
+              key={s.key}
+              className="grid grid-cols-[3.4rem_1fr_auto] items-center gap-1 text-[10px]"
+            >
+              <span className="truncate text-[#c9c3a0]">{s.label}</span>
+              <span
+                className="font-[family-name:var(--font-pixel)] text-[8px] tracking-tight text-[#f0d25a]"
+                aria-label={`${s.stars}つ星`}
+              >
+                {formatStars(s.stars)}
+              </span>
+              <span className="text-[9px] text-[#c9c3a0]">{s.count}</span>
+            </div>
+          ))}
+          {weakCount > 0 && (
+            <Link
+              href="/gates"
+              className="mt-1 inline-flex w-fit items-center gap-1 border border-[#e84848] px-1.5 py-0.5 font-[family-name:var(--font-pixel)] text-[8px] text-[#e84848] no-underline"
+            >
+              ⚠ 弱点{weakCount}件 →
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-1 flex justify-between font-[family-name:var(--font-pixel)] text-[9px] text-[#c9c3a0]">
+          <span>EXP</span>
+          <span>
+            {adventurer.expInLevel} / {adventurer.expToNext}
+          </span>
+        </div>
+        <div className="h-3.5 border-2 border-[#223] bg-black">
+          <i
+            className="atlas-exp-fill block h-full bg-gradient-to-r from-[#3ecf5a] to-[#f0d25a]"
+            style={{ width: `${expPct}%` }}
+          />
         </div>
         {streakDays > 0 ? (
-          <p className="mt-2 mb-0 font-[family-name:var(--font-pixel)] text-[11px] text-[#3ecf5a]">
+          <p className="mt-1 mb-0 font-[family-name:var(--font-pixel)] text-[9px] text-[#3ecf5a]">
             れんぞく {streakDays}日
           </p>
-        ) : (
-          <p className="mt-2 mb-0 text-[11px] text-[#c9c3a0]">
-            れんぞくはまだこれからじゃ
-          </p>
-        )}
+        ) : null}
       </div>
 
-      <div
-        className="flex overflow-hidden border-[3px] border-white"
-        role="tablist"
-        aria-label="ぼうけんしゃパネル"
-      >
-        {tabs.map((t) => {
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setTab(t.id)}
-              className={`min-w-0 flex-1 px-2 py-2.5 font-[family-name:var(--font-pixel)] text-[10px] leading-none ${
-                active
-                  ? "bg-[#f0d25a] text-[#000c4a]"
-                  : "bg-[#000c4a] text-[#c9c3a0]"
-              }`}
-            >
-              {t.label}
-              {t.badge ? (
-                <span className={active ? "text-[#001a8c]" : "text-[#f0d25a]"}>
-                  {" "}
-                  {t.badge}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-
-      {/*
-        3タブを同一グリッドセルに重ね、高さは最大（通常はステータス）で固定。
-        切り替え時のパネル高さジャンプ／ちらつきを防ぐ。
-      */}
-      <div className="grid min-h-0 flex-1 overflow-y-auto overflow-x-hidden [grid-template-areas:'stack']">
-        <div
-          role="tabpanel"
-          aria-hidden={tab !== "status"}
-          className={`[grid-area:stack] flex flex-col gap-3 ${
-            tab === "status" ? "" : "invisible pointer-events-none"
-          }`}
-        >
-            <div className="border-t-2 border-[#002070] pt-3">
-              <h3 className="m-0 mb-2 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
-                ◆ ステータス（領）
-              </h3>
-              <ul className="m-0 list-none space-y-1.5 p-0">
-                {(systemStars.length > 0
-                  ? systemStars
-                  : [
-                      { key: "cache", label: "キャッシュ", stars: 0, count: 0 },
-                      { key: "harness", label: "ハーネス", stars: 0, count: 0 },
-                      { key: "design", label: "設計判断", stars: 0, count: 0 },
-                      { key: "knowledge", label: "知識", stars: 0, count: 0 },
-                    ]
-                ).map((s) => (
-                  <li
-                    key={s.key}
-                    className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-2 text-[13px]"
-                  >
-                    <span className="text-[#c9c3a0]">{s.label}</span>
-                    <span
-                      className="font-[family-name:var(--font-pixel)] text-[10px] tracking-tight text-[#f0d25a]"
-                      aria-label={`${s.stars}つ星`}
-                    >
-                      {formatStars(s.stars)}
-                    </span>
-                    <span className="text-[11px] text-[#c9c3a0]">{s.count}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="flex flex-col border-t-2 border-[#002070] pt-3">
-              <h3 className="m-0 mb-2 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
-                ◆ デイリークエスト
-              </h3>
-              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-                {todos.slice(0, 2).map((t) =>
-                  t.href ? (
-                    <li key={t.title}>
-                      <Link
-                        href={t.href}
-                        className="flex items-center gap-2 border-2 border-[#002070] bg-white/[0.04] px-1.5 py-1.5 no-underline transition-colors hover:border-[#f0d25a]"
-                      >
-                        <span className="flex h-[26px] w-[26px] flex-none items-center justify-center bg-[#001a8c] shadow-[inset_-2px_-2px_0_rgba(0,0,0,0.6),2px_2px_0_rgba(0,0,0,0.25)]">
-                          <AtlasSurfaceIcon
-                            surface={surfaceIdFromHref(t.href)}
-                            size={14}
-                          />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[11px] text-[#f7f3d9]">
-                            {t.title}
-                          </span>
-                          <span className="mt-0.5 block truncate text-[9px] text-[#c9c3a0]">
-                            {t.meta}
-                          </span>
-                        </span>
-                        {t.cta ? (
-                          <span className="flex-none font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
-                            {t.cta} →
-                          </span>
-                        ) : null}
-                      </Link>
-                    </li>
-                  ) : (
-                    <li
-                      key={t.title}
-                      className="border-2 border-transparent px-2 py-2 text-[14px] leading-snug"
-                    >
-                      {t.title}
-                      <span className="mt-0.5 block text-[12px] text-[#c9c3a0]">
-                        {t.meta}
-                      </span>
-                    </li>
-                  ),
-                )}
-              </ul>
-              <p className="mb-0 pt-3 text-[11px] leading-relaxed text-[#c9c3a0]">
-                弱点は上のタブへ。移動は黒いコマンド窓じゃ。
-              </p>
-            </div>
-        </div>
-
-        <div
-          role="tabpanel"
-          aria-hidden={tab !== "weak"}
-          className={`[grid-area:stack] ${
-            tab === "weak" ? "" : "invisible pointer-events-none"
-          }`}
-        >
-            <p className="m-0 mb-2 text-[12px] text-[#c9c3a0]">
-              横断で欠ける論点。次のしれんで優先せよ。
-            </p>
-            {weaknesses && weaknesses.length > 0 ? (
-              <>
-                <ul className="m-0 list-none p-0">
-                  {weaknesses.slice(0, 8).map((w, i) => (
-                    <li
-                      key={w.aspect}
-                      className={`flex min-w-0 items-baseline justify-between gap-2 py-2 ${
-                        i ? "border-t-2 border-[#002070]" : "pt-0"
-                      }`}
-                    >
-                      <span className="min-w-0 truncate text-[13px] text-[#f7f3d9]">
-                        {w.aspect}
-                      </span>
-                      <span className="shrink-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#e84848]">
-                        欠 {Math.round(w.missRate * 100)}%
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto border-t-2 border-[#002070] pt-3">
+        <h3 className="m-0 mb-2 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
+          ◆ デイリークエスト
+        </h3>
+        <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+          {todos.slice(0, 2).map((t) =>
+            t.href ? (
+              <li key={t.title}>
                 <Link
-                  href="/gates"
-                  className="mt-3 inline-block font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a] no-underline"
+                  href={t.href}
+                  className="flex items-center gap-2 border-2 border-[#002070] bg-white/[0.04] px-1.5 py-1.5 no-underline transition-colors hover:border-[#f0d25a]"
                 >
-                  しれん一覧へ →
+                  <span className="flex h-[26px] w-[26px] flex-none items-center justify-center bg-[#001a8c] shadow-[inset_-2px_-2px_0_rgba(0,0,0,0.6),2px_2px_0_rgba(0,0,0,0.25)]">
+                    <AtlasSurfaceIcon
+                      surface={surfaceIdFromHref(t.href)}
+                      size={14}
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[11px] text-[#f7f3d9]">
+                      {t.title}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[9px] text-[#c9c3a0]">
+                      {t.meta}
+                    </span>
+                  </span>
+                  {t.cta ? (
+                    <span className="flex-none font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
+                      {t.cta} →
+                    </span>
+                  ) : null}
                 </Link>
-              </>
+              </li>
             ) : (
-              <p className="m-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-                まだ弱点の集計がないようじゃ。しれんを積むとここが育つぞ。
-              </p>
-            )}
-        </div>
+              <li
+                key={t.title}
+                className="border-2 border-transparent px-2 py-2 text-[14px] leading-snug"
+              >
+                {t.title}
+                <span className="mt-0.5 block text-[12px] text-[#c9c3a0]">
+                  {t.meta}
+                </span>
+              </li>
+            ),
+          )}
+        </ul>
       </div>
     </AtlasReveal>
   );
