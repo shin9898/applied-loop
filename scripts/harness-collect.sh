@@ -5,6 +5,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# launchd はログインシェルの PATH (nvm/homebrew 等) を継承しないため明示する
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 # .env から MCP_TOKEN / APPLIED_LOOP_URL を読む (存在すれば)
 if [[ -f "$ROOT/.env" ]]; then
   set -a
