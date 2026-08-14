@@ -119,6 +119,124 @@ function normalizePoll(raw: PollResult | BattleVerdict): PollResult {
   return raw;
 }
 
+/**
+ * ナレーター文の唯一の発生源 (Issue #3)。
+ * トーン方針: 儀式イベント(verdict確定/にげた/受理)は演出1文まで、手順ガイドと
+ * エラー・復旧は比喩ゼロで命令/原因+手順のみ、ボタン押下直後の一時フィードバック
+ * は最短のまま。「採点の旅」の比喩は初出(cast_accepted)のみに絞る。
+ */
+export type NarratorEvent =
+  | {
+      kind: "verdict";
+      verdict: Extract<BattleVerdict, "pass" | "retry" | "grading_failed">;
+      weakCount: number;
+      leftoverOnPass: number;
+    }
+  | { kind: "poll_timeout" }
+  | { kind: "start_recall" }
+  | { kind: "start_micro" }
+  | { kind: "go_answer"; hasMerged: boolean }
+  | { kind: "answer_empty" }
+  | { kind: "cast_accepted" }
+  | { kind: "accept_and_leave" }
+  | { kind: "accept_wait"; hasOnAccepted: boolean }
+  | { kind: "flee" }
+  | { kind: "waiting_blocked" }
+  | { kind: "already_cleared" }
+  | { kind: "go_zukan"; hasRelated: boolean; zukanHref: string }
+  | { kind: "micro_step_cleared" }
+  | { kind: "poll_start" }
+  | { kind: "poll_still_waiting" }
+  | { kind: "retry_grading_start" }
+  | { kind: "retry_grading_failed" }
+  | { kind: "retry_grading_started" }
+  | { kind: "close_to_recall" }
+  | { kind: "park_start" }
+  | { kind: "park_done" }
+  | { kind: "park_failed" }
+  | { kind: "dismiss_start" }
+  | { kind: "dismiss_done" }
+  | { kind: "dismiss_failed" }
+  | { kind: "back_to_debrief" }
+  | { kind: "cancel_answer" };
+
+export function narratorFor(event: NarratorEvent): string {
+  switch (event.kind) {
+    case "verdict":
+      if (event.verdict === "pass") {
+        return event.leftoverOnPass > 0
+          ? "CLEAR！　薄い論点が残っておる。『あとひと押し』を見よ。"
+          : "CLEAR！　つまずきはしずまった。";
+      }
+      if (event.verdict === "grading_failed") {
+        return "採点が保留になった（認証切れの可能性）。『再採点する』を押すか、じゅんびで診断せよ。";
+      }
+      return event.weakCount > 0
+        ? "しかし！　まだ足りぬ。デブリーフを読み、『まず1観点を言い直す』のじゃ。"
+        : "しかし！　まだ足りぬ。デブリーフを読んでから答え直せ。";
+    case "poll_timeout":
+      return "採点がまだ戻らぬ。しれん一覧で状態を見るか、少し待って『結果を確認』を押せ。";
+    case "start_recall":
+      return "正しい仕組みを2文で思い出してみよ。";
+    case "start_micro":
+      return "弱い観点を1つずつ、自分の言葉で言い直せ。";
+    case "go_answer":
+      return event.hasMerged
+        ? "足りない論点を足して、本回答を整えよ。"
+        : "自分の言葉で本回答を書け。";
+    case "answer_empty":
+      return "こたえが空じゃ。右の問いに、自分の言葉で書け。";
+    case "cast_accepted":
+      return "答えを受け付けた！　採点を待て。";
+    case "accept_and_leave":
+      return "回答を受け付けた。じゅんびへ戻る。";
+    case "accept_wait":
+      return event.hasOnAccepted
+        ? "採点を待て。結果を見たら下のボタンでじゅんびに戻れる。"
+        : "採点を待て。急ぎならしれん一覧でも確認できる。";
+    case "flee":
+      return "にげた！　進捗はそのまま。";
+    case "waiting_blocked":
+      return "まだ採点中じゃ。『結果を確認』かしれん一覧で状態を見よ。";
+    case "already_cleared":
+      return "このしれんは CLEAR 済みじゃ。";
+    case "go_zukan":
+      return event.hasRelated
+        ? "関連のずかんへ飛ぶぞ…"
+        : `ずかん（${event.zukanHref}）で同タグのつまずきを見られるぞ。`;
+    case "micro_step_cleared":
+      return "観点は通した！　次は畳んで2文思い出してみよ。";
+    case "poll_start":
+      return "結果を覗きにいったぞ…";
+    case "poll_still_waiting":
+      return "まだ採点中じゃ。";
+    case "retry_grading_start":
+      return "再採点を頼んだぞ…";
+    case "retry_grading_failed":
+      return "再採点を始められなかった。じゅんびで採点 CLI を確認せよ。";
+    case "retry_grading_started":
+      return "採点を再開した。結果を待て。";
+    case "close_to_recall":
+      return "正しい仕組みを2文で思い出してから本回答へ。";
+    case "park_start":
+      return "あとまわしにするぞ…";
+    case "park_done":
+      return "あとまわしにした。材料はきょうのしょに残る。";
+    case "park_failed":
+      return "あとまわしにできなかった。状態が変わっておる。";
+    case "dismiss_start":
+      return "悪問として閉じるぞ…";
+    case "dismiss_done":
+      return "閉じた。しれん一覧へ戻る。";
+    case "dismiss_failed":
+      return "閉じられなかった。すでに提出済みか、状態が変わっておる。";
+    case "back_to_debrief":
+      return "デブリーフにもどった。準備ができたらミニチェックを再開せよ。";
+    case "cancel_answer":
+      return "提出をやめた。コマンドを選びなおせ。";
+  }
+}
+
 /** ◆ きょうの任務との関わり（デブリーフ末尾。今日の DailyTaskMap にこの gate が紐づいていれば出す） */
 function TaskLinkNote({ taskLinks }: { taskLinks: GateTaskLink[] }) {
   return (
@@ -374,16 +492,20 @@ export function AtlasBattle({
   );
   const [cmd, setCmd] = useState<"answer" | "hint" | "zukan" | "run">("answer");
   const [narrator, setNarrator] = useState(() => {
-    if (initialVerdict === "pass") {
-      return "CLEAR！　つまずきはしずまった。ちずがあかるくなり、ずかんへ記録されるぞ。";
+    if (
+      initialVerdict === "pass" ||
+      initialVerdict === "retry" ||
+      initialVerdict === "grading_failed"
+    ) {
+      const weakCount = initialDebrief?.weakAspects?.length ?? 0;
+      return narratorFor({
+        kind: "verdict",
+        verdict: initialVerdict,
+        weakCount,
+        leftoverOnPass: initialVerdict === "pass" ? weakCount : 0,
+      });
     }
-    if (initialVerdict === "grading_failed") {
-      return "採点が途中で止まった（保留）。じゅんびで採点 CLI を確認し、『再採点する』を押すのじゃ。";
-    }
-    if (initialVerdict === "retry") {
-      return "しかし！　まだあかりが足りぬ。デブリーフを読んだら、いきなり全文ではなく『まず1観点を言い直す』のじゃ。";
-    }
-    return "まものが口をひらいた！　右のセリフの問いにこたえよ。対話で練るなら下のじゅもん、すぐ書くなら『こたえる』（どちらも同じ受理の道じゃ）。";
+    return "まものが口をひらいた！　右のセリフの問いにこたえよ。対話で練るなら下のじゅもん、すぐ書くなら『こたえる』。";
   });
   const [answer, setAnswer] = useState("");
   const [anim, setAnim] = useState<"appear" | "idle" | "hit" | "defeat">(
@@ -449,9 +571,7 @@ export function AtlasBattle({
       }
       if (tries >= 40) {
         if (!cancelled) {
-          setNarrator(
-            "採点がまだ戻ってこないぞ。しれん一覧で状態を見るか、しばらくして『結果を確認』を押すのじゃ。",
-          );
+          setNarrator(narratorFor({ kind: "poll_timeout" }));
         }
         return;
       }
@@ -486,28 +606,18 @@ export function AtlasBattle({
     const weakCount = d?.weakAspects?.length ?? 0;
     const leftoverOnPass = v === "pass" ? (d?.weakAspects?.length ?? 0) : 0;
     setNarrator(
-      v === "pass"
-        ? leftoverOnPass > 0
-          ? "CLEAR！　ただし薄い論点が残っておる。『あとひと押し』を見て種を拾え。ずかんも見ておけ。"
-          : "CLEAR！　つまずきはしずまった。ずかんで記録を見返せるぞ。"
-        : v === "grading_failed"
-          ? "採点が途中で止まった（保留）。認証切れなら CLI にログインし直し、『再採点する』を押せ。"
-          : weakCount > 0
-            ? "しかし！　まだあかりが足りぬ。デブリーフを読んだら『まず1観点を言い直す』で筋肉をつけよ。いきなり全文はきついぞ。"
-            : "しかし！　まだあかりが足りぬ。下のデブリーフを読んでから答え直せ。",
+      narratorFor({ kind: "verdict", verdict: v, weakCount, leftoverOnPass }),
     );
   }
 
   function startMicro() {
     if (!hasMicro) {
       setPhase("recall");
-      setNarrator("デブリーフを畳む。正しい仕組みを2文で思い出してみよ。");
+      setNarrator(narratorFor({ kind: "start_recall" }));
       return;
     }
     setPhase("micro");
-    setNarrator(
-      "ミニチェックじゃ。正しい仕組みは隠す。弱い観点を1つずつ、自分の言葉で言い直せ。通した文は本回答の下書きに残るぞ。",
-    );
+    setNarrator(narratorFor({ kind: "start_micro" }));
   }
 
   function goToAnswer(extra?: string, seedOverride?: string) {
@@ -518,22 +628,18 @@ export function AtlasBattle({
       .join("\n\n");
     if (merged) setAnswer(merged);
     setPhase("answer");
-    setNarrator(
-      merged
-        ? "ミニ／思い出しの種が下書きに入った。足りない論点を足して、本回答を整えよ。"
-        : "準備できたぞ。右の問いに、自分の言葉で本回答を書け。",
-    );
+    setNarrator(narratorFor({ kind: "go_answer", hasMerged: !!merged }));
   }
 
   async function cast() {
     if (!answer.trim()) {
       setPhase("answer");
-      setNarrator("じゅもんにはことばが要るぞ。右の問いに、自分の言葉でこたえよ。");
+      setNarrator(narratorFor({ kind: "answer_empty" }));
       return;
     }
 
     setPhase("casting");
-    setNarrator("答えを受け付けた！　裁きは別の座で進む——しばらく待て。");
+    setNarrator(narratorFor({ kind: "cast_accepted" }));
     setAnim("hit");
     setCanResubmit(false);
     setDebrief(null);
@@ -553,7 +659,7 @@ export function AtlasBattle({
     if (result === "empty") {
       setPhase("answer");
       setAnim("idle");
-      setNarrator("じゅもんにはことばが要るぞ。右の問いに、自分の言葉でこたえよ。");
+      setNarrator(narratorFor({ kind: "answer_empty" }));
       return;
     }
 
@@ -578,9 +684,7 @@ export function AtlasBattle({
       if (onAccepted && autoLeaveOnAccept && result !== "grading_failed") {
         setAnim("idle");
         setPhase("waiting");
-        setNarrator(
-          "回答は受け付けた！　合否の詳細はあとで——じゅんびの次の手へ戻るぞ。",
-        );
+        setNarrator(narratorFor({ kind: "accept_and_leave" }));
         window.setTimeout(() => {
           onAccepted();
         }, 1100);
@@ -612,19 +716,13 @@ export function AtlasBattle({
     setAnim("idle");
     setPhase("waiting");
     if (onAccepted && autoLeaveOnAccept) {
-      setNarrator(
-        "回答は受け付けた！　合否はあとでよい——じゅんびの次の手へ戻るぞ。",
-      );
+      setNarrator(narratorFor({ kind: "accept_and_leave" }));
       window.setTimeout(() => {
         onAccepted();
       }, 1100);
       return;
     }
-    setNarrator(
-      onAccepted
-        ? "回答は受け付けた！　採点が戻るまで待て。結果を見たら下のボタンでじゅんびに戻れるぞ。"
-        : "回答は受け付けた！　いま採点の旅の途中じゃ。この画面で結果が戻るのを待て。急ぎならしれん一覧でも確認できるぞ。",
-    );
+    setNarrator(narratorFor({ kind: "accept_wait", hasOnAccepted: !!onAccepted }));
   }
 
   const animClass =
@@ -783,19 +881,17 @@ export function AtlasBattle({
                 onClick={() => {
                   setCmd(k);
                   if (k === "run") {
-                    setNarrator("にげた！　ゲートの進捗はそのまま。");
+                    setNarrator(narratorFor({ kind: "flee" }));
                     setTimeout(() => onFlee?.(), 500);
                     return;
                   }
                   if (k === "answer") {
                     if (phase === "waiting") {
-                      setNarrator(
-                        "いま採点の旅の途中じゃ。結果が戻るまで待つんじゃ。下の『結果を確認』もしれん一覧も使えるぞ。",
-                      );
+                      setNarrator(narratorFor({ kind: "waiting_blocked" }));
                       return;
                     }
                     if (verdict === "pass") {
-                      setNarrator("このしれんは CLEAR 済みじゃ。ちずかずかんへ進むのじゃ。");
+                      setNarrator(narratorFor({ kind: "already_cleared" }));
                       return;
                     }
                     if (verdict === "retry" && hasMicro && !microDone) {
@@ -816,9 +912,11 @@ export function AtlasBattle({
                   }
                   if (k === "zukan") {
                     setNarrator(
-                      relatedMisconceptionId
-                        ? "関連のずかん詳細へ飛ぶぞ…"
-                        : `ずかん（${zukanHref}）で同タグのつまずきを見られるぞ。`,
+                      narratorFor({
+                        kind: "go_zukan",
+                        hasRelated: !!relatedMisconceptionId,
+                        zukanHref,
+                      }),
                     );
                     setTimeout(() => {
                       if (onGoZukan) onGoZukan();
@@ -870,9 +968,7 @@ export function AtlasBattle({
                   setMicroDone(true);
                   setMicroSeed(seedDraft);
                   setPhase("recall");
-                  setNarrator(
-                    "観点は通した！　通した文は下書きに残した。次は畳んで2文思い出してみよ。",
-                  );
+                  setNarrator(narratorFor({ kind: "micro_step_cleared" }));
                 }}
                 onSkipToAnswer={(seedDraft) => {
                   setMicroDone(true);
@@ -907,7 +1003,7 @@ export function AtlasBattle({
                   className={onAccepted ? "dq-btn dq-btn-ghost" : "dq-btn"}
                   onClick={() => {
                     void (async () => {
-                      setNarrator("結果を覗きにいったぞ…");
+                      setNarrator(narratorFor({ kind: "poll_start" }));
                       const raw = (await onPollVerdict?.()) ?? "pending";
                       const { verdict: v, debrief: d, nextReviewLabel: nrl } =
                         normalizePoll(raw);
@@ -919,9 +1015,7 @@ export function AtlasBattle({
                       ) {
                         applyVerdict(v, d ?? null);
                       } else {
-                        setNarrator(
-                          "まだ採点の旅の途中じゃ。そのまま待つか、しれん一覧で状態を見るのじゃ。",
-                        );
+                        setNarrator(narratorFor({ kind: "poll_still_waiting" }));
                       }
                     })();
                   }}
@@ -951,17 +1045,17 @@ export function AtlasBattle({
                       className="dq-btn"
                       onClick={() => {
                         void (async () => {
-                          setNarrator("再採点を頼んだぞ…");
+                          setNarrator(narratorFor({ kind: "retry_grading_start" }));
                           setPhase("waiting");
                           const r = (await onRetryGrading?.()) ?? "busy";
                           if (r !== "pending") {
                             setPhase("result");
                             setNarrator(
-                              "再採点を始められなかった。じゅんびで採点 CLI を確認せよ。",
+                              narratorFor({ kind: "retry_grading_failed" }),
                             );
                           } else {
                             setNarrator(
-                              "再採点の旅が始まった。結果が戻るまで待て。",
+                              narratorFor({ kind: "retry_grading_started" }),
                             );
                           }
                         })();
@@ -985,9 +1079,7 @@ export function AtlasBattle({
                     className="dq-btn"
                     onClick={() => {
                       setPhase("recall");
-                      setNarrator(
-                        "デブリーフを畳む。正しい仕組みを2文で思い出してから本回答へ。",
-                      );
+                      setNarrator(narratorFor({ kind: "close_to_recall" }));
                     }}
                   >
                     閉じて思い出す
@@ -1060,17 +1152,13 @@ export function AtlasBattle({
                     className="dq-btn dq-btn-ghost"
                     onClick={() => {
                       void (async () => {
-                        setNarrator("あとまわしにするぞ…");
+                        setNarrator(narratorFor({ kind: "park_start" }));
                         const r = await onPark();
                         if (r === "ok") {
-                          setNarrator(
-                            "あとまわしにした。pending から外れた。材料はきょうのしょに残る。",
-                          );
+                          setNarrator(narratorFor({ kind: "park_done" }));
                           window.setTimeout(() => onGoGates?.(), 500);
                         } else {
-                          setNarrator(
-                            "あとまわしにできなかった。状態が変わっておるぞ。",
-                          );
+                          setNarrator(narratorFor({ kind: "park_failed" }));
                         }
                       })();
                     }}
@@ -1084,15 +1172,13 @@ export function AtlasBattle({
                     className="dq-btn dq-btn-ghost"
                     onClick={() => {
                       void (async () => {
-                        setNarrator("悪問として閉じるぞ…");
+                        setNarrator(narratorFor({ kind: "dismiss_start" }));
                         const r = await onDismissBadQuestion();
                         if (r === "ok") {
-                          setNarrator("閉じた。しれん一覧へ戻るのじゃ。");
+                          setNarrator(narratorFor({ kind: "dismiss_done" }));
                           window.setTimeout(() => onGoGates?.(), 500);
                         } else {
-                          setNarrator(
-                            "閉じられなかった。すでに提出済みか、状態が変わっておるぞ。",
-                          );
+                          setNarrator(narratorFor({ kind: "dismiss_failed" }));
                         }
                       })();
                     }}
@@ -1110,7 +1196,7 @@ export function AtlasBattle({
                   className="dq-btn dq-btn-ghost"
                   onClick={() => {
                     setPhase("result");
-                    setNarrator("デブリーフにもどった。準備ができたらミニチェックを再開せよ。");
+                    setNarrator(narratorFor({ kind: "back_to_debrief" }));
                   }}
                 >
                   デブリーフにもどる
@@ -1145,7 +1231,7 @@ export function AtlasBattle({
                     className="dq-btn dq-btn-ghost"
                     onClick={() => {
                       setPhase(verdict === "retry" ? "result" : "idle");
-                      setNarrator("提出をやめた。コマンドを選びなおすのじゃ。");
+                      setNarrator(narratorFor({ kind: "cancel_answer" }));
                     }}
                   >
                     やめる
