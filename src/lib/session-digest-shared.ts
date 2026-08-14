@@ -63,6 +63,29 @@ export function repoKeysMatch(a: string, b: string): boolean {
 
 type ToolUsage = { name?: string };
 
+/** セッションの実測時間がこれ未満なら、ターン数に関わらずログの異常値とみなす。
+ *  複数ターンの人間の対話が数秒未満に収まるのは物理的にありえないため */
+const IMPLAUSIBLE_DURATION_MS = 10 * 1000;
+
+/**
+ * 実測時間が {@link IMPLAUSIBLE_DURATION_MS} 未満（例: 実測1ミリ秒）のセッションは、
+ * `turns` の値に関わらず収集側のログ異常値とみなす。実データで `sessionId
+ * "privacy-probe-session"`（診断用と思われる疑似レコード）が `turns=2` かつ
+ * 実測1ミリ秒で `isExternalSession` の cron 判定をすり抜けて表示され、さらに
+ * `buildSessionDigest` の時間窓アトリビューションで「最も特定的な窓」として
+ * 実在の18分セッションより優先され、正当な学びの帰属を奪う実害が確認された。
+ * このため `isExternalSession`（cron/じゅもん判定）とは別軸の独立した判定として、
+ * `buildSessionDigest` が集計対象・時間窓判定の母集団の両方から完全に除く。
+ */
+export function isImplausibleSession(run: {
+  startedAt?: Date;
+  endedAt?: Date | null;
+}): boolean {
+  if (!run.startedAt || !run.endedAt) return false;
+  const durationMs = run.endedAt.getTime() - run.startedAt.getTime();
+  return durationMs < IMPLAUSIBLE_DURATION_MS;
+}
+
 /**
  * v1ヒューリスティック（design doc「外部セッションの定義」）:
  * - `turns` が極端に少なく（< 2）かつセッション時間が5分未満のセッションは launchd
@@ -83,11 +106,12 @@ export function isExternalSession(run: {
   startedAt?: Date;
   endedAt?: Date | null;
 }): boolean {
+  const durationMs =
+    run.startedAt && run.endedAt
+      ? run.endedAt.getTime() - run.startedAt.getTime()
+      : null;
+
   if (typeof run.turns === "number" && run.turns < 2) {
-    const durationMs =
-      run.startedAt && run.endedAt
-        ? run.endedAt.getTime() - run.startedAt.getTime()
-        : null;
     // duration が不明（進行中セッション等）な場合は「短い」と決めつけず除外しない。
     // 5分未満かつ低ターン数のみを cron 定期便相当として除外する
     if (durationMs !== null && durationMs < 5 * 60 * 1000) return false;
@@ -147,8 +171,8 @@ function newGroup(repo: string, regionByRepo: Record<string, SystemKind | null>)
 export function buildSessionDigest(input: BuildSessionDigestInput): SessionDigest {
   const {
     dateKey,
-    harnessRuns,
-    allRuns,
+    harnessRuns: rawHarnessRuns,
+    allRuns: rawAllRuns,
     captures,
     gatesAnswered,
     devEvents,
@@ -156,6 +180,12 @@ export function buildSessionDigest(input: BuildSessionDigestInput): SessionDiges
     requirementLinks,
     regionByRepo,
   } = input;
+
+  // 異常値セッション（実測時間が極端に短い等、収集ログの不整合）は集計対象からも
+  // 時間窓判定の母集団からも完全に除く。isExternalSession の cron 除外セッションとは
+  // 異なり、「最も特定的な窓」の候補にすらなってはいけないデータのため
+  const harnessRuns = rawHarnessRuns.filter((r) => !isImplausibleSession(r));
+  const allRuns = rawAllRuns?.filter((r) => !isImplausibleSession(r));
 
   const resolvedRuns = harnessRuns.filter(
     (r): r is HarnessRunLike & { repo: string } => Boolean(r.repo),
@@ -234,6 +264,14 @@ export function buildSessionDigest(input: BuildSessionDigestInput): SessionDiges
 }
 
 /**
+ * セッション終了後、学び等の反映がこの猶予時間内に起きた場合はそのセッションの
+ * 窓内とみなす。実データで「セッション終了3分後に Capture が発生し無帰属になる」
+ * 事象が確認されたための緩和（学びの記録は事後処理のため、セッション終了と
+ * 完全に同時にはならない）
+ */
+const ATTRIBUTION_GRACE_MS = 10 * 60 * 1000;
+
+/**
  * repo を持たない Capture/GoalLink/RequirementLink を、時間窓が最も短い（＝最も特定的な）
  * セッションへ単一帰属させる。`runs` には除外セッションも含める——除外セッションが勝った時刻は
  * 「より遠い外部セッションへ付け替える」のではなく、どこにも帰属させないのが正しい挙動のため。
@@ -251,12 +289,20 @@ function attributeByTimeWindow(
     let bestDuration = Infinity;
     for (const run of runs) {
       // Window check: timestamp must be >= startedAt and either endedAt is null (open session)
-      // or timestamp <= endedAt (closed session)
+      // or timestamp <= endedAt + ATTRIBUTION_GRACE_MS (closed session, with grace period)
       if (timestamp < run.startedAt) continue;
-      if (run.endedAt && timestamp > run.endedAt) continue;
+      if (
+        run.endedAt &&
+        timestamp.getTime() > run.endedAt.getTime() + ATTRIBUTION_GRACE_MS
+      ) {
+        continue;
+      }
 
       // Calculate duration: Infinity for open sessions (endedAt === null),
-      // so closed sessions (bounded duration) win tie-breaks
+      // so closed sessions (bounded duration) win tie-breaks. Duration is the
+      // session's ACTUAL span, not grace-extended, so a short session still
+      // wins the tie-break over a longer session whose grace period also
+      // happens to cover the same timestamp.
       const duration = run.endedAt
         ? run.endedAt.getTime() - run.startedAt.getTime()
         : Infinity;

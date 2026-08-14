@@ -29,10 +29,21 @@ export function AtlasSessionDigestDoor({ digest }: { digest: SessionDigest }) {
 
   const captureTotal = digest.byRepo.reduce((n, r) => n + r.captureCount, 0);
   const gateTotal = digest.byRepo.reduce((n, r) => n + r.gateAnsweredCount, 0);
+  const commitTotal = digest.byRepo.reduce((n, r) => n + r.commitCount, 0);
+  const goalLinkTotal = digest.byRepo.reduce((n, r) => n + r.goalLinkCount, 0);
+  const requirementLinkTotal = digest.byRepo.reduce(
+    (n, r) => n + r.requirementLinkCount,
+    0,
+  );
 
   const summaryParts: string[] = [];
   if (captureTotal > 0) summaryParts.push(`学び +${captureTotal}`);
   if (gateTotal > 0) summaryParts.push(`しれん回答 +${gateTotal}`);
+  if (commitTotal > 0) summaryParts.push(`commit +${commitTotal}`);
+  if (goalLinkTotal > 0) summaryParts.push(`目標紐付け +${goalLinkTotal}`);
+  if (requirementLinkTotal > 0) {
+    summaryParts.push(`要件紐付け +${requirementLinkTotal}`);
+  }
 
   return (
     <div className="atlas-session-digest-door">
@@ -52,6 +63,11 @@ export function AtlasSessionDigestDoor({ digest }: { digest: SessionDigest }) {
                 {r.captureCount > 0 ? `・学び+${r.captureCount}` : ""}
                 {r.gateAnsweredCount > 0
                   ? `・しれん回答+${r.gateAnsweredCount}`
+                  : ""}
+                {r.commitCount > 0 ? `・commit+${r.commitCount}` : ""}
+                {r.goalLinkCount > 0 ? `・目標紐付け+${r.goalLinkCount}` : ""}
+                {r.requirementLinkCount > 0
+                  ? `・要件紐付け+${r.requirementLinkCount}`
                   : ""}
               </p>
               {r.sessions.length > 0 ? (
@@ -117,6 +133,7 @@ export function AtlasSessionDigestStrip({
             <span className="block text-[10px] text-[#c9c3a0]">
               {r.sessionCount}セッション
               {r.captureCount > 0 ? `・学び+${r.captureCount}` : ""}
+              {r.commitCount > 0 ? `・commit+${r.commitCount}` : ""}
             </span>
           </Link>
         ))}

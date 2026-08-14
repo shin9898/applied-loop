@@ -4,6 +4,7 @@ import {
   normalizeRepoKey,
   repoKeysMatch,
   isExternalSession,
+  isImplausibleSession,
   buildSessionDigest,
 } from "./session-digest-shared";
 
@@ -122,6 +123,53 @@ describe("isExternalSession", () => {
     assert.ok(isExternalSession({ repo: "triple-list", tools: null, turns: 5 }));
     assert.ok(isExternalSession({ repo: "triple-list", tools: null, turns: 2 }));
     assert.ok(isExternalSession({ repo: "triple-list", tools: null }));
+  });
+
+  it("keeps multi-turn sessions with a plausible short-but-real duration (>=10s)", () => {
+    assert.ok(
+      isExternalSession({
+        repo: "triple-list",
+        tools: null,
+        turns: 3,
+      }),
+    );
+  });
+});
+
+describe("isImplausibleSession", () => {
+  // 実測: turns=2 でも実長1ミリ秒のセッション（sessionId "privacy-probe-session"
+  // という診断用と思われる疑似レコード）が isExternalSession の cron 判定
+  // (turns<2) をすり抜けて表示され、さらに buildSessionDigest の時間窓
+  // アトリビューションで「最も特定的な窓」として実在の18分セッションより優先され、
+  // 正当な Capture の帰属を奪う実害が確認された。ターン数に関わらず、実測時間が
+  // 極端に短いセッションは物理的にありえない収集ログの異常値として、集計対象からも
+  // 時間窓判定の母集団からも完全に除く（isExternalSession の cron 判定とは別軸）
+  it("flags sessions shorter than the implausible-duration floor regardless of turns", () => {
+    assert.ok(
+      isImplausibleSession({
+        startedAt: new Date("2026-08-03T01:23:37.000Z"),
+        endedAt: new Date("2026-08-03T01:23:37.001Z"), // 1ミリ秒後
+      }),
+    );
+  });
+
+  it("does not flag a plausible short-but-real duration (>=10s)", () => {
+    assert.ok(
+      !isImplausibleSession({
+        startedAt: new Date("2026-08-03T01:23:37.000Z"),
+        endedAt: new Date("2026-08-03T01:23:47.000Z"), // 10秒後
+      }),
+    );
+  });
+
+  it("does not flag a session with unknown duration (open/in-progress, or missing timestamps)", () => {
+    assert.ok(
+      !isImplausibleSession({
+        startedAt: new Date("2026-08-03T01:23:37.000Z"),
+        endedAt: null,
+      }),
+    );
+    assert.ok(!isImplausibleSession({}));
   });
 });
 
@@ -451,11 +499,108 @@ describe("buildSessionDigest — time-window attribution", () => {
       regionByRepo: {},
     });
 
-    assert.equal(digest.byRepo[0].captureCount, 2);
+    // 「1ms 遅い」も猶予時間内（Fix: 学びの反映ラグ許容）のため3件とも帰属する
+    assert.equal(digest.byRepo[0].captureCount, 3);
     assert.deepEqual(digest.byRepo[0].captureSamples, [
       "開始ちょうど",
       "終了ちょうど",
+      "1ms 遅い",
     ]);
+  });
+
+  it("attributes a capture within the post-session grace period (learning often logs a few minutes after session end)", () => {
+    // 実データで実際に起きた事象: セッション終了3分後に Capture が発生し、
+    // 猶予なしの窓では無帰属になっていた
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-03",
+      harnessRuns: [
+        {
+          sessionId: "s1",
+          repo: "workbench",
+          startedAt: new Date("2026-08-03T01:23:37Z"),
+          endedAt: new Date("2026-08-03T01:25:00Z"),
+          tools: null,
+        },
+      ],
+      captures: [
+        { title: "猶予内の学び", capturedAt: new Date("2026-08-03T01:28:00Z") }, // 3分後
+      ],
+      gatesAnswered: [],
+      devEvents: [],
+      goalLinks: [],
+      requirementLinks: [],
+      regionByRepo: {},
+    });
+
+    assert.equal(digest.byRepo[0].captureCount, 1);
+  });
+
+  it("does not attribute a capture beyond the post-session grace period", () => {
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-13",
+      harnessRuns: [
+        {
+          sessionId: "s1",
+          repo: "applied-loop",
+          startedAt: new Date("2026-08-13T01:00:00Z"),
+          endedAt: new Date("2026-08-13T02:00:00Z"),
+          tools: null,
+        },
+      ],
+      captures: [
+        {
+          title: "猶予を超えた学び",
+          capturedAt: new Date("2026-08-13T02:30:00Z"), // 30分後（猶予10分を超過）
+        },
+      ],
+      gatesAnswered: [],
+      devEvents: [],
+      goalLinks: [],
+      requirementLinks: [],
+      regionByRepo: {},
+    });
+
+    // セッション自体は集計されるが（repoCount=1）、猶予を超えた Capture は帰属しない
+    assert.equal(digest.repoCount, 1);
+    assert.equal(digest.byRepo[0].captureCount, 0);
+  });
+
+  it("still prefers the shorter (more specific) session for the tie-break even within the grace period of a longer one", () => {
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-13",
+      harnessRuns: [
+        {
+          sessionId: "long",
+          repo: "triple-list",
+          startedAt: new Date("2026-08-13T00:00:00Z"),
+          endedAt: new Date("2026-08-13T04:00:00Z"),
+          tools: null,
+        },
+        {
+          sessionId: "short",
+          repo: "applied-loop",
+          startedAt: new Date("2026-08-13T01:00:00Z"),
+          endedAt: new Date("2026-08-13T01:15:00Z"),
+          tools: null,
+        },
+      ],
+      captures: [
+        {
+          title: "短いセッションの猶予内",
+          capturedAt: new Date("2026-08-13T01:20:00Z"), // short 終了5分後、long の窓内でもある
+        },
+      ],
+      gatesAnswered: [],
+      devEvents: [],
+      goalLinks: [],
+      requirementLinks: [],
+      regionByRepo: {},
+    });
+
+    const appliedLoop = digest.byRepo.find((r) => r.repo === "applied-loop")!;
+    const tripleList = digest.byRepo.find((r) => r.repo === "triple-list");
+    assert.equal(appliedLoop.captureCount, 1);
+    assert.equal(tripleList?.captureCount ?? 0, 0);
   });
 
   it("drops (does not reassign) items whose most specific covering session is excluded", () => {
@@ -514,5 +659,50 @@ describe("buildSessionDigest — time-window attribution", () => {
       regionByRepo: {},
     });
     assert.equal(naive.byRepo[0].captureCount, 1);
+  });
+
+  it("an implausibly-short session must not win the tie-break against a real, longer session (実データで確認した回帰)", () => {
+    // 実データ再現: sessionId "privacy-probe-session" という実長1ミリ秒の
+    // 疑似セッションが、実在する18分の外部セッションより「最も特定的」として
+    // tie-break で優先され、正当な Capture が無帰属になっていた。
+    // 実測時間が異常に短いセッションは harnessRuns/allRuns の両方から
+    // 完全に除かれ、tie-break の候補にすら上がらないことを確認する
+    const realSession = {
+      sessionId: "workbench-real",
+      repo: "workbench",
+      startedAt: new Date("2026-08-03T01:06:42Z"),
+      endedAt: new Date("2026-08-03T01:25:13Z"), // 約18分
+      tools: null,
+    };
+    const implausibleSession = {
+      sessionId: "privacy-probe-session",
+      repo: "applied-loop",
+      startedAt: new Date("2026-08-03T01:23:37.951Z"),
+      endedAt: new Date("2026-08-03T01:23:37.952Z"), // 1ミリ秒後
+      tools: null,
+    };
+
+    const digest = buildSessionDigest({
+      dateKey: "2026-08-03",
+      harnessRuns: [realSession, implausibleSession],
+      allRuns: [realSession, implausibleSession],
+      captures: [
+        {
+          title: "コンテキストの再利用率が先週より下がっている",
+          capturedAt: new Date("2026-08-03T01:28:19.263Z"), // 実セッション終了3分後
+        },
+      ],
+      gatesAnswered: [],
+      devEvents: [],
+      goalLinks: [],
+      requirementLinks: [],
+      regionByRepo: {},
+    });
+
+    // 異常値セッションは group を作らない（applied-loop の行が存在しない）
+    assert.ok(!digest.byRepo.some((g) => g.repo === "applied-loop"));
+    // Capture は実在の workbench セッションへ正しく帰属する
+    const workbench = digest.byRepo.find((g) => g.repo === "workbench");
+    assert.equal(workbench?.captureCount, 1);
   });
 });
