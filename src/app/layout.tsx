@@ -1,11 +1,5 @@
 import type { Metadata } from "next";
-import {
-  DotGothic16,
-  Noto_Sans_JP,
-  Press_Start_2P,
-  Shippori_Mincho,
-  Yomogi,
-} from "next/font/google";
+import { DotGothic16, Press_Start_2P, Yomogi } from "next/font/google";
 import "./globals.css";
 import "./atlas-living.css";
 
@@ -20,18 +14,6 @@ const dotGothic = DotGothic16({
   subsets: ["latin"],
   variable: "--font-dotgothic",
   display: "swap",
-});
-
-const notoSans = Noto_Sans_JP({
-  variable: "--font-noto",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
-});
-
-const shippori = Shippori_Mincho({
-  variable: "--font-shippori",
-  subsets: ["latin"],
-  weight: ["400", "700"],
 });
 
 /** にっき本文用の手書き風 */
@@ -57,7 +39,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${notoSans.variable} ${pressStart.variable} ${dotGothic.variable} ${shippori.variable} ${yomogi.variable} h-full antialiased`}
+      className={`${pressStart.variable} ${dotGothic.variable} ${yomogi.variable} h-full antialiased`}
     >
       <body className="atlas-dq flex min-h-full flex-col">{children}</body>
     </html>

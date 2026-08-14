@@ -14,8 +14,8 @@
   --color-ink-secondary: #8a7c66;
   --color-ink-faint: #b8ab90;
 
-  --font-display: var(--font-shippori), "Hiragino Mincho ProN", serif;
-  --font-body: var(--font-noto), "Hiragino Kaku Gothic ProN", sans-serif;
+  --font-display: var(--font-dotgothic), "Hiragino Kaku Gothic ProN", serif;
+  --font-body: var(--font-dotgothic), "Hiragino Kaku Gothic ProN", sans-serif;
 }
 
 body {
