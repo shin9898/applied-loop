@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
+import { AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasShell } from "./atlas-shell";
 
@@ -199,108 +199,104 @@ function FigureToolInsert() {
 
 export function AtlasConceptPromptCache({
   seededCreated,
-  streakDays,
 }: {
   seededCreated: number;
-  streakDays?: number;
 }) {
   return (
-    <AtlasChrome active="/harness" streakDays={streakDays}>
-      <AtlasShell>
-        <AtlasReveal as="section" className="dq-win p-3.5">
-          <div className="mb-3">
-            <Link
-              href="/harness"
-              className="font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a] no-underline"
-            >
-              ← どうぐにもどる
-            </Link>
-          </div>
-          <AtlasPageTitle
-            title="げんり"
-            sub="ハーネス正典モジュール · プロンプトキャッシュ"
-          />
-          <h2 className="m-0 text-[18px] font-normal leading-relaxed text-[#f7f3d9]">
-            プロンプトキャッシュの原理
-          </h2>
-          <p className="mt-2 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-            目的は挙動の理解であり、キャッシュ率の最大化ではない。概念はどのプロジェクトでも共通。直し方と効果確認はリポジトリごとに見る（ADR-0016）。
-          </p>
-        </AtlasReveal>
+    <AtlasShell>
+      <AtlasReveal as="section" className="dq-win p-3.5">
+        <div className="mb-3">
+          <Link
+            href="/harness"
+            className="font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a] no-underline"
+          >
+            ← どうぐにもどる
+          </Link>
+        </div>
+        <AtlasPageTitle
+          title="げんり"
+          sub="ハーネス正典モジュール · プロンプトキャッシュ"
+        />
+        <h2 className="m-0 text-[18px] font-normal leading-relaxed text-[#f7f3d9]">
+          プロンプトキャッシュの原理
+        </h2>
+        <p className="mt-2 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+          目的は挙動の理解であり、キャッシュ率の最大化ではない。概念はどのプロジェクトでも共通。直し方と効果確認はリポジトリごとに見る（ADR-0016）。
+        </p>
+      </AtlasReveal>
 
-        <AtlasReveal as="section" delayIndex={1} className="dq-win p-3.5">
-          <h2 className="dq-win-title">しゅっぱつてん</h2>
-          <p className="m-0 text-[14px] leading-relaxed text-[#c9c3a0]">
-            「続けて」と送っただけでも、システム・ツール定義・ルール・会話履歴・コマンド結果までまとめてモデルに送ることがある。短い指示だから安い、とは限らない。
-          </p>
-        </AtlasReveal>
+      <AtlasReveal as="section" delayIndex={1} className="dq-win p-3.5">
+        <h2 className="dq-win-title">しゅっぱつてん</h2>
+        <p className="m-0 text-[14px] leading-relaxed text-[#c9c3a0]">
+          「続けて」と送っただけでも、システム・ツール定義・ルール・会話履歴・コマンド結果までまとめてモデルに送ることがある。短い指示だから安い、とは限らない。
+        </p>
+      </AtlasReveal>
 
-        <AtlasReveal as="section" delayIndex={2} className="dq-win p-3.5">
-          <h2 className="dq-win-title">さいりようの基本</h2>
-          <FigurePrefixReuse />
-          <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-            前回と同じ先頭部分があるなら、そこはゼロから計算し直さず、増えた末尾だけ処理する。AI が会話を覚えている話ではなく、同じ入力並びの計算結果の再利用じゃ。
-          </p>
-        </AtlasReveal>
+      <AtlasReveal as="section" delayIndex={2} className="dq-win p-3.5">
+        <h2 className="dq-win-title">さいりようの基本</h2>
+        <FigurePrefixReuse />
+        <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+          前回と同じ先頭部分があるなら、そこはゼロから計算し直さず、増えた末尾だけ処理する。AI が会話を覚えている話ではなく、同じ入力並びの計算結果の再利用じゃ。
+        </p>
+      </AtlasReveal>
 
-        <AtlasReveal as="section" delayIndex={3} className="dq-win p-3.5">
-          <h2 className="dq-win-title">「いみ」ではなく「おなじ並び」</h2>
-          <FigureMidChange />
-          <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-            変わらない情報は前に、変わる情報は後ろに置くのが基本。途中をいじると、その後ろも別入力扱いになりやすい。
-          </p>
-        </AtlasReveal>
+      <AtlasReveal as="section" delayIndex={3} className="dq-win p-3.5">
+        <h2 className="dq-win-title">「いみ」ではなく「おなじ並び」</h2>
+        <FigureMidChange />
+        <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+          変わらない情報は前に、変わる情報は後ろに置くのが基本。途中をいじると、その後ろも別入力扱いになりやすい。
+        </p>
+      </AtlasReveal>
 
-        <AtlasReveal as="section" delayIndex={4} className="dq-win p-3.5">
-          <h2 className="dq-win-title">ツールていぎの位置</h2>
-          <FigureToolInsert />
-          <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-            エージェントのツール定義は履歴より前に置かれることが多い。1つ足しただけでも、後ろの長い履歴まで再処理の対象になり得る。
-          </p>
-        </AtlasReveal>
+      <AtlasReveal as="section" delayIndex={4} className="dq-win p-3.5">
+        <h2 className="dq-win-title">ツールていぎの位置</h2>
+        <FigureToolInsert />
+        <p className="mt-3 mb-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+          エージェントのツール定義は履歴より前に置かれることが多い。1つ足しただけでも、後ろの長い履歴まで再処理の対象になり得る。
+        </p>
+      </AtlasReveal>
 
-        <AtlasReveal as="section" delayIndex={5} className="dq-win p-3.5">
-          <h2 className="dq-win-title">TTL と履歴さくじょ</h2>
-          <ul className="m-0 list-disc space-y-2 pl-5 text-[13px] leading-relaxed text-[#c9c3a0]">
-            <li>
-              入力が同じでも、待ち時間が長いと再利用できなくなることがある（失効時間はプロバイダ・プランで変わるため、数値は正典にしない）。
-            </li>
-            <li>
-              古い履歴を削るとトークンは減っても、並びが変わって再計算コストが増えたり、判断の根拠を失ったりする。
-            </li>
-            <li>
-              見るべきなのは「どれだけ短くなったか」だけでなく、「どこから再計算か」「必要な文脈まで失っていないか」。
-            </li>
-          </ul>
-        </AtlasReveal>
+      <AtlasReveal as="section" delayIndex={5} className="dq-win p-3.5">
+        <h2 className="dq-win-title">TTL と履歴さくじょ</h2>
+        <ul className="m-0 list-disc space-y-2 pl-5 text-[13px] leading-relaxed text-[#c9c3a0]">
+          <li>
+            入力が同じでも、待ち時間が長いと再利用できなくなることがある（失効時間はプロバイダ・プランで変わるため、数値は正典にしない）。
+          </li>
+          <li>
+            古い履歴を削るとトークンは減っても、並びが変わって再計算コストが増えたり、判断の根拠を失ったりする。
+          </li>
+          <li>
+            見るべきなのは「どれだけ短くなったか」だけでなく、「どこから再計算か」「必要な文脈まで失っていないか」。
+          </li>
+        </ul>
+      </AtlasReveal>
 
-        <AtlasReveal as="section" delayIndex={6} className="dq-win p-3.5">
-          <h2 className="dq-win-title">つぎのいっぽ</h2>
-          <p className="m-0 text-[13px] leading-relaxed text-[#c9c3a0]">
-            観測で repo 別の再利用率を確認し、理解チェック（module）で自分の言葉で説明する。ハーネスを直したら、適用記録の対象にリポジトリ名を入れて再観測するのじゃ。
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link href="/harness" className="dq-btn !px-3 !py-2 text-[8px]">
-              かんそくをみる
-            </Link>
-            <Link href="/gates" className="dq-btn !px-3 !py-2 text-[8px]">
-              しれんへ
-              {seededCreated > 0 ? ` (新規 ${seededCreated})` : ""}
-            </Link>
-          </div>
-          <p className="mt-3 mb-0 text-[11px] text-[#9a9470]">
-            一次情報:{" "}
-            <a
-              className="text-[#9ec0ff] underline"
-              href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Anthropic Prompt caching
-            </a>
-          </p>
-        </AtlasReveal>
-      </AtlasShell>
-    </AtlasChrome>
+      <AtlasReveal as="section" delayIndex={6} className="dq-win p-3.5">
+        <h2 className="dq-win-title">つぎのいっぽ</h2>
+        <p className="m-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+          観測で repo 別の再利用率を確認し、理解チェック（module）で自分の言葉で説明する。ハーネスを直したら、適用記録の対象にリポジトリ名を入れて再観測するのじゃ。
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link href="/harness" className="dq-btn !px-3 !py-2 text-[8px]">
+            かんそくをみる
+          </Link>
+          <Link href="/gates" className="dq-btn !px-3 !py-2 text-[8px]">
+            しれんへ
+            {seededCreated > 0 ? ` (新規 ${seededCreated})` : ""}
+          </Link>
+        </div>
+        <p className="mt-3 mb-0 text-[11px] text-[#9a9470]">
+          一次情報:{" "}
+          <a
+            className="text-[#9ec0ff] underline"
+            href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Anthropic Prompt caching
+          </a>
+        </p>
+      </AtlasReveal>
+    </AtlasShell>
   );
 }

@@ -7,7 +7,6 @@ import {
   weeklyEvidenceCounts,
 } from "@/lib/goal";
 import { AtlasGoalDetail } from "@/components/living-atlas/atlas-goal-detail";
-import { loadStreakDays } from "@/components/living-atlas/load-atlas-data";
 import { getTerminalWsToken } from "@/lib/terminal-token";
 
 export const dynamic = "force-dynamic";
@@ -30,10 +29,9 @@ export default async function GoalDetailPage({ params }: Props) {
   const goal = await prisma.goal.findUnique({ where: { id } });
   if (!goal) notFound();
 
-  const [counts, timeline, streakDays] = await Promise.all([
+  const [counts, timeline] = await Promise.all([
     weeklyEvidenceCounts(goal.id),
     evidenceTimeline(goal.id, 20),
-    loadStreakDays(),
   ]);
   const wsToken = getTerminalWsToken();
   const evidenceCount =
@@ -53,7 +51,6 @@ export default async function GoalDetailPage({ params }: Props) {
 
   return (
     <AtlasGoalDetail
-      streakDays={streakDays}
       wsToken={wsToken}
       evidenceCount={evidenceCount}
       evidenceTarget={GOAL_EVIDENCE_TARGET}

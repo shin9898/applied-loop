@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { AtlasDailyTextbook } from "@/components/living-atlas/atlas-daily-textbook";
-import { loadStreakDays } from "@/components/living-atlas/load-atlas-data";
 import {
   dayRangeFromDateKey,
   loadDailyTextbook,
@@ -19,10 +18,9 @@ export default async function RetroDatePage({
   const { dateKey } = await params;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) notFound();
 
-  const [textbook, streakDays, materialCount, sessionDigest] =
+  const [textbook, materialCount, sessionDigest] =
     await Promise.all([
       loadDailyTextbook(dateKey),
-      loadStreakDays(),
       (() => {
         const { start, end } = dayRangeFromDateKey(dateKey);
         return prisma.devEvent.count({
@@ -36,7 +34,6 @@ export default async function RetroDatePage({
     <AtlasDailyTextbook
       dateKey={dateKey}
       textbook={textbook}
-      streakDays={streakDays}
       wsToken={getTerminalWsToken()}
       materialCountToday={materialCount}
       sessionDigest={sessionDigest}

@@ -1,8 +1,7 @@
 /** Barrel — import from `@/components/living-atlas` */
 export { AtlasShell } from "./atlas-shell";
 export { AtlasBrandMark } from "./atlas-brand-mark";
-export { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
-export type { AtlasChromeActive } from "./atlas-chrome";
+export { AtlasPageTitle } from "./atlas-chrome";
 export {
   AtlasSurfaceIcon,
   SURFACE_COLORS,
@@ -12,6 +11,7 @@ export {
 export type { AtlasSurfaceId } from "./atlas-surface-icons";
 export { AtlasCommandDock } from "./atlas-command-dock";
 export { AtlasReveal } from "./atlas-reveal";
+export { AtlasRouteLoading } from "./atlas-route-loading";
 export { AtlasWorldMap } from "./atlas-world-map";
 export { AtlasDashboard } from "./atlas-dashboard";
 export type { AtlasDashboardProps } from "./atlas-dashboard";

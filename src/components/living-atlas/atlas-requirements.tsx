@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { systemLabel, type SystemKind } from "@/lib/atlas-taxonomy";
 import { AtlasShell } from "./atlas-shell";
-import { AtlasChrome } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { PixelSprite } from "./atlas-pixel";
@@ -175,11 +174,9 @@ function Slip({ item }: { item: RequirementItem }) {
 /** /requirements — ぼうけんしゃギルドの依頼掲示板（つぎのしれん候補／理解確認ずみ） */
 export function AtlasRequirements({
   items,
-  streakDays,
   wsToken = null,
 }: {
   items: RequirementItem[];
-  streakDays?: number;
   wsToken?: string | null;
 }) {
   const next = items.filter((i) => i.kind === "next");
@@ -187,107 +184,105 @@ export function AtlasRequirements({
   const ready = next.filter((i) => i.nextGateId).length;
 
   return (
-    <AtlasChrome active="/requirements" streakDays={streakDays}>
-      <AtlasShell>
-        <AtlasReveal as="section" className="atlas-win-px atlas-px-cut">
-          <div className="atlas-yk-desk">
-            <div className="flex items-start gap-4">
-              <div className="atlas-talk__face">
-                <PixelSprite name="sage" />
-              </div>
-              <p className="atlas-talk__body">
-                ようこそ ギルドへ。いま 受けられる 依頼は <em>{next.length}まい</em>。
-                <br />
-                そのうち <em>{ready}まい</em> は しれんの支度が ととのっておる。
-                <span className="atlas-cursor" />
-              </p>
+    <AtlasShell>
+      <AtlasReveal as="section" className="atlas-win-px atlas-px-cut">
+        <div className="atlas-yk-desk">
+          <div className="flex items-start gap-4">
+            <div className="atlas-talk__face">
+              <PixelSprite name="sage" />
             </div>
-            <div className="atlas-yk-counter">
-              <div className="atlas-yk-counter__cell atlas-px-cut">
-                <b>{next.length}</b>
-                <span>うけられる</span>
-              </div>
-              <div className="atlas-yk-counter__cell atlas-px-cut">
-                <b>{ready}</b>
-                <span>しれんあり</span>
-              </div>
-              <div className="atlas-yk-counter__cell atlas-yk-counter__cell--done atlas-px-cut">
-                <b>{understood.length}</b>
-                <span>たっせい</span>
-              </div>
-            </div>
-          </div>
-        </AtlasReveal>
-
-        <AtlasReveal
-          as="section"
-          delayIndex={1}
-          className="atlas-yk-board atlas-px-cut"
-        >
-          <div className="atlas-yk-board__header">
-            <h1 className="atlas-yk-board__title">とうばつ いらい</h1>
-            <span className="atlas-yk-board__meta">
-              まだ 理解が かたまっておらぬ 要件
-            </span>
-          </div>
-          {next.length === 0 ? (
-            <EmptyBoardGuide />
-          ) : (
-            <ul className="atlas-yk-grid">
-              {next.map((item) => (
-                <Fuda key={item.id} item={item} />
-              ))}
-            </ul>
-          )}
-          <div className="atlas-hint-band">
-            <p>
-              札の見かた: <span className="atlas-chip atlas-chip--open">しれんあり</span>{" "}
-              すぐ挑める ／{" "}
-              <span className="atlas-chip atlas-chip--draft">かきかけ</span>{" "}
-              結びの承認まち ／{" "}
-              <span className="atlas-chip atlas-chip--clear">たっせい</span>{" "}
-              綴じへ移る
+            <p className="atlas-talk__body">
+              ようこそ ギルドへ。いま 受けられる 依頼は <em>{next.length}まい</em>。
+              <br />
+              そのうち <em>{ready}まい</em> は しれんの支度が ととのっておる。
+              <span className="atlas-cursor" />
             </p>
           </div>
-        </AtlasReveal>
+          <div className="atlas-yk-counter">
+            <div className="atlas-yk-counter__cell atlas-px-cut">
+              <b>{next.length}</b>
+              <span>うけられる</span>
+            </div>
+            <div className="atlas-yk-counter__cell atlas-px-cut">
+              <b>{ready}</b>
+              <span>しれんあり</span>
+            </div>
+            <div className="atlas-yk-counter__cell atlas-yk-counter__cell--done atlas-px-cut">
+              <b>{understood.length}</b>
+              <span>たっせい</span>
+            </div>
+          </div>
+        </div>
+      </AtlasReveal>
 
-        <AtlasReveal
-          as="section"
-          delayIndex={2}
-          className="atlas-yk-ledger atlas-px-cut"
-        >
-          <h2 className="atlas-yk-ledger__title">
-            たっせいの とじ
-            <span>理解確認ずみ {understood.length} けん</span>
-          </h2>
-          {understood.length === 0 ? (
-            <p className="atlas-yk-ledger__more">まだ 綴じた控えは ないぞ。</p>
-          ) : (
-            <ul className="atlas-yk-slips">
-              {understood.map((item) => (
-                <Slip key={item.id} item={item} />
-              ))}
-            </ul>
-          )}
-        </AtlasReveal>
+      <AtlasReveal
+        as="section"
+        delayIndex={1}
+        className="atlas-yk-board atlas-px-cut"
+      >
+        <div className="atlas-yk-board__header">
+          <h1 className="atlas-yk-board__title">とうばつ いらい</h1>
+          <span className="atlas-yk-board__meta">
+            まだ 理解が かたまっておらぬ 要件
+          </span>
+        </div>
+        {next.length === 0 ? (
+          <EmptyBoardGuide />
+        ) : (
+          <ul className="atlas-yk-grid">
+            {next.map((item) => (
+              <Fuda key={item.id} item={item} />
+            ))}
+          </ul>
+        )}
+        <div className="atlas-hint-band">
+          <p>
+            札の見かた: <span className="atlas-chip atlas-chip--open">しれんあり</span>{" "}
+            すぐ挑める ／{" "}
+            <span className="atlas-chip atlas-chip--draft">かきかけ</span>{" "}
+            結びの承認まち ／{" "}
+            <span className="atlas-chip atlas-chip--clear">たっせい</span>{" "}
+            綴じへ移る
+          </p>
+        </div>
+      </AtlasReveal>
 
-        <AtlasReveal as="section" delayIndex={3}>
-          {wsToken ? (
-            <AtlasAssist
-              wsToken={wsToken}
-              intent="requirements"
-              context={`つぎのしれん ${next.length} / 理解確認ずみ ${understood.length}\n候補: ${next
-                .slice(0, 5)
-                .map((i) => `${i.id} ${i.title}`)
-                .join("\n")}`}
-              title="じゅもんでメテオフォールを進める"
-              blurb="要件と理解の結びを、じゅもんで進めよ。"
-            />
-          ) : (
-            <AtlasAssistUnavailable />
-          )}
-        </AtlasReveal>
-      </AtlasShell>
-    </AtlasChrome>
+      <AtlasReveal
+        as="section"
+        delayIndex={2}
+        className="atlas-yk-ledger atlas-px-cut"
+      >
+        <h2 className="atlas-yk-ledger__title">
+          たっせいの とじ
+          <span>理解確認ずみ {understood.length} けん</span>
+        </h2>
+        {understood.length === 0 ? (
+          <p className="atlas-yk-ledger__more">まだ 綴じた控えは ないぞ。</p>
+        ) : (
+          <ul className="atlas-yk-slips">
+            {understood.map((item) => (
+              <Slip key={item.id} item={item} />
+            ))}
+          </ul>
+        )}
+      </AtlasReveal>
+
+      <AtlasReveal as="section" delayIndex={3}>
+        {wsToken ? (
+          <AtlasAssist
+            wsToken={wsToken}
+            intent="requirements"
+            context={`つぎのしれん ${next.length} / 理解確認ずみ ${understood.length}\n候補: ${next
+              .slice(0, 5)
+              .map((i) => `${i.id} ${i.title}`)
+              .join("\n")}`}
+            title="じゅもんでメテオフォールを進める"
+            blurb="要件と理解の結びを、じゅもんで進めよ。"
+          />
+        ) : (
+          <AtlasAssistUnavailable />
+        )}
+      </AtlasReveal>
+    </AtlasShell>
   );
 }

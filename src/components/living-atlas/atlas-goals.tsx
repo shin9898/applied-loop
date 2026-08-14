@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AtlasShell } from "./atlas-shell";
-import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
+import { AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { kdiConditions } from "@/lib/kdi-conditions";
@@ -342,128 +342,124 @@ export function QuestConditions({
 /** /goals — グランドクエスト一覧（けいじばんにピン留めした羊皮紙の札） */
 export function AtlasGoals({
   goals,
-  streakDays,
   wsToken = null,
 }: {
   goals: GoalItem[];
-  streakDays?: number;
   wsToken?: string | null;
 }) {
   const thin = goals.filter(
     (g) => g.thin || (g.evidenceTarget != null && g.evidenceCount < g.evidenceTarget),
   );
   return (
-    <AtlasChrome active="/goals" streakDays={streakDays}>
-      <AtlasShell>
-        <AtlasReveal as="section">
-          {wsToken ? (
-            <AtlasAssist
-              wsToken={wsToken}
-              intent="goal-evidence"
-              context={
-                thin.length
-                  ? `証跡うすい: ${thin
-                      .slice(0, 5)
-                      .map((g) => `${g.id} ${g.title} (${g.evidenceCount}/${g.evidenceTarget ?? 3})`)
-                      .join("\n")}`
-                  : `グランドクエスト ${goals.length} 件。証跡はおおむね充足。`
-              }
-              title="じゅもんで証跡を残す"
-              blurb="グランドクエストの証跡は、じゅもんの道で残せ。一覧は見取りじゃ。"
-            />
-          ) : (
-            <AtlasAssistUnavailable />
-          )}
-        </AtlasReveal>
-        <AtlasReveal as="section">
-          <AtlasPageTitle
-            title="もくひょう"
-            sub={
+    <AtlasShell>
+      <AtlasReveal as="section">
+        {wsToken ? (
+          <AtlasAssist
+            wsToken={wsToken}
+            intent="goal-evidence"
+            context={
               thin.length
-                ? `進行中のグランドクエスト · 証跡うすい ${thin.length} 件`
-                : "進行中のグランドクエスト"
+                ? `証跡うすい: ${thin
+                    .slice(0, 5)
+                    .map((g) => `${g.id} ${g.title} (${g.evidenceCount}/${g.evidenceTarget ?? 3})`)
+                    .join("\n")}`
+                : `グランドクエスト ${goals.length} 件。証跡はおおむね充足。`
             }
+            title="じゅもんで証跡を残す"
+            blurb="グランドクエストの証跡は、じゅもんの道で残せ。一覧は見取りじゃ。"
           />
-          <div className="atlas-gq-stage">
-            <div className="atlas-gq-board">
-              <GrandQuestNails />
-              <div className="atlas-gq-rail" aria-hidden />
+        ) : (
+          <AtlasAssistUnavailable />
+        )}
+      </AtlasReveal>
+      <AtlasReveal as="section">
+        <AtlasPageTitle
+          title="もくひょう"
+          sub={
+            thin.length
+              ? `進行中のグランドクエスト · 証跡うすい ${thin.length} 件`
+              : "進行中のグランドクエスト"
+          }
+        />
+        <div className="atlas-gq-stage">
+          <div className="atlas-gq-board">
+            <GrandQuestNails />
+            <div className="atlas-gq-rail" aria-hidden />
 
-              <div className="atlas-gq-board__inner">
-                <header className="atlas-gq-board__head">
-                  <GrandQuestBanner />
-                  <p className="atlas-gq-board__blurb">
-                    <b>掲示された使命をえらべ。</b>
-                    クリア条件を見て、証跡をきざめ。
-                    <br />
-                    毎日の手はホームのデイリークエストへ。
-                  </p>
-                </header>
+            <div className="atlas-gq-board__inner">
+              <header className="atlas-gq-board__head">
+                <GrandQuestBanner />
+                <p className="atlas-gq-board__blurb">
+                  <b>掲示された使命をえらべ。</b>
+                  クリア条件を見て、証跡をきざめ。
+                  <br />
+                  毎日の手はホームのデイリークエストへ。
+                </p>
+              </header>
 
-                {goals.length === 0 ? (
-                  <p className="atlas-gq-board__empty">
-                    まだグランドクエストがない。MCP の register_goals で掲げよ。
-                  </p>
-                ) : (
-                  <ul className="atlas-gq-list">
-                    {goals.map((g, i) => (
-                      <li
-                        key={g.id}
-                        className={`atlas-gq-slip ${
-                          ["", "atlas-gq-slip--b", "atlas-gq-slip--c"][i % 3]
-                        } ${
-                          g.evidenceCount >= (g.evidenceTarget ?? 3)
-                            ? "atlas-gq-slip--clear"
-                            : ""
-                        }`}
-                      >
-                        <GrandQuestSlip goal={g} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
+              {goals.length === 0 ? (
+                <p className="atlas-gq-board__empty">
+                  まだグランドクエストがない。MCP の register_goals で掲げよ。
+                </p>
+              ) : (
+                <ul className="atlas-gq-list">
+                  {goals.map((g, i) => (
+                    <li
+                      key={g.id}
+                      className={`atlas-gq-slip ${
+                        ["", "atlas-gq-slip--b", "atlas-gq-slip--c"][i % 3]
+                      } ${
+                        g.evidenceCount >= (g.evidenceTarget ?? 3)
+                          ? "atlas-gq-slip--clear"
+                          : ""
+                      }`}
+                    >
+                      <GrandQuestSlip goal={g} />
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-                <div className="atlas-gq-cmd">
-                  <span className="atlas-gq-cmd__label">コマンド</span>
-                  <span className="atlas-gq-cmd__item">
-                    もくひょうをかかげる（MCP register_goals）
-                  </span>
-                  <span className="atlas-gq-cmd__item">
-                    証跡をきざむ（じゅもん）
-                  </span>
-                  <Link href="/entries" className="atlas-gq-cmd__item">
-                    にっきへもどる
-                  </Link>
-                </div>
+              <div className="atlas-gq-cmd">
+                <span className="atlas-gq-cmd__label">コマンド</span>
+                <span className="atlas-gq-cmd__item">
+                  もくひょうをかかげる（MCP register_goals）
+                </span>
+                <span className="atlas-gq-cmd__item">
+                  証跡をきざむ（じゅもん）
+                </span>
+                <Link href="/entries" className="atlas-gq-cmd__item">
+                  にっきへもどる
+                </Link>
               </div>
-
-              <div className="atlas-gq-rail" aria-hidden />
             </div>
 
-            <div className="atlas-gq-posts" aria-hidden>
-              <span />
-              <span />
-            </div>
-            <div className="atlas-gq-ground" aria-hidden />
-
-            <span className="atlas-gq-torch atlas-gq-torch--l" aria-hidden>
-              <span className="atlas-gq-torch__fire">
-                <PixelFlame frame="a" className="atlas-gq-ico atlas-gq-flame--a" />
-                <PixelFlame frame="b" className="atlas-gq-ico atlas-gq-flame--b" />
-              </span>
-              <span className="atlas-gq-torch__stick" />
-            </span>
-            <span className="atlas-gq-torch atlas-gq-torch--r" aria-hidden>
-              <span className="atlas-gq-torch__fire">
-                <PixelFlame frame="a" className="atlas-gq-ico atlas-gq-flame--a" />
-                <PixelFlame frame="b" className="atlas-gq-ico atlas-gq-flame--b" />
-              </span>
-              <span className="atlas-gq-torch__stick" />
-            </span>
+            <div className="atlas-gq-rail" aria-hidden />
           </div>
-        </AtlasReveal>
-      </AtlasShell>
-    </AtlasChrome>
+
+          <div className="atlas-gq-posts" aria-hidden>
+            <span />
+            <span />
+          </div>
+          <div className="atlas-gq-ground" aria-hidden />
+
+          <span className="atlas-gq-torch atlas-gq-torch--l" aria-hidden>
+            <span className="atlas-gq-torch__fire">
+              <PixelFlame frame="a" className="atlas-gq-ico atlas-gq-flame--a" />
+              <PixelFlame frame="b" className="atlas-gq-ico atlas-gq-flame--b" />
+            </span>
+            <span className="atlas-gq-torch__stick" />
+          </span>
+          <span className="atlas-gq-torch atlas-gq-torch--r" aria-hidden>
+            <span className="atlas-gq-torch__fire">
+              <PixelFlame frame="a" className="atlas-gq-ico atlas-gq-flame--a" />
+              <PixelFlame frame="b" className="atlas-gq-ico atlas-gq-flame--b" />
+            </span>
+            <span className="atlas-gq-torch__stick" />
+          </span>
+        </div>
+      </AtlasReveal>
+    </AtlasShell>
   );
 }
 

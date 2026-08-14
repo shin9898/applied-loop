@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { AtlasShell } from "./atlas-shell";
-import { AtlasChrome } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { AtlasGateDeferActions } from "./atlas-gate-defer";
@@ -130,114 +129,110 @@ function LockedFloor({ floor }: { floor: DungeonFloor }) {
 /** /gates?d=<系統> — ダンジョンの中（縦の道のりで連続撃破） */
 export function AtlasDungeonRun({
   dungeon,
-  streakDays,
   wsToken = null,
 }: {
   dungeon: Dungeon;
-  streakDays?: number;
   wsToken?: string | null;
 }) {
   const now = dungeon.nowFloor;
   const deepest = dungeon.floors[dungeon.floors.length - 1];
   return (
-    <AtlasChrome active="/gates" streakDays={streakDays}>
-      <AtlasShell>
-        <AtlasReveal as="section" className="shr">
-          <div className="shr-dungeon">
-            <div className="shr-dhead">
-              <div className="shr-dhead__top">
-                <h1 className="shr-dname">{dungeon.name}</h1>
-                <span className="shr-dmeta">
-                  系統：{dungeon.label}
-                  {dungeon.placeLabel ? ` ／ ばしょ：${dungeon.placeLabel}` : ""}
-                </span>
-                <Link href="/gates" className="dq-btn dq-btn-ghost shr-dexit">
-                  出る
-                </Link>
-              </div>
-              <div className="shr-prog" aria-hidden>
-                {dungeon.floors.map((f) => (
-                  <i
-                    key={f.gate.id}
-                    className={
-                      f.state === "clear"
-                        ? "is-done"
-                        : f.state === "now"
-                          ? "is-now"
-                          : ""
-                    }
-                  />
-                ))}
-              </div>
-              <div className="shr-progline">
-                <span>
-                  撃破 {dungeon.cleared} / {dungeon.total}
-                </span>
-                <span>
-                  {now ? `いま ${now.floorLabel}` : "すべて 撃破"}
-                  {deepest ? ` ／ さいしんぶ ${deepest.floorLabel}` : ""}
-                </span>
-                <span>のこり {dungeon.remaining}体</span>
-              </div>
+    <AtlasShell>
+      <AtlasReveal as="section" className="shr">
+        <div className="shr-dungeon">
+          <div className="shr-dhead">
+            <div className="shr-dhead__top">
+              <h1 className="shr-dname">{dungeon.name}</h1>
+              <span className="shr-dmeta">
+                系統：{dungeon.label}
+                {dungeon.placeLabel ? ` ／ ばしょ：${dungeon.placeLabel}` : ""}
+              </span>
+              <Link href="/gates" className="dq-btn dq-btn-ghost shr-dexit">
+                出る
+              </Link>
             </div>
-
-            <div className="shr-path">
+            <div className="shr-prog" aria-hidden>
               {dungeon.floors.map((f) => (
-                <div
+                <i
                   key={f.gate.id}
-                  className={`shr-floor shr-floor--${f.state}${
-                    f.boss ? " shr-floor--boss" : ""
-                  }`}
-                >
-                  <div className="shr-rail">
-                    <span className="shr-rail__fl">{f.floorLabel}</span>
-                    <span className="shr-rail__dot" />
-                  </div>
-                  <div className="shr-card">
-                    {f.state === "clear" ? (
-                      <ClearFloor floor={f} />
-                    ) : f.state === "now" ? (
-                      <NowFloor floor={f} system={dungeon.system} />
-                    ) : (
-                      <LockedFloor floor={f} />
-                    )}
-                  </div>
-                </div>
+                  className={
+                    f.state === "clear"
+                      ? "is-done"
+                      : f.state === "now"
+                        ? "is-now"
+                        : ""
+                  }
+                />
               ))}
             </div>
-
-            <div className="shr-dfoot">
-              <p>
-                {dungeon.remaining === 0
-                  ? "この迷宮は しずまった。ちずへ もどって 次の いりぐちへ。"
-                  : `のこり ${dungeon.remaining}体。ここを 空にすると この迷宮は しずまる。たおすたび 次のまものへ 続けて進めるぞ。`}
-              </p>
-              <Link href="/gates" className="dq-btn dq-btn-ghost">
-                ダンジョンを 出る
-              </Link>
-              <Link href="/gates?view=list" className="dq-btn dq-btn-ghost">
-                ぜんぶ一覧
-              </Link>
+            <div className="shr-progline">
+              <span>
+                撃破 {dungeon.cleared} / {dungeon.total}
+              </span>
+              <span>
+                {now ? `いま ${now.floorLabel}` : "すべて 撃破"}
+                {deepest ? ` ／ さいしんぶ ${deepest.floorLabel}` : ""}
+              </span>
+              <span>のこり {dungeon.remaining}体</span>
             </div>
           </div>
-        </AtlasReveal>
 
-        <AtlasReveal as="section" delayIndex={1}>
-          {wsToken ? (
-            <AtlasAssist
-              wsToken={wsToken}
-              intent="gates"
-              context={`ダンジョン: ${dungeon.name}（系統 ${dungeon.label}）\nのこり ${dungeon.remaining}体${
-                now ? `\nいま: ${now.gate.id} ${now.gate.title}` : ""
-              }`}
-              title="じゅもんでこの迷宮を片付ける"
-              blurb="この系統のしれんをまとめて片付けるならじゅもん。1体ずつ潜るなら『たたかう』じゃ。"
-            />
-          ) : (
-            <AtlasAssistUnavailable />
-          )}
-        </AtlasReveal>
-      </AtlasShell>
-    </AtlasChrome>
+          <div className="shr-path">
+            {dungeon.floors.map((f) => (
+              <div
+                key={f.gate.id}
+                className={`shr-floor shr-floor--${f.state}${
+                  f.boss ? " shr-floor--boss" : ""
+                }`}
+              >
+                <div className="shr-rail">
+                  <span className="shr-rail__fl">{f.floorLabel}</span>
+                  <span className="shr-rail__dot" />
+                </div>
+                <div className="shr-card">
+                  {f.state === "clear" ? (
+                    <ClearFloor floor={f} />
+                  ) : f.state === "now" ? (
+                    <NowFloor floor={f} system={dungeon.system} />
+                  ) : (
+                    <LockedFloor floor={f} />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="shr-dfoot">
+            <p>
+              {dungeon.remaining === 0
+                ? "この迷宮は しずまった。ちずへ もどって 次の いりぐちへ。"
+                : `のこり ${dungeon.remaining}体。ここを 空にすると この迷宮は しずまる。たおすたび 次のまものへ 続けて進めるぞ。`}
+            </p>
+            <Link href="/gates" className="dq-btn dq-btn-ghost">
+              ダンジョンを 出る
+            </Link>
+            <Link href="/gates?view=list" className="dq-btn dq-btn-ghost">
+              ぜんぶ一覧
+            </Link>
+          </div>
+        </div>
+      </AtlasReveal>
+
+      <AtlasReveal as="section" delayIndex={1}>
+        {wsToken ? (
+          <AtlasAssist
+            wsToken={wsToken}
+            intent="gates"
+            context={`ダンジョン: ${dungeon.name}（系統 ${dungeon.label}）\nのこり ${dungeon.remaining}体${
+              now ? `\nいま: ${now.gate.id} ${now.gate.title}` : ""
+            }`}
+            title="じゅもんでこの迷宮を片付ける"
+            blurb="この系統のしれんをまとめて片付けるならじゅもん。1体ずつ潜るなら『たたかう』じゃ。"
+          />
+        ) : (
+          <AtlasAssistUnavailable />
+        )}
+      </AtlasReveal>
+    </AtlasShell>
   );
 }

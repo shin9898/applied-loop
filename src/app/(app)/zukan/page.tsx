@@ -1,6 +1,5 @@
 import { AtlasZukan } from "@/components/living-atlas/atlas-zukan";
 import {
-  loadStreakDays,
   loadZukanItems,
 } from "@/components/living-atlas/load-atlas-data";
 import { computeQuadrantFlows } from "@/lib/quadrant";
@@ -11,15 +10,13 @@ export const dynamic = "force-dynamic";
 export default async function ZukanPage() {
   const { recordActivationOnce } = await import("@/lib/activation-funnel");
   recordActivationOnce("zukan_viewed");
-  const [items, streakDays, quadrant] = await Promise.all([
+  const [items, quadrant] = await Promise.all([
     loadZukanItems(),
-    loadStreakDays(),
     computeQuadrantFlows().catch(() => null),
   ]);
   return (
     <AtlasZukan
       items={items}
-      streakDays={streakDays}
       quadrant={quadrant}
       wsToken={getTerminalWsToken()}
     />

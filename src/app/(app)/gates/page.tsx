@@ -11,7 +11,6 @@ import {
 } from "@/components/living-atlas/atlas-dungeons";
 import {
   loadGateList,
-  loadStreakDays,
 } from "@/components/living-atlas/load-atlas-data";
 import { isUnknownPlace, placeFrom } from "@/lib/atlas-taxonomy";
 import { recentGenFailures } from "@/lib/gate";
@@ -45,9 +44,8 @@ export default async function GatesPage({
   await scheduleDueGates().catch((e) =>
     console.error("[gates] scheduleDueGates failed:", e),
   );
-  const [gateList, streakDays, genFailures, everHadGate] = await Promise.all([
+  const [gateList, genFailures, everHadGate] = await Promise.all([
     loadGateList(),
-    loadStreakDays(),
     recentGenFailures(),
     prisma.gate.count().then((n) => n > 0),
   ]);
@@ -65,7 +63,6 @@ export default async function GatesPage({
         items={gateList.items}
         parkedItems={gateList.parkedItems}
         pendingBacklogCount={gateList.pendingBacklogCount}
-        streakDays={streakDays}
         wsToken={wsToken}
         supply={supply}
       />
@@ -80,7 +77,6 @@ export default async function GatesPage({
       return (
         <AtlasDungeonRun
           dungeon={dungeon}
-          streakDays={streakDays}
           wsToken={wsToken}
         />
       );
@@ -97,7 +93,6 @@ export default async function GatesPage({
       fogCount={fogCount}
       pendingBacklogCount={gateList.pendingBacklogCount}
       parkedItems={gateList.parkedItems}
-      streakDays={streakDays}
       wsToken={wsToken}
       supply={supply}
     />

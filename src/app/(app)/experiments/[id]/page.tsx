@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { AtlasExperimentDetail } from "@/components/living-atlas/atlas-experiment-detail";
-import { loadStreakDays } from "@/components/living-atlas/load-atlas-data";
 import { prisma } from "@/lib/db";
 import { dateKeyJST, dayStartJST } from "@/lib/date";
 
@@ -12,13 +11,10 @@ export default async function ExperimentPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [experiment, streakDays] = await Promise.all([
-    prisma.experiment.findUnique({
-      where: { id },
-      include: { entry: true, checkIns: { orderBy: { date: "desc" } } },
-    }),
-    loadStreakDays(),
-  ]);
+  const experiment = await prisma.experiment.findUnique({
+    where: { id },
+    include: { entry: true, checkIns: { orderBy: { date: "desc" } } },
+  });
   if (!experiment) notFound();
 
   const today = dayStartJST();
@@ -32,7 +28,6 @@ export default async function ExperimentPage({
 
   return (
     <AtlasExperimentDetail
-      streakDays={streakDays}
       experiment={{
         id: experiment.id,
         action: experiment.action,

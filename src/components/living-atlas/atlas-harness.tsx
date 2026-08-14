@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AtlasShell } from "./atlas-shell";
-import { AtlasChrome, AtlasPageTitle } from "./atlas-chrome";
+import { AtlasPageTitle } from "./atlas-chrome";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { PixelSprite } from "./atlas-pixel";
@@ -542,12 +542,10 @@ function DaysSection({ health }: { health: MaterialCaptureHealth }) {
 /** /harness — どうぐ（しくみのこどうと、けいやくの けものたち） */
 export function AtlasHarness({
   repos,
-  streakDays,
   wsToken = null,
   captureHealth,
 }: {
   repos: HarnessRepo[];
-  streakDays?: number;
   wsToken?: string | null;
   /** ADR-0020: どうぐの一次シグナル（材料キャプチャの完全性） */
   captureHealth: MaterialCaptureHealth;
@@ -566,79 +564,77 @@ export function AtlasHarness({
       : null;
 
   return (
-    <AtlasChrome active="/harness" streakDays={streakDays}>
-      <AtlasShell>
-        <AtlasReveal as="section">
-          <div className="atlas-talk atlas-px-cut">
-            <div className="atlas-talk__face">
-              <PixelSprite name="sage" />
-            </div>
-            <p className="atlas-talk__body">
-              ぼうけんしゃよ。ここは しくみの こどうを 見守る 部屋じゃ。
-              <br />
-              一次シグナルは「材料を 漏れなく 拾えておるか」。
-              {todayPct != null ? (
-                <>
-                  {" "}
-                  いまの こどうは <em>{Math.round(todayPct * 100)}%</em> ——{" "}
-                  <em>{PULSE_STATE_LABEL[pulseGrade(todayPct)]}</em>。
-                </>
-              ) : (
-                <> まだ こどうは 記録されておらぬ。</>
-              )}
-              <span className="atlas-cursor" />
-            </p>
+    <AtlasShell>
+      <AtlasReveal as="section">
+        <div className="atlas-talk atlas-px-cut">
+          <div className="atlas-talk__face">
+            <PixelSprite name="sage" />
           </div>
-        </AtlasReveal>
+          <p className="atlas-talk__body">
+            ぼうけんしゃよ。ここは しくみの こどうを 見守る 部屋じゃ。
+            <br />
+            一次シグナルは「材料を 漏れなく 拾えておるか」。
+            {todayPct != null ? (
+              <>
+                {" "}
+                いまの こどうは <em>{Math.round(todayPct * 100)}%</em> ——{" "}
+                <em>{PULSE_STATE_LABEL[pulseGrade(todayPct)]}</em>。
+              </>
+            ) : (
+              <> まだ こどうは 記録されておらぬ。</>
+            )}
+            <span className="atlas-cursor" />
+          </p>
+        </div>
+      </AtlasReveal>
 
-        <PulseSection health={captureHealth} />
-        <FlowSection health={captureHealth} />
-        <DaysSection health={captureHealth} />
+      <PulseSection health={captureHealth} />
+      <FlowSection health={captureHealth} />
+      <DaysSection health={captureHealth} />
 
-        <BeastSection
-          title="けいやくの けものたち"
-          sub={
-            weak.length
-              ? `元気の ない子が ${weak.length} ひき`
-              : watched.length
-                ? `けいやく ${watched.length} ひき`
-                : "まだ 1ひきも おらぬ"
-          }
-          blurb="つないでおるのは くさり ではない。ねどこと、ふわりと ともる もんしょうだけじゃ。げんき / そわそわ / しょんぼりは、キャッシュ効率から見た参考の見立てじゃ。"
-          repos={watched}
-          empty="まだ けいやくを むすんだ けものが おらぬ。設定から供給対象を追加せよ。"
-        />
-        <BeastSection
-          title="まだ けいやくを むすんでおらぬ けもの"
-          sub={
-            discovered.length
-              ? `${discovered.length} ひき（もんしょう なし）`
-              : "いまはなし"
-          }
-          blurb="監視リストの外じゃが、気配だけ 見えておる repo。作業はしているが 連携が 付いていないときに ここへ 出る。"
-          repos={discovered}
-          empty="気配だけの けものは いま おらぬ。"
-          delayIndex={1}
-        />
+      <BeastSection
+        title="けいやくの けものたち"
+        sub={
+          weak.length
+            ? `元気の ない子が ${weak.length} ひき`
+            : watched.length
+              ? `けいやく ${watched.length} ひき`
+              : "まだ 1ひきも おらぬ"
+        }
+        blurb="つないでおるのは くさり ではない。ねどこと、ふわりと ともる もんしょうだけじゃ。げんき / そわそわ / しょんぼりは、キャッシュ効率から見た参考の見立てじゃ。"
+        repos={watched}
+        empty="まだ けいやくを むすんだ けものが おらぬ。設定から供給対象を追加せよ。"
+      />
+      <BeastSection
+        title="まだ けいやくを むすんでおらぬ けもの"
+        sub={
+          discovered.length
+            ? `${discovered.length} ひき（もんしょう なし）`
+            : "いまはなし"
+        }
+        blurb="監視リストの外じゃが、気配だけ 見えておる repo。作業はしているが 連携が 付いていないときに ここへ 出る。"
+        repos={discovered}
+        empty="気配だけの けものは いま おらぬ。"
+        delayIndex={1}
+      />
 
-        <AtlasReveal as="section">
-          {wsToken ? (
-            <AtlasAssist
-              wsToken={wsToken}
-              intent="harness"
-              context={
-                focus
-                  ? `注目 repo: ${focus.name}\nhealth: ${focus.health}\n${focus.criteria ?? ""}\n${focus.uplift ?? ""}`
-                  : "観測なし。suggest_cache_prefix_form の前に計測を溜めよ。"
-              }
-              title="じゅもんで処方を進める"
-              blurb="どうぐの見立てを、じゅもんで実行の段まで進めよ。"
-            />
-          ) : (
-            <AtlasAssistUnavailable />
-          )}
-        </AtlasReveal>
-      </AtlasShell>
-    </AtlasChrome>
+      <AtlasReveal as="section">
+        {wsToken ? (
+          <AtlasAssist
+            wsToken={wsToken}
+            intent="harness"
+            context={
+              focus
+                ? `注目 repo: ${focus.name}\nhealth: ${focus.health}\n${focus.criteria ?? ""}\n${focus.uplift ?? ""}`
+                : "観測なし。suggest_cache_prefix_form の前に計測を溜めよ。"
+            }
+            title="じゅもんで処方を進める"
+            blurb="どうぐの見立てを、じゅもんで実行の段まで進めよ。"
+          />
+        ) : (
+          <AtlasAssistUnavailable />
+        )}
+      </AtlasReveal>
+    </AtlasShell>
   );
 }

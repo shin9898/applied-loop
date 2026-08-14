@@ -1,7 +1,6 @@
 import { AtlasEntryDetail } from "@/components/living-atlas/atlas-entry-detail";
 import {
   loadEntryDetail,
-  loadStreakDays,
 } from "@/components/living-atlas/load-atlas-data";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -22,11 +21,8 @@ export default async function EntryDetailPage({
   });
   if (asCapture) redirect(`/inbox/${id}`);
 
-  const [entry, streakDays] = await Promise.all([
-    loadEntryDetail(id),
-    loadStreakDays(),
-  ]);
+  const entry = await loadEntryDetail(id);
   if (!entry) notFound();
 
-  return <AtlasEntryDetail entry={entry} streakDays={streakDays} />;
+  return <AtlasEntryDetail entry={entry} />;
 }

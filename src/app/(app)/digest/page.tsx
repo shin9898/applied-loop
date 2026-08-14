@@ -1,13 +1,11 @@
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { AtlasDigest } from "@/components/living-atlas/atlas-digest";
-import { loadStreakDays } from "@/components/living-atlas/load-atlas-data";
 
 export const dynamic = "force-dynamic";
 
 /** P3: 週次ナレーションをルミナのセリフ窓で見せる */
 export default async function DigestPage() {
-  const streakDays = await loadStreakDays();
   const weeklyDir = join(process.cwd(), "docs/digest/weekly");
   const files = existsSync(weeklyDir)
     ? readdirSync(weeklyDir)
@@ -33,7 +31,6 @@ export default async function DigestPage() {
       weekKey={weekKey}
       body={body}
       siblings={siblings}
-      streakDays={streakDays}
     />
   );
 }

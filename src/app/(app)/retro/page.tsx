@@ -1,7 +1,5 @@
-import { AtlasChrome } from "@/components/living-atlas";
 import { AtlasNikkiRetro } from "@/components/living-atlas/atlas-nikki-retro";
 import { groupNikkiMonths } from "@/components/living-atlas/nikki-months";
-import { loadStreakDays } from "@/components/living-atlas/load-atlas-data";
 import { dateKeyJST } from "@/lib/date";
 import {
   dayRangeFromDateKey,
@@ -15,9 +13,8 @@ export const dynamic = "force-dynamic";
 
 export default async function RetroIndexPage() {
   const today = dateKeyJST();
-  const [streakDays, dates, ungeneratedDays, materialCountToday] =
+  const [dates, ungeneratedDays, materialCountToday] =
     await Promise.all([
-      loadStreakDays(),
       listTextbookDates(120),
       listUngeneratedDays(60),
       (() => {
@@ -36,14 +33,12 @@ export default async function RetroIndexPage() {
   }
 
   return (
-    <AtlasChrome active="/retro" streakDays={streakDays}>
-      <AtlasNikkiRetro
-        months={months}
-        todayKey={today}
-        materialCountToday={materialCountToday}
-        ungeneratedDays={ungeneratedDays}
-        regenerateAction={regenerateAction}
-      />
-    </AtlasChrome>
+    <AtlasNikkiRetro
+      months={months}
+      todayKey={today}
+      materialCountToday={materialCountToday}
+      ungeneratedDays={ungeneratedDays}
+      regenerateAction={regenerateAction}
+    />
   );
 }

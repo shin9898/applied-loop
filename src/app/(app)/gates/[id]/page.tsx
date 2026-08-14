@@ -1,4 +1,3 @@
-import { AtlasChrome } from "@/components/living-atlas/atlas-chrome";
 import { AtlasGateBattleClient } from "@/components/living-atlas/atlas-gate-battle-client";
 import { AtlasAssist, AtlasAssistUnavailable } from "@/components/living-atlas/atlas-assist";
 import { AtlasReveal } from "@/components/living-atlas/atlas-reveal";
@@ -14,7 +13,6 @@ import {
 import {
   loadGateById,
   loadGateListLight,
-  loadStreakDays,
 } from "@/components/living-atlas/load-atlas-data";
 import { getTerminalWsToken } from "@/lib/terminal-token";
 import { findTaskLinksForGate } from "@/lib/task-map";
@@ -39,9 +37,8 @@ export default async function GateBattlePage({
   const sp = (await Promise.resolve(searchParams)) ?? {};
   const rawDungeon = sp.d;
   const dungeonKey = typeof rawDungeon === "string" ? rawDungeon : undefined;
-  const [gate, streakDays, taskLinks] = await Promise.all([
+  const [gate, taskLinks] = await Promise.all([
     loadGateById(id),
-    loadStreakDays(),
     findTaskLinksForGate(id),
   ]);
   if (!gate) notFound();
@@ -66,31 +63,29 @@ export default async function GateBattlePage({
   }
 
   return (
-    <AtlasChrome active="/gates/[id]" streakDays={streakDays}>
-      <AtlasShell>
-        <AtlasGateBattleClient gate={gate} nextGate={nextGate} taskLinks={taskLinks} />
-        <AtlasReveal as="section" delayIndex={1}>
-          {wsToken ? (
-            <AtlasAssist
-              wsToken={wsToken}
-              gateId={gate.id}
-              intent="gates"
-              context={[
-                `gateId: ${gate.id}`,
-                gate.contextSummary ? `context: ${gate.contextSummary}` : "",
-                `question: ${gate.question}`,
-              ]
-                .filter(Boolean)
-                .join("\n")}
-              title="じゅもんでこのしれんに答える"
-              blurb="このしれんのためのじゅもんじゃ。ホームの全体じゅもんとは別の扉。"
-              plain="このゲート専用で Claude/Codex が開く。対話のあと answer_gate。バトルの『こたえる』からも提出可。合否は get_gate_result。"
-            />
-          ) : (
-            <AtlasAssistUnavailable />
-          )}
-        </AtlasReveal>
-      </AtlasShell>
-    </AtlasChrome>
+    <AtlasShell>
+      <AtlasGateBattleClient gate={gate} nextGate={nextGate} taskLinks={taskLinks} />
+      <AtlasReveal as="section" delayIndex={1}>
+        {wsToken ? (
+          <AtlasAssist
+            wsToken={wsToken}
+            gateId={gate.id}
+            intent="gates"
+            context={[
+              `gateId: ${gate.id}`,
+              gate.contextSummary ? `context: ${gate.contextSummary}` : "",
+              `question: ${gate.question}`,
+            ]
+              .filter(Boolean)
+              .join("\n")}
+            title="じゅもんでこのしれんに答える"
+            blurb="このしれんのためのじゅもんじゃ。ホームの全体じゅもんとは別の扉。"
+            plain="このゲート専用で Claude/Codex が開く。対話のあと answer_gate。バトルの『こたえる』からも提出可。合否は get_gate_result。"
+          />
+        ) : (
+          <AtlasAssistUnavailable />
+        )}
+      </AtlasReveal>
+    </AtlasShell>
   );
 }

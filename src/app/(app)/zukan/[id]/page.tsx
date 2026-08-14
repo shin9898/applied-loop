@@ -1,6 +1,5 @@
 import { AtlasZukanDetail } from "@/components/living-atlas/atlas-zukan-detail";
 import {
-  loadStreakDays,
   loadZukanDetail,
 } from "@/components/living-atlas/load-atlas-data";
 import { notFound } from "next/navigation";
@@ -13,10 +12,7 @@ export default async function ZukanDetailPage({
   params: Promise<{ id: string }> | { id: string };
 }) {
   const { id } = await Promise.resolve(params);
-  const [item, streakDays] = await Promise.all([
-    loadZukanDetail(id),
-    loadStreakDays(),
-  ]);
+  const item = await loadZukanDetail(id);
   if (!item) notFound();
-  return <AtlasZukanDetail item={item} streakDays={streakDays} />;
+  return <AtlasZukanDetail item={item} />;
 }
