@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# 最新の週次ナレーション原稿を VOICEVOX (release-video tts.mjs) で音声化し、
-# OBSIDIAN_DIGEST_DIR/weekly/ に wav / mp3 を配置する (ADR-0014 §1)。
+# 最新の週次ナレーション原稿を VOICEVOX 互換エンジン (release-video tts.mjs) で
+# 音声化し、OBSIDIAN_DIGEST_DIR/weekly/ に wav / mp3 を配置する (ADR-0014 §1)。
+# デフォルトは AivisSpeech Engine (VOICEVOX 互換 API、まお・おちつき)。
+# 声質検証 (2026-08-14): pitchScale をデフォルト以外に変えるとノイズが乗る
+# ("まお"ノーマルで -0.03/-0.08 とも再現)。声を落ち着かせたい場合は pitchScale
+# を弄らず、スタイル自体を切り替える (おちつき=888753763) のが安全。
 #
 # 使い方:
 #   ./scripts/weekly-audio.sh
@@ -11,9 +15,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VOICEVOX_URL="${VOICEVOX_URL:-http://127.0.0.1:50021}"
-VOICEVOX_SPEAKER="${VOICEVOX_SPEAKER:-29}"
+VOICEVOX_URL="${VOICEVOX_URL:-http://127.0.0.1:10101}"
+VOICEVOX_SPEAKER="${VOICEVOX_SPEAKER:-888753763}"
 SPEED_SCALE="${VOICEVOX_SPEED_SCALE:-0.9}"
+INTONATION_SCALE="${VOICEVOX_INTONATION_SCALE:-0.8}"
 
 # tts.mjs の所在 (workbench の release-video パイプライン。改修しない)
 TTS_BIN="${TTS_BIN:-$HOME/tools/workbench/release-video/pipeline/bin/tts.mjs}"
@@ -41,10 +46,12 @@ if [[ ! -f "$TTS_BIN" ]]; then
   exit 1
 fi
 
-# VOICEVOX 起動確認 (tts.mjs の assertVoicevox と同趣旨の分かりやすいメッセージ)
+# VOICEVOX 互換エンジン起動確認 (tts.mjs の assertVoicevox と同趣旨の分かりやすいメッセージ)
 if ! curl -sf --max-time 3 "${VOICEVOX_URL}/version" >/dev/null; then
-  echo "エラー: VOICEVOX Engine (${VOICEVOX_URL}) に接続できません。" >&2
-  echo "起動例:" >&2
+  echo "エラー: 音声合成エンジン (${VOICEVOX_URL}) に接続できません。" >&2
+  echo "起動例 (AivisSpeech、デフォルト):" >&2
+  echo "  open -a AivisSpeech" >&2
+  echo "起動例 (本家 VOICEVOX):" >&2
   echo "  docker run --rm -d --name voicevox -p 127.0.0.1:50021:50021 voicevox/voicevox_engine:cpu-latest" >&2
   echo "接続先を変える場合は VOICEVOX_URL を設定してください。" >&2
   exit 1
@@ -71,7 +78,7 @@ SAFE_BRANCH="$(echo "$WEEK_KEY" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]
 FEATURE_ID="weekly-${SAFE_BRANCH}"
 
 echo "原稿: $NARRATION"
-echo "VOICEVOX: $VOICEVOX_URL (speaker=${VOICEVOX_SPEAKER})"
+echo "エンジン: $VOICEVOX_URL (speaker=${VOICEVOX_SPEAKER}, intonationScale=${INTONATION_SCALE})"
 
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/applied-loop-weekly-audio.XXXXXX")"
 cleanup() { rm -rf "$TMP_DIR"; }
@@ -80,11 +87,11 @@ trap cleanup EXIT
 MANIFEST="$TMP_DIR/manifest.json"
 
 # ナレーション本文から「ルミナ:」（旧「さやか:」）段落を抽出し、manifest の title シーンにする
-python3 - "$NARRATION" "$MANIFEST" "$SAFE_BRANCH" "$FEATURE_ID" "$VOICEVOX_SPEAKER" "$SPEED_SCALE" <<'PY'
+python3 - "$NARRATION" "$MANIFEST" "$SAFE_BRANCH" "$FEATURE_ID" "$VOICEVOX_SPEAKER" "$SPEED_SCALE" "$INTONATION_SCALE" <<'PY'
 import json, re, sys
 from pathlib import Path
 
-narration_path, manifest_path, branch, feature_id, speaker, speed = sys.argv[1:7]
+narration_path, manifest_path, branch, feature_id, speaker, speed, intonation = sys.argv[1:8]
 text = Path(narration_path).read_text(encoding="utf-8")
 # 見出し・引用を除き、話者プレフィックス段落または空行区切りの本文を取る
 body_lines = []
@@ -124,7 +131,11 @@ for i, p in enumerate(paras):
 
 manifest = {
     "branch": f"applied-loop-{branch}",
-    "voice": {"speaker": int(speaker), "speedScale": float(speed)},
+    "voice": {
+        "speaker": int(speaker),
+        "speedScale": float(speed),
+        "intonationScale": float(intonation),
+    },
     "subtitles": False,
     "features": [{
         "id": feature_id if re.match(r"^[a-z0-9][a-z0-9-]*$", feature_id) else "weekly-digest",

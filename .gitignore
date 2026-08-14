@@ -54,6 +54,13 @@ dev.db-journal
 scripts/.harness-collect-state.json
 scripts/harness-collect.log
 
+# Weekly audio (AivisSpeech headless engine log, local machine only)
+scripts/weekly-audio-engine.log
+
+# Weekly narration audio output (generated locally, not tracked)
+docs/digest/weekly/*.wav
+docs/digest/weekly/*.mp3
+
 # git worktrees (superpowers:using-git-worktrees)
 /.worktrees/
 
