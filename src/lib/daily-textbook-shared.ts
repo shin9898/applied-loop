@@ -464,6 +464,16 @@ function evidenceFrom(materials: MaterialRow[]): EvidenceLink[] {
   return out;
 }
 
+function overflowDigest(overflow: MaterialRow[]): string {
+  if (overflow.length === 0) return "";
+  const preview = overflow
+    .slice(0, 3)
+    .map((m) => (m.summary?.trim() || m.ref).slice(0, 24))
+    .join("、");
+  const more = overflow.length > 3 ? "…" : "";
+  return `※ ほか ${overflow.length} 件は章の容量超過で畳んだ（捨ててはいない）: ${preview}${more}`;
+}
+
 function buildBodyPlain(input: {
   name: string;
   kept: MaterialRow[];
@@ -471,6 +481,7 @@ function buildBodyPlain(input: {
   theme: string;
   lessons: LessonSlots;
   backlogN: number;
+  overflow?: MaterialRow[];
 }): string {
   const bullets = input.summaries.map((s) => `・${s}`).join("\n");
   const takeaway = input.theme
@@ -507,6 +518,7 @@ function buildBodyPlain(input: {
     input.backlogN > 0
       ? `※ うち ${input.backlogN} 件は即時しれんを止めたが、材料としては残っている。`
       : "",
+    overflowDigest(input.overflow ?? []),
   ]
     .filter(Boolean)
     .join("\n");
@@ -541,6 +553,7 @@ function draftChapterFromRepo(
     theme,
     lessons,
     backlogN,
+    overflow,
   });
   const bodyDeep = [
     bodyPlain,

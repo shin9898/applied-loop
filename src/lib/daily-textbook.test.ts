@@ -183,6 +183,24 @@ describe("clusterMaterialsIntoChapters", () => {
     assert.ok(chaptersHaveDistinctCopy(chapters));
     assert.ok(chaptersHaveLessonSlots(chapters));
   });
+
+  it("keeps per-chapter overflow visible as a digest instead of silently dropping it", () => {
+    const heavy = Array.from({ length: 12 }, (_, i) =>
+      mat({
+        id: `heavy${i}`,
+        repo: "org/busy",
+        summary: `feat(busy): change number ${i}`,
+        receivedAt: new Date(`2026-08-10T0${i % 9}:00:00Z`),
+      }),
+    );
+    const { chapters, droppedMaterialIds } =
+      clusterMaterialsIntoChapters(heavy);
+    assert.equal(chapters.length, 1);
+    assert.ok(droppedMaterialIds.length > 0, "overflow beyond per-chapter cap still tracked as dropped");
+    const chapter = chapters[0]!;
+    assert.match(chapter.bodyPlain, /ほか \d+ 件は章の容量超過で畳んだ/);
+    assert.match(chapter.bodyPlain, /捨ててはいない/);
+  });
 });
 
 describe("ensureChapterCopyDiversity", () => {
