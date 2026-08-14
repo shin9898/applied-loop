@@ -11,6 +11,7 @@ import {
   AtlasChrome,
   AtlasPageTitle,
 } from "@/components/living-atlas/atlas-chrome";
+import { AtlasSessionDigestDoor } from "@/components/living-atlas/atlas-session-digest";
 import {
   bodyForDisplay,
   buildJumonContext,
@@ -24,6 +25,7 @@ import {
   regenerateDailyTextbookAction,
   setTextbookMasteryAction,
 } from "@/lib/actions";
+import type { SessionDigest } from "@/lib/session-digest-shared";
 
 type Depth = "plain" | "deep";
 type Mode = "read" | "check";
@@ -49,6 +51,7 @@ export function AtlasDailyTextbook({
   streakDays,
   wsToken,
   materialCountToday,
+  sessionDigest,
 }: {
   dateKey: string;
   textbook: TextbookView | null;
@@ -56,6 +59,7 @@ export function AtlasDailyTextbook({
   wsToken: string | null;
   /** 未生成時の材料件数 */
   materialCountToday?: number;
+  sessionDigest?: SessionDigest | null;
 }) {
   const [mode, setMode] = useState<Mode>("read");
   const [depth, setDepth] = useState<Depth>(() => {
@@ -137,6 +141,9 @@ export function AtlasDailyTextbook({
                     : ""}
                 </p>
               ) : null}
+              {sessionDigest ? (
+                <AtlasSessionDigestDoor digest={sessionDigest} />
+              ) : null}
               <div className="atlas-journal__actions">
                 <GenerateButton
                   dateKey={dateKey}
@@ -215,6 +222,9 @@ export function AtlasDailyTextbook({
                 ? ` · 圧縮で畳んだ材料 ${textbook.droppedMaterialIds.length}`
                 : ""}
             </p>
+            {sessionDigest ? (
+              <AtlasSessionDigestDoor digest={sessionDigest} />
+            ) : null}
             {textbook.chapters.length > 0 ? (
               <div className="atlas-journal__toc">
                 <p className="atlas-journal__toc-label">

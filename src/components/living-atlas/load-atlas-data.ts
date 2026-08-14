@@ -33,6 +33,7 @@ import {
   type SystemStar,
 } from "@/lib/atlas-level";
 import { enrichMissingGateDomains } from "@/lib/place-enrich";
+import { buildSessionDigestForDate } from "@/lib/session-digest";
 import { dayStartJST, dateKeyJST } from "@/lib/date";
 import type { AtlasDashboardProps } from "./atlas-dashboard";
 import type { ZukanItem } from "./atlas-zukan";
@@ -163,6 +164,7 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     systemStars,
     weaknesses,
     textbookGuide,
+    sessionDigest,
   ] = await Promise.all([
     resolvedGrowthStats(now),
     recordStreak(now),
@@ -190,6 +192,7 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     loadSystemStars(),
     getWeaknessPatternsForDashboard(),
     loadTextbookGuidanceForToday(dateKeyJST(now)),
+    buildSessionDigestForDate(dateKeyJST(now)),
   ]);
 
   const todos: { title: string; meta: string; href?: string; cta?: string }[] =
@@ -287,6 +290,7 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     pendingGateCount,
     todos,
     textbookGuidance: textbookGuide.guidance,
+    sessionDigest,
   };
 }
 

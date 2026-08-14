@@ -5,10 +5,12 @@ import Link from "next/link";
 
 export type MapMarker = {
   id: string;
-  kind: "quest" | "clear" | "you";
+  kind: "quest" | "clear" | "you" | "footprint";
   label: string;
   left: string;
   top: string;
+  /** footprint のみ。同じ領に複数セッションがある場合の数字バッジ */
+  count?: number;
   /** 指定時はクリックで直行（onSelect より優先） */
   href?: string;
 };
@@ -309,6 +311,15 @@ export function AtlasWorldMap({
                 {m.label}
               </span>
             </span>
+          ) : m.kind === "footprint" ? (
+            <span
+              className={`inline-flex items-center gap-1 whitespace-nowrap border-[2px] border-[#5a6a8a] bg-[#0d2f70] px-1.5 py-0.5 font-[family-name:var(--font-pixel)] text-[9px] leading-none text-[#9ec0ff] ${
+                activeId === m.id ? "outline outline-2 outline-[#f0d25a]" : ""
+              }`}
+            >
+              <span aria-hidden>👣</span>
+              {m.count && m.count > 1 ? <span>×{m.count}</span> : null}
+            </span>
           ) : (
             <>
               <span
@@ -342,6 +353,9 @@ export function AtlasWorldMap({
             key={m.id}
             type="button"
             onClick={() => onSelect?.(m.id)}
+            // 足あとピンは絵文字(aria-hidden)＋数字だけで可視ラベルを持たないため、
+            // アクセシブル名を補う。他の kind はピン内にラベル文字を出しているので不要。
+            aria-label={m.kind === "footprint" ? m.label : undefined}
             className="absolute z-[6] -translate-x-1/2 -translate-y-full border-0 bg-transparent p-0"
             style={positionStyle}
           >

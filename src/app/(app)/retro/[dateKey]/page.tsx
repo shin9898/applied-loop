@@ -5,6 +5,7 @@ import {
   dayRangeFromDateKey,
   loadDailyTextbook,
 } from "@/lib/daily-textbook";
+import { buildSessionDigestForDate } from "@/lib/session-digest";
 import { prisma } from "@/lib/db";
 import { getTerminalWsToken } from "@/lib/terminal-token";
 
@@ -18,16 +19,18 @@ export default async function RetroDatePage({
   const { dateKey } = await params;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) notFound();
 
-  const [textbook, streakDays, materialCount] = await Promise.all([
-    loadDailyTextbook(dateKey),
-    loadStreakDays(),
-    (() => {
-      const { start, end } = dayRangeFromDateKey(dateKey);
-      return prisma.devEvent.count({
-        where: { receivedAt: { gte: start, lt: end } },
-      });
-    })(),
-  ]);
+  const [textbook, streakDays, materialCount, sessionDigest] =
+    await Promise.all([
+      loadDailyTextbook(dateKey),
+      loadStreakDays(),
+      (() => {
+        const { start, end } = dayRangeFromDateKey(dateKey);
+        return prisma.devEvent.count({
+          where: { receivedAt: { gte: start, lt: end } },
+        });
+      })(),
+      buildSessionDigestForDate(dateKey),
+    ]);
 
   return (
     <AtlasDailyTextbook
@@ -36,6 +39,7 @@ export default async function RetroDatePage({
       streakDays={streakDays}
       wsToken={getTerminalWsToken()}
       materialCountToday={materialCount}
+      sessionDigest={sessionDigest}
     />
   );
 }
