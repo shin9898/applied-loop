@@ -15,6 +15,17 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# .env から OBSIDIAN_DIGEST_DIR 等を読む (存在すれば)。無いと OBSIDIAN_DIGEST_DIR
+# が既定値にフォールバックし、Obsidian ではなくリポジトリ内に音声が生成されて
+# しまう (2026-08-14 発覚、実害あり)。
+if [[ -f "$ROOT/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$ROOT/.env"
+  set +a
+fi
+
 VOICEVOX_URL="${VOICEVOX_URL:-http://127.0.0.1:10101}"
 VOICEVOX_SPEAKER="${VOICEVOX_SPEAKER:-888753763}"
 SPEED_SCALE="${VOICEVOX_SPEED_SCALE:-0.9}"
