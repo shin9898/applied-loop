@@ -23,17 +23,16 @@ export type AtlasAssistIntent =
 
 const INTENT_PLAIN: Record<AtlasAssistIntent, string> = {
   general:
-    "ボタンで Claude/Codex が開き、Applied Loop MCP で登録・仕分け・処方・回答まで実行できる。",
+    "ボタンで LLM が開き、この画面の操作（登録・仕分け・処方・回答）を代わりに実行できる。",
   "goal-evidence":
-    "capture_learning_candidate → triage → record_application / approve_goal_link で証跡を残す。うけばこは結果表示のみ。",
+    "学びを記録し、仕分けたうえで目標への紐付けまで進められる。うけばこ側は結果を表示するだけ。",
   triage:
-    "triage_inbox で受信箱を accept/skip。必要なら capture_learning_candidate で追加捕捉。",
-  harness:
-    "suggest_cache_prefix_form で処方差分を提案し、適用後は record_application。",
+    "受信箱の項目を受け入れる/見送るか判断し、必要なら新しい学びを追加で記録できる。",
+  harness: "キャッシュ効率を上げる変更案を提案し、適用後の結果を記録できる。",
   requirements:
-    "list/register/link_requirement と approve/reject_requirement_link で要件↔理解を進める。",
+    "要件を一覧・登録し、理解との紐付けを承認/却下しながら進められる。",
   gates:
-    "list_pending_gates で問いを確認し、対話のあと answer_gate。合否は get_gate_result。",
+    "未回答のしれんを確認し、対話したうえで回答できる。合否もその場で分かる。",
 };
 
 /**
@@ -103,10 +102,11 @@ export function AtlasAssist({
         <div className="min-w-0 flex-1">
           <h2 className="dq-win-title mb-1">{title}</h2>
           <AtlasVoicePlain voice={blurb} plain={plainText} />
-          <p className="mt-1.5 mb-0 text-[11px] text-[#9ec0ff]">
-            意図: {intent}
-            {gateId ? ` · gate ${gateId.slice(0, 8)}…` : ""}
-          </p>
+          {gateId ? (
+            <p className="mt-1.5 mb-0 text-[11px] text-[#9ec0ff]">
+              gate {gateId.slice(0, 8)}…
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -226,10 +226,10 @@ export function AtlasAssistUnavailable() {
   return (
     <section className="dq-win p-3.5">
       <h2 className="dq-win-title">じゅもん</h2>
-      <AtlasVoicePlain
-        voice="いま、じゅもんの祭壇は消えておる。合言葉を記し、火を灯せ。"
-        plain="ENABLE_TERMINAL=true と MCP_TOKEN を .env に入れ、npm run dev:all する。または外部の Claude/Cursor MCP だけで操作してもよい。"
-      />
+      <p className="m-0 text-[13px] leading-relaxed text-[#c9c3a0]">
+        ENABLE_TERMINAL=true と MCP_TOKEN を .env に入れ、npm run dev:all
+        する。または外部の Claude/Cursor MCP だけで操作してもよい。
+      </p>
     </section>
   );
 }

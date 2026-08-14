@@ -1175,12 +1175,14 @@ function CheckRow({
             <span className="ml-1 text-[10px] text-[#9ec0ff]">任意</span>
           ) : null}
         </p>
-        <p className="mt-0.5 mb-0 text-[11px] leading-relaxed text-[#9a9470]">
-          {check.detail}
-        </p>
         <p className="mt-0.5 mb-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-          つまり {check.plain}
+          {check.plain}
         </p>
+        {check.detail ? (
+          <p className="mt-0.5 mb-0 text-[11px] leading-relaxed text-[#9a9470]">
+            {check.detail}
+          </p>
+        ) : null}
         {!check.ok ? (
           <p className="mt-0.5 mb-0 font-mono text-[10px] leading-relaxed text-[#c9c3a0]">
             → {check.howTo}

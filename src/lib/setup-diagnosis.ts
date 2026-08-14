@@ -44,7 +44,8 @@ export type SetupCheck = {
   label: string;
   ok: boolean;
   required: boolean;
-  detail: string;
+  /** plain だけでは分からない実データ（件数・接続状況等）がある項目のみ */
+  detail?: string;
   /** 具体コマンド・操作（手引） */
   howTo: string;
   /** 機能として何が起きるか（平易） */
@@ -186,7 +187,6 @@ export async function loadSetupDiagnosis(opts?: {
       label: "ぼうけんのしょは開いておる",
       ok: true,
       required: true,
-      detail: "この画面が見えておる——書はすでにそなたの前にある",
       howTo: "`npm run dev:all`（または `npm run dev -- -p 3100`）",
       plain: "Next.js アプリが http://localhost:3100 で動いている状態。",
     },
@@ -195,9 +195,6 @@ export async function loadSetupDiagnosis(opts?: {
       label: "合言葉（MCP_TOKEN）がある",
       ok: mcpToken,
       required: true,
-      detail: mcpToken
-        ? "合言葉は .env に刻まれておる"
-        : "合言葉がない。賢者ともじゅもんとも、扉が開かぬぞ",
       howTo:
         "`npm run setup` で自動生成（弱い／空の TOKEN も書き戻す）。その後 `npm run dev:all` で再起動",
       plain:
@@ -208,9 +205,6 @@ export async function loadSetupDiagnosis(opts?: {
       label: "サンプルしれんを提出した",
       ok: sampleSubmitted,
       required: false,
-      detail: sampleSubmitted
-        ? "最初の1勝——提出まで届いておる"
-        : "まだサンプルしれんが未提出。Web の『たたかう』で提出せよ",
       howTo: `/setup の案内から『たたかう』→ 提出する（gate: ${TUTORIAL_GATE_ID}）`,
       plain:
         "MCP なしで、理解度チェックに自分の言葉を書いた体験。採点は後からでよい。",
@@ -220,9 +214,6 @@ export async function loadSetupDiagnosis(opts?: {
       label: "MCP（またはじゅもん）が通った",
       ok: mcpRecent || Boolean(tutorialState.llmStepDone),
       required: false,
-      detail: llmStepDone
-        ? "貼るステップ完了（選択後の MCP、または『できた』）"
-        : "まだ（LLM 選択後の）操作がない",
       howTo: "じゅんびで LLM を選んでから貼る文をチャットへ。または『できた』",
       plain: "本運用の入口。選択より前の疎通だけではクリアにならない。",
     },
@@ -231,9 +222,6 @@ export async function loadSetupDiagnosis(opts?: {
       label: "はじめのチュートリアルを終えた",
       ok: tutorialReady,
       required: false,
-      detail: tutorialReady
-        ? "最短チュートリアルは完了しておる"
-        : "じゅんびのウィザードを順に進めよ",
       howTo: "/setup（じゅんび）のいまやる1手に従う",
       plain: "Web 1勝 → LLM を1回呼ぶ、まで。hook は任意。",
     },
@@ -242,9 +230,6 @@ export async function loadSetupDiagnosis(opts?: {
       label: "じゅもんの祭壇が許されておる",
       ok: terminalEnv,
       required: false,
-      detail: terminalEnv
-        ? "ENABLE_TERMINAL=true —— 画面内でじゅもんをとなえられる"
-        : "画面内のじゅもんはまだ封じられておる（外の賢者だけで進むならそれでもよい）",
       howTo: ".env に `ENABLE_TERMINAL=true` を足し、`npm run dev:all`",
       plain:
         "ON にすると UI から Claude/Codex を開ける。OFF でも Cursor 等の外部 MCP だけで使える。",
@@ -254,9 +239,6 @@ export async function loadSetupDiagnosis(opts?: {
       label: "じゅもんの火が灯っておる（:3101）",
       ok: terminalUp,
       required: false,
-      detail: terminalUp
-        ? "祭壇は応えておる（WS :3101）"
-        : "じゅもんを使うなら、火を灯せ——`npm run dev:all`",
       howTo: "`npm run dev:all`（ちず :3100 とじゅもん :3101）",
       plain:
         "terminal-server がポート 3101 で待っているか。無いと『じゅもんをとなえる』が接続エラーになる。",
@@ -308,9 +290,8 @@ export async function loadSetupDiagnosis(opts?: {
       label: "採点の賢者（claude/codex CLI）",
       ok: grading.ok,
       required: false,
-      detail: grading.ok
-        ? `採点経路は見える——${grading.detail}`
-        : genFailures.auth + genFailures.other > 0
+      detail:
+        !grading.ok && genFailures.auth + genFailures.other > 0
           ? `${grading.detail}（直近の生成失敗: auth ${genFailures.auth} / other ${genFailures.other}）`
           : grading.detail,
       howTo: grading.howTo,
@@ -322,10 +303,7 @@ export async function loadSetupDiagnosis(opts?: {
       label: "しれんの気配がある",
       ok: gateCount > 0,
       required: false,
-      detail:
-        gateCount > 0
-          ? `しれん ${gateCount} 件が待つ`
-          : "まだしれんがない。じゅんびでサンプルを用意せよ",
+      detail: gateCount > 0 ? `しれん ${gateCount} 件が待つ` : undefined,
       howTo: "/setup を開く（サンプル seed）または hook 後にコミット",
       plain:
         "しれんが1件以上ある。ホームの『たたかう』や /gates で解ける。",
@@ -335,10 +313,7 @@ export async function loadSetupDiagnosis(opts?: {
       label: "学びの足跡がある",
       ok: learningCount > 0,
       required: false,
-      detail:
-        learningCount > 0
-          ? `足跡 ${learningCount} 件`
-          : "まだ学びが落ちておらぬ。サンプルまたはじゅもんで拾わせよ",
+      detail: learningCount > 0 ? `足跡 ${learningCount} 件` : undefined,
       howTo: "/setup のサンプル seed、または capture_learning_candidate",
       plain:
         "にっきまたは受信箱の候補が1件以上。学びが並び始める。",
