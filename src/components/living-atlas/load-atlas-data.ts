@@ -620,23 +620,42 @@ function mapUnmeasuredWatchedRepo(input: {
   };
 }
 
-async function todayDevEventCountsByRepo(): Promise<Map<string, number>> {
+type DevEventCountRow = { repo: string; repoPath: string | null; count: number };
+
+async function todayDevEventCountsByRepo(): Promise<DevEventCountRow[]> {
   const start = dayStartJST();
   const rows = await prisma.devEvent.groupBy({
-    by: ["repo"],
+    by: ["repo", "repoPath"],
     where: { receivedAt: { gte: start } },
     _count: { _all: true },
   });
-  return new Map(rows.map((r) => [r.repo, r._count._all]));
+  return rows.map((r) => ({
+    repo: r.repo,
+    repoPath: r.repoPath,
+    count: r._count._all,
+  }));
 }
 
+/**
+ * repo 名の接頭辞一致（`{basename}-...`）で拾えない worktree も、`repoPath` が
+ * 監視パス配下にあれば同じ repo としてカウントする。
+ * 例: `.claude/worktrees/cron-discord-notify` のように worktree ディレクトリ名が
+ * 親 repo 名を接頭辞に持たない命名でも、gitのtoplevel絶対パスは監視パスの
+ * サブディレクトリになっているため拾える（2026-08-14、実データで取りこぼしを確認）
+ */
 function commitCountForWatched(
   w: { path: string; label?: string },
-  counts: Map<string, number>,
+  counts: DevEventCountRow[],
 ): number {
+  const watchedPath = w.path.replace(/\/$/, "");
   let total = 0;
-  for (const [repo, n] of counts) {
-    if (findWatchedForHarnessRepo(repo, [w])) total += n;
+  for (const { repo, repoPath, count } of counts) {
+    const matchesByName = findWatchedForHarnessRepo(repo, [w]) !== null;
+    const matchesByPath =
+      !matchesByName &&
+      repoPath != null &&
+      (repoPath === watchedPath || repoPath.startsWith(`${watchedPath}/`));
+    if (matchesByName || matchesByPath) total += count;
   }
   return total;
 }
@@ -655,7 +674,7 @@ export async function loadHarnessRepos(): Promise<HarnessRepo[]> {
   const watched = listWatchedRepos();
   const [rates, commitCounts, recent] = await Promise.all([
     repoCacheReadRates(new Date(), { take: 40 }),
-    todayDevEventCountsByRepo().catch(() => new Map<string, number>()),
+    todayDevEventCountsByRepo().catch(() => [] as DevEventCountRow[]),
     prisma.harnessRun.findMany({
       where: { repo: { not: null } },
       orderBy: { startedAt: "desc" },
