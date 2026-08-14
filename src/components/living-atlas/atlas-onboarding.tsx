@@ -437,6 +437,7 @@ export function AtlasSetupPanel({
   }, [justEquipped]);
 
   const localMcpUrl = diagnosis.mcpEndpoint.localMcpUrl;
+  const llmCallDone = progress.steps.find((s) => s.id === "llm_call")?.done;
   const paste = useMemo(
     () =>
       progress.llmTrack
@@ -564,7 +565,7 @@ export function AtlasSetupPanel({
             </div>
           </div>
 
-          {/* 右: たびだちのとびら（進捗バーの代わりに扉が開く） */}
+          {/* 右: たびだちのとびら（進捗バーの代わりに扉が開く）＋そうびひょう */}
           <div className="atlas-eq-gatecol">
             <div className="dq-win atlas-eq-gatewin">
               <p className="atlas-eq-wintitle">
@@ -574,56 +575,54 @@ export function AtlasSetupPanel({
               <DepartureGate open={gateOpen} caption={gateCaption} />
             </div>
 
-            <div className="dq-win atlas-eq-win" style={{ padding: 14 }}>
-              <div className="atlas-eq-gauge">
-                <span className="atlas-eq-gauge__label">たびだち度</span>
-                <span className="atlas-eq-gauge__bar">
-                  {SLOTS.map((s) => (
-                    <span
-                      key={s.step}
-                      className={[
-                        "atlas-eq-seg",
-                        doneMap[s.step] ? "is-on" : "",
-                        s.required ? "" : "is-opt",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                    />
-                  ))}
-                </span>
-                <span className="atlas-eq-gauge__num">
-                  {equippedAll}/{SLOTS.length}
-                </span>
-              </div>
-              <p className="atlas-eq-note" style={{ marginTop: 10 }}>
-                金の4つが <span className="atlas-eq-hi">かなめ</span>
-                、緑の1つは <span style={{ color: "#3ecf5a" }}>任意（ランタン）</span>
-                。かなめが揃えば とびらは開く。
+            <div className="dq-win atlas-eq-win">
+              <p className="atlas-eq-wintitle">
+                <span className="atlas-eq-mk" aria-hidden="true" />
+                そうびひょう
               </p>
+              <div>
+                {SLOTS.map((s) => {
+                  const equipped = Boolean(doneMap[s.step]);
+                  const active = s.step === current;
+                  return (
+                    <button
+                      key={s.step}
+                      type="button"
+                      className={`atlas-eq-ledger__row${active ? " is-active" : ""}`}
+                      onClick={() => setOpenSlot(s.step)}
+                    >
+                      <span className="atlas-eq-ledger__mark">
+                        {equipped ? (
+                          <span
+                            className="atlas-eq-spr atlas-eq-spr--check"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <span aria-hidden="true">{active ? "▸" : "…"}</span>
+                        )}
+                        <span className="sr-only">
+                          {equipped
+                            ? "そうび済み"
+                            : active
+                              ? "いまここ"
+                              : "みそうび"}
+                        </span>
+                      </span>
+                      <span className="atlas-eq-ledger__name">{s.name}</span>
+                      <span className="atlas-eq-ledger__what">{s.what}</span>
+                      <span className="atlas-eq-ledger__tag">
+                        {s.required ? "かなめ" : "任意"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 天の声 */}
-      <div className="dq-win atlas-eq-win">
-        <p className="atlas-eq-voice__who">
-          <span className="atlas-eq-mk" aria-hidden="true" />
-          天の声
-        </p>
-        <p className="atlas-eq-voice__line">
-          {voice.line}
-          <span className="atlas-eq-voice__cursor" aria-hidden="true" />
-        </p>
-        <p
-          className="atlas-eq-note atlas-eq-note--plain"
-          style={{ marginTop: 10 }}
-        >
-          つまり {voice.plain}
-        </p>
-      </div>
-
-      {/* いまやる1手（＝そうびの中身） */}
+      {/* いまやる1手（＝そうびの中身。天の声のflavor行をヘッダに統合） */}
       {questStep ? (
         <div className="dq-win atlas-eq-win atlas-eq-win--gold">
           <div className="atlas-eq-quests__head">
@@ -631,12 +630,11 @@ export function AtlasSetupPanel({
               <span className="atlas-eq-mk" aria-hidden="true" />
               {questStep === current ? "いまやる1手" : "そうびを しらべる"}
             </span>
-            <span className="atlas-eq-quests__count">
-              {remaining > 0
-                ? `のこり かなめ ${remaining}つ`
-                : `かなめ ${REQUIRED_COUNT}/${REQUIRED_COUNT} ととのった`}
-            </span>
           </div>
+          <p className="atlas-eq-voice__line" style={{ marginBottom: 14 }}>
+            {voice.line}
+            <span className="atlas-eq-voice__cursor" aria-hidden="true" />
+          </p>
 
           {questStep !== current ? (
             <p
@@ -752,18 +750,20 @@ export function AtlasSetupPanel({
                   をつなぐ（貼る文 1回）
                 </p>
                 <div className="atlas-eq-quest__body">
+                  {llmCallDone && progress.mcpRecent ? (
+                    <p className="m-0 border-l-[3px] border-[#3ecf5a] bg-[#001a8c] px-3 py-2 text-[13px] text-[#f7f3d9]">
+                      選択後の疎通を検知したぞ。つなぎの くさりは むすばれた。
+                    </p>
+                  ) : null}
                   <p className="atlas-eq-note">
                     下の文を選んだ LLM に貼って1回呼ぶ。これで Applied Loop
-                    とつながる（ツール名は覚えなくてよい）。 手元の生成AIは常に
-                    localhost（
-                    <code className="text-[#9ec0ff]">{localMcpUrl}</code>
-                    ）。Cloud Agent は下の青いカード。
-                    この道を選んだあとの疎通だけがカウントされる。
-                    {progress.mcpRecent &&
-                    progress.steps.find((s) => s.id === "llm_call")?.done
-                      ? " —— 選択後の疎通を検知したぞ。"
-                      : ""}
+                    とつながる（ツール名は覚えなくてよい）。
                   </p>
+                  {progress.mcpRecent && !llmCallDone ? (
+                    <p className="atlas-eq-note atlas-eq-note--plain">
+                      以前の疎通はカウントしない。この道を選んだあとの疎通だけが数えられる。
+                    </p>
+                  ) : null}
                   <LlmTrackHint track={progress.llmTrack} mcpUrl={localMcpUrl} />
                   <pre className="atlas-eq-code max-h-48 overflow-auto">
                     {paste}
@@ -830,12 +830,12 @@ export function AtlasSetupPanel({
               </p>
               <div className="atlas-eq-quest__body">
                 <p className="atlas-eq-note">
-                  選んだ repo への commit
-                  が材料になる（即時しれんは溜まると止まるが、材料は消えない）。仕事していれば勝手に溜まるわけではない。Cloud
+                  repo の追加と鉤かけは、下の『監視リポジトリ』でおこなう。Cloud
                   作業が主なら今は飛ばしてよい。
                 </p>
                 <p className="atlas-eq-note atlas-eq-note--plain">
-                  repo の追加と鉤かけは、下の『監視リポジトリ』でおこなう。
+                  選んだ repo への commit
+                  が材料になる（仕事すれば自動で溜まるわけではない）。即時しれんが溜まりすぎても材料自体は消えない。
                 </p>
               </div>
               <div className="atlas-eq-quest__actions">
@@ -869,46 +869,6 @@ export function AtlasSetupPanel({
         </div>
       ) : null}
 
-      {/* そうびひょう（テキスト台帳＝アクセシブルな正本。押すと中身が開く） */}
-      <div className="dq-win atlas-eq-win">
-        <p className="atlas-eq-wintitle">
-          <span className="atlas-eq-mk" aria-hidden="true" />
-          そうびひょう
-        </p>
-        <div>
-          {SLOTS.map((s) => {
-            const equipped = Boolean(doneMap[s.step]);
-            return (
-              <button
-                key={s.step}
-                type="button"
-                className="atlas-eq-ledger__row"
-                onClick={() => setOpenSlot(s.step)}
-              >
-                <span className="atlas-eq-ledger__mark">
-                  {equipped ? (
-                    <span
-                      className="atlas-eq-spr atlas-eq-spr--check"
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <span aria-hidden="true">…</span>
-                  )}
-                  <span className="sr-only">
-                    {equipped ? "そうび済み" : "みそうび"}
-                  </span>
-                </span>
-                <span className="atlas-eq-ledger__name">{s.name}</span>
-                <span className="atlas-eq-ledger__what">{s.what}</span>
-                <span className="atlas-eq-ledger__tag">
-                  {s.required ? "かなめ" : "任意"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       {/* 監視リポジトリ（チュートリアル後も常時。hook ステップ中も見えている必要がある） */}
       <div className="dq-win atlas-eq-win">
         <AtlasWatchedReposPanel repos={diagnosis.watchedRepos} />
@@ -937,8 +897,8 @@ export function AtlasSetupPanel({
 
         <details className="mt-4 border-t-2 border-[#002070] pt-3">
           <summary className="cursor-pointer font-[family-name:var(--font-pixel)] text-[12px] text-[#9ec0ff]">
-            診断の詳細（かなめ {diagnosis.readyRequired}/
-            {diagnosis.totalRequired}）
+            診断の詳細（{diagnosis.readyRequired}/{diagnosis.totalRequired}{" "}
+            クリア）
           </summary>
           <ul className="mt-2 mb-0 list-none space-y-2 p-0">
             {diagnosis.checks.map((c) => (
@@ -1142,8 +1102,8 @@ function LlmTrackHint({
   }
   return (
     <p className="atlas-eq-note atlas-eq-note--plain">
-      つまり手元は ~/.codex/config.toml に localhost URL。別ホストの Codex
-      は下の青いカード （Reachable + MCP_TOKEN）。
+      つまり手元は ~/.codex/config.toml に url=<code>{mcpUrl}</code>
+      。別ホストの Codex は下の青いカード （Reachable + MCP_TOKEN）。
     </p>
   );
 }
