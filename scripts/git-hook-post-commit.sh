@@ -27,6 +27,16 @@ send() {
 
 mkdir -p "$HOME/.applied-loop"
 
+# 前回の flush が途中で中断された場合、"$QUEUE.sending.$$" 残骸が残ったまま
+# 二度と参照されず、中に入っていたイベントが恒久的に失われていた
+# (2026-08-07に発覚、実害あり)。起動のたびに残骸があればキューへ戻す。
+# 多重に戻しても /api/events 側が (kind,repo,ref) で重複排除するため安全。
+for stray in "$QUEUE".sending.*; do
+  [ -e "$stray" ] || continue
+  cat "$stray" >> "$QUEUE"
+  rm -f "$stray"
+done
+
 # オフライン等で溜まったキューを先に flush。送れなかった分はキューに戻す
 if [ -f "$QUEUE" ]; then
   tmp="$QUEUE.sending.$$"
