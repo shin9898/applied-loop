@@ -2356,14 +2356,36 @@ a.atlas-gq-cmd__item:hover {
   }
 }
 
-/* —— ページロード中UI（Issue #2）: 領土テクスチャの帯を自キャラが歩く —— */
+/* —— ページロード中UI（Issue #2、FBで窓化）: 中央固定の dq-win の中で
+   領土テクスチャの帯を自キャラが歩く —— */
 /* 帯の配色は知識(緑)→ハーネス(濃緑)→キャッシュ(金)→海、で固定。左右の水面色を
    揃えて縫い目なく repeat-x させる */
+.atlas-route-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 8, 20, 0.55);
+}
+
 .atlas-route-loading {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  padding: 14px;
+  width: 100%;
+}
+
+.atlas-route-loading--hero {
+  max-width: 360px;
+}
+
+.atlas-route-loading--compact {
+  max-width: 280px;
 }
 
 .atlas-route-loading__stage {
@@ -2372,29 +2394,10 @@ a.atlas-gq-cmd__item:hover {
   overflow: hidden;
   border: 1px solid #2a3a5a;
   background-color: #0d2f70;
-  background-image:
-    repeating-linear-gradient(
-      90deg,
-      rgba(0, 0, 0, 0.12) 0 12px,
-      transparent 12px 24px
-    ),
-    linear-gradient(
-      90deg,
-      #0d2f70 0%,
-      #1a4fa8 10%,
-      #1a4fa8 16%,
-      #3caa4a 32%,
-      #1f6b32 46%,
-      #1f6b32 54%,
-      #d2b15a 68%,
-      #1a4fa8 84%,
-      #1a4fa8 90%,
-      #0d2f70 100%
-    );
-  background-size:
-    24px 100%,
-    720px 100%;
-  background-repeat: repeat;
+  background-image: url("/sprites/route-loading/terrain.png");
+  background-size: 720px 100%;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
   animation: atlas-route-loading-scroll 16s linear infinite;
 }
 
@@ -2408,14 +2411,10 @@ a.atlas-gq-cmd__item:hover {
 
 @keyframes atlas-route-loading-scroll {
   from {
-    background-position:
-      0 0,
-      0 0;
+    background-position: 0 0;
   }
   to {
-    background-position:
-      -720px 0,
-      -720px 0;
+    background-position: -720px 0;
   }
 }
 
