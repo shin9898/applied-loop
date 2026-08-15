@@ -360,6 +360,41 @@
           grid-template-columns: repeat(2, 1fr);
         }
       }
+      .shotcard {
+        border: 3px solid var(--line);
+        background: var(--deep);
+        padding: 0.75rem;
+      }
+      .shotcard img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border: 2px solid var(--navy);
+        image-rendering: pixelated;
+      }
+      .shotcard h3 {
+        margin: 0.75rem 0 0;
+        font-size: 17px;
+        font-weight: 400;
+        color: var(--cream);
+      }
+      .shotcard p {
+        margin: 0.5rem 0 0;
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--dim);
+      }
+      .aicode {
+        margin: 0.5rem 0 0;
+        border: 2px solid var(--navy);
+        background: #000814;
+        padding: 0.5rem;
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        line-height: 1.6;
+        color: var(--dim);
+        white-space: pre-wrap;
+      }
       @media (min-width: 768px) {
         .grid3 {
           grid-template-columns: repeat(3, 1fr);
@@ -569,25 +604,47 @@
 
     <section class="section">
       <h2>なにができるか</h2>
-      <p class="sub">UI の呼び名はゲーム風。中身は全部、理解を残すための機能。</p>
+      <p class="sub">UI の呼び名はゲーム風。中身は全部、理解を残すための機能——実際の画面はこちら。</p>
       <div class="grid2">
-        <div class="pane">
-          <p class="t">きょうのしょ（日次教科書）</p>
-          <p class="body">その日の材料を章立てし、確認→Mastery まで。じゅもんで1章だけ深掘りできる。</p>
+        <div class="shotcard">
+          <img
+            src="./assets/lp-chizu.png"
+            width="900"
+            height="533"
+            loading="lazy"
+            alt="ちず（ホーム画面）のスクリーンショット。ドットタイルの地図と、ぼうけんしゃステータスが並ぶ"
+          />
+          <h3>ちず（ホーム）</h3>
+          <p>コミットが増えるほど学びの領土が育つ。いまどこにいるかが一目で分かる。</p>
         </div>
-        <div class="pane">
-          <p class="t">しれん（理解チェック）</p>
-          <p class="body">過渡期の即時出題。溜まったらあとまわし／閉じるで呼吸できる。</p>
+        <div class="shotcard">
+          <img
+            src="./assets/lp-kyounosho.png"
+            width="820"
+            height="856"
+            loading="lazy"
+            alt="きょうのしょ（日次教科書）のスクリーンショット。3つの章タイトルと本文が並ぶ"
+          />
+          <h3>きょうのしょ（日次教科書）</h3>
+          <p>その日の材料を章立てし、なぜ／型／別案で振り返る。※初クリア後にひらく</p>
         </div>
-        <div class="pane">
-          <p class="t">ずかん（つまずき一覧）</p>
-          <p class="body">stuck や誤解を一覧で追い、再出題につなげる。</p>
+        <div class="shotcard">
+          <img
+            src="./assets/lp-zukan.png"
+            width="820"
+            height="546"
+            loading="lazy"
+            alt="ずかん（つまずき一覧）のスクリーンショット。カテゴリ別件数と学びカードが並ぶ"
+          />
+          <h3>ずかん（つまずき一覧）</h3>
+          <p>解けた問い・解けていない問いをカテゴリ別に一覧。再出題にもつながる。</p>
         </div>
         <div class="pane">
           <p class="t">自分の LLM とつなぐ</p>
-          <p class="body">
-            Claude / Cursor / Codex などに MCP を1回貼る。操作の正典はツール側。
-          </p>
+          <p class="body">Claude / Cursor / Codex などに、この1文を貼るだけ。</p>
+          <pre class="aicode">Applied Loop の MCP で request_gate を呼んでください。
+引数 diff には、いまの変更差分を渡してください。</pre>
+          <p class="body">→ しれんが生成され、答えるとずかんに残る。操作の正典はツール側。</p>
         </div>
       </div>
     </section>
@@ -599,7 +656,7 @@
         <div class="win">
           <p class="n">①</p>
           <h3>手元で起動する</h3>
-          <p>clone → setup → ブラウザでじゅんび。最初の1問は Web で提出してよい。</p>
+          <p>clone → setup → ブラウザでじゅんび。サンプルしれんの最初の1問は Web で提出してよい。</p>
         </div>
         <div class="win">
           <p class="n">②</p>
@@ -612,6 +669,9 @@
           <p>きょうのしょ → 確認 → Mastery。朝の一手が状態で変わる。</p>
         </div>
       </div>
+      <p class="sub" style="margin-top: 1.5rem; margin-bottom: 0; color: var(--blue)">
+        ④ 翌日からは毎朝この3つだけ見ればいい —— ちずの一手・ずかんの未解明・きょうのしょの続き。
+      </p>
     </section>
 
     <section class="section last">

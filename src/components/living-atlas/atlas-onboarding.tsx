@@ -1010,6 +1010,10 @@ function DepartScene({ lampOn }: { lampOn: boolean }) {
         </div>
       </div>
 
+      <p className="m-0 px-4 pt-2 text-[11px] leading-relaxed text-[#9ec0ff]">
+        あすからの1日 —— はたらく（commit）→ よる きょうのしょ → あさ ちずの一手。
+      </p>
+
       <div className="atlas-eq-finalbar">
         <Link href="/gates" className="dq-btn atlas-eq-btn atlas-eq-btn--big">
           しれん一覧へ

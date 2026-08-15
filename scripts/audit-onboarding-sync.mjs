@@ -24,6 +24,10 @@ const targets = [
     must: ["/setup", "サンプル", "貼る"],
   },
   {
+    path: "docs/lp/index.html",
+    must: ["setup", "サンプル", "貼る"],
+  },
+  {
     path: "src/components/living-atlas/atlas-onboarding.tsx",
     must: ["サンプルしれん", "貼る"],
   },

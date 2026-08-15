@@ -36,24 +36,37 @@ const RESOLVES = [
   },
 ] as const;
 
-const CAN_DO = [
+const SHOWCASE = [
   {
-    title: "きょうのしょ（日次教科書）",
-    body: "その日の材料を章立てし、確認→Mastery まで。じゅもんで1章だけ深掘りできる。",
+    title: "ちず（ホーム）",
+    body: "コミットが増えるほど学びの領土が育つ。いまどこにいるかが一目で分かる。",
+    image: "/lp/lp-chizu.png",
+    width: 900,
+    height: 533,
+    alt: "ちず（ホーム画面）のスクリーンショット。ドットタイルの地図と、ぼうけんしゃステータスが並ぶ",
   },
   {
-    title: "しれん（理解チェック）",
-    body: "過渡期の即時出題。溜まったらあとまわし／閉じるで呼吸できる。",
+    title: "きょうのしょ（日次教科書）",
+    body: "その日の材料を章立てし、なぜ／型／別案で振り返る。※初クリア後にひらく",
+    image: "/lp/lp-kyounosho.png",
+    width: 820,
+    height: 856,
+    alt: "きょうのしょ（日次教科書）のスクリーンショット。3つの章タイトルと本文が並ぶ",
   },
   {
     title: "ずかん（つまずき一覧）",
-    body: "stuck や誤解を一覧で追い、再出題につなげる。",
-  },
-  {
-    title: "自分の LLM とつなぐ",
-    body: "Claude / Cursor / Codex などに MCP を1回貼る。操作の正典はツール側。",
+    body: "解けた問い・解けていない問いをカテゴリ別に一覧。再出題にもつながる。",
+    image: "/lp/lp-zukan.png",
+    width: 820,
+    height: 546,
+    alt: "ずかん（つまずき一覧）のスクリーンショット。カテゴリ別件数と学びカードが並ぶ",
   },
 ] as const;
+
+const AI_LINK_EXAMPLE = [
+  "Applied Loop の MCP で request_gate を呼んでください。",
+  "引数 diff には、いまの変更差分を渡してください。",
+].join("\n");
 
 const STEPS = [
   {
@@ -241,16 +254,25 @@ export default function LpPage() {
       <section className="border-b-4 border-white bg-[#001a8c] px-5 py-14 md:px-10">
         <h2 className="dq-win-title m-0">なにができるか</h2>
         <p className="mt-2 mb-8 max-w-2xl font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#c9c3a0]">
-          UI の呼び名はゲーム風。中身は全部、理解を残すための機能。
+          UI の呼び名はゲーム風。中身は全部、理解を残すための機能——実際の画面はこちら。
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          {CAN_DO.map((item, i) => (
+          {SHOWCASE.map((item, i) => (
             <div
               key={item.title}
-              className="border-[3px] border-[#002070] bg-[#000c4a] p-4 atlas-enter"
+              className="border-[3px] border-[#002070] bg-[#000c4a] p-3 atlas-enter"
               style={{ ["--motion-delay" as string]: `${i * 60}ms` }}
             >
-              <h3 className="m-0 font-[family-name:var(--font-pixel)] text-[10px] text-[#9ec0ff]">
+              <img
+                src={item.image}
+                alt={item.alt}
+                width={item.width}
+                height={item.height}
+                loading="lazy"
+                style={{ imageRendering: "pixelated" }}
+                className="w-full h-auto border-2 border-[#001a8c]"
+              />
+              <h3 className="mt-3 mb-0 font-[family-name:var(--font-pixel)] text-[10px] text-[#9ec0ff]">
                 {item.title}
               </h3>
               <p className="mt-2 mb-0 font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#f7f3d9]">
@@ -258,6 +280,23 @@ export default function LpPage() {
               </p>
             </div>
           ))}
+          <div
+            className="border-[3px] border-[#002070] bg-[#000c4a] p-4 atlas-enter"
+            style={{ ["--motion-delay" as string]: `${SHOWCASE.length * 60}ms` }}
+          >
+            <h3 className="m-0 font-[family-name:var(--font-pixel)] text-[10px] text-[#9ec0ff]">
+              自分の LLM とつなぐ
+            </h3>
+            <p className="mt-2 mb-2 font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#f7f3d9]">
+              Claude / Cursor / Codex などに、この1文を貼るだけ。
+            </p>
+            <pre className="m-0 whitespace-pre-wrap border-2 border-[#001a8c] bg-[#000814] p-2 font-mono text-[11px] leading-relaxed text-[#c9c3a0]">
+              {AI_LINK_EXAMPLE}
+            </pre>
+            <p className="mt-2 mb-0 font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#9ec0ff]">
+              → しれんが生成され、答えるとずかんに残る。操作の正典はツール側。
+            </p>
+          </div>
         </div>
       </section>
 
@@ -285,6 +324,9 @@ export default function LpPage() {
             </li>
           ))}
         </ol>
+        <p className="mt-6 mb-0 max-w-2xl font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#9ec0ff]">
+          ④ 翌日からは毎朝この3つだけ見ればいい —— ちずの一手・ずかんの未解明・きょうのしょの続き。
+        </p>
       </section>
 
       <section className="bg-[#001a8c] px-5 py-14 md:px-10">
