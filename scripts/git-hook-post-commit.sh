@@ -12,7 +12,18 @@ QUEUE="$HOME/.applied-loop/event-queue.jsonl"
 build_payload() {
   sha=$(git rev-parse HEAD 2>/dev/null) || return 1
   repo_path=$(git rev-parse --show-toplevel 2>/dev/null) || return 1
-  repo=$(basename "$repo_path")
+  # worktree の場合、show-toplevel は worktree 自身のパスを返す。共有 worktree
+  # プール（例: ~/Desktop/triplethree/worktrees/<task>）ではディレクトリ名が
+  # 親 repo 名と無関係になるため、git-common-dir から本体 repo を逆引きし、
+  # repo 名は常に本体側で揃える（2026-08-15、どうぐ画面の誤分類を確認）。
+  # repo_path 自体は diff 取得用に worktree 自身のパスのまま維持する。
+  common_dir=$(git rev-parse --git-common-dir 2>/dev/null)
+  main_repo_path="$repo_path"
+  if [ -n "$common_dir" ]; then
+    resolved=$(cd "$(dirname "$common_dir")" 2>/dev/null && pwd)
+    [ -n "$resolved" ] && main_repo_path="$resolved"
+  fi
+  repo=$(basename "$main_repo_path")
   summary=$(git log -1 --pretty=%s 2>/dev/null | sed 's/"/\\"/g' | head -c 200)
   printf '{"kind":"commit","repo":"%s","repoPath":"%s","ref":"%s","summary":"%s"}' \
     "$repo" "$repo_path" "$sha" "$summary"

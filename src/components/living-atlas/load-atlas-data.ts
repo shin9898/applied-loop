@@ -10,7 +10,9 @@ import { repoCacheReadRates } from "@/lib/harness-stats";
 import { listMaterialCaptureHealth } from "@/lib/daily-textbook";
 import {
   findWatchedForHarnessRepo,
+  findWatchedForRepoPath,
   pickRateForWatched,
+  repoPathIsUnderWatched,
   watchedDisplayName,
 } from "@/lib/harness-repo-match";
 import { listWatchedRepos } from "@/lib/watched-repos";
@@ -638,23 +640,19 @@ async function todayDevEventCountsByRepo(): Promise<DevEventCountRow[]> {
 
 /**
  * repo 名の接頭辞一致（`{basename}-...`）で拾えない worktree も、`repoPath` が
- * 監視パス配下にあれば同じ repo としてカウントする。
- * 例: `.claude/worktrees/cron-discord-notify` のように worktree ディレクトリ名が
- * 親 repo 名を接頭辞に持たない命名でも、gitのtoplevel絶対パスは監視パスの
- * サブディレクトリになっているため拾える（2026-08-14、実データで取りこぼしを確認）
+ * 監視パス配下にあれば同じ repo として扱う。
+ * 例: `~/Desktop/triplethree/worktrees/report-line-messaging-infra-20260805` のように
+ * worktree ディレクトリ名が親 repo 名を接頭辞に持たない命名でも、gitのtoplevel絶対パスは
+ * 監視パスのサブディレクトリになっているため拾える（2026-08-14、実データで取りこぼしを確認）
  */
 function commitCountForWatched(
   w: { path: string; label?: string },
   counts: DevEventCountRow[],
 ): number {
-  const watchedPath = w.path.replace(/\/$/, "");
   let total = 0;
   for (const { repo, repoPath, count } of counts) {
     const matchesByName = findWatchedForHarnessRepo(repo, [w]) !== null;
-    const matchesByPath =
-      !matchesByName &&
-      repoPath != null &&
-      (repoPath === watchedPath || repoPath.startsWith(`${watchedPath}/`));
+    const matchesByPath = !matchesByName && repoPathIsUnderWatched(repoPath, w);
     if (matchesByName || matchesByPath) total += count;
   }
   return total;
@@ -690,6 +688,17 @@ export async function loadHarnessRepos(): Promise<HarnessRepo[]> {
       .map((r) => r.repo?.trim())
       .filter((n): n is string => !!n),
   ]);
+  // repo 名の接頭辞一致で拾えない worktree を「未契約」に誤分類しないための
+  // repoPath 逆引き（commitCounts にしか repoPath が無いため、HarnessRun 由来の
+  // 名前しか無い repo はこの経路では救えない）
+  const repoPathByName = new Map<string, string>();
+  for (const { repo, repoPath } of commitCounts) {
+    if (repoPath && !repoPathByName.has(repo)) repoPathByName.set(repo, repoPath);
+  }
+  const isCoveredByWatched = (repoName: string): boolean => {
+    if (findWatchedForHarnessRepo(repoName, watched)) return true;
+    return findWatchedForRepoPath(repoPathByName.get(repoName), watched) !== null;
+  };
 
   const watchedRows: HarnessRepo[] = watched.map((w) => {
     const display = watchedDisplayName(w);
@@ -711,7 +720,7 @@ export async function loadHarnessRepos(): Promise<HarnessRepo[]> {
 
   const discoveredRows: HarnessRepo[] = [];
   for (const repoName of measuredRepoNames) {
-    if (findWatchedForHarnessRepo(repoName, watched)) continue;
+    if (isCoveredByWatched(repoName)) continue;
     const rate = rateByRepo.get(repoName);
     if (rate) {
       discoveredRows.push(mapMeasuredHarnessRepo(rate, "discovered"));
