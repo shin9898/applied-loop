@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/*.test.ts src/components/living-atlas/*.test.ts",
+    "test": "tsx --test $(find src -name '*.test.ts')",
     "setup": "node scripts/bootstrap-local.mjs",
     "db:reset": "node scripts/db-reset.mjs",
     "audit:onboarding": "node scripts/audit-onboarding-sync.mjs",
