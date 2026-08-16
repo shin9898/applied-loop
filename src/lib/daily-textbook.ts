@@ -509,7 +509,9 @@ export async function listUngeneratedDays(
 
 /**
  * 日次教科書が「材料を漏れなく拾えているか」(ADR-0020 §6-4)。
- * 圧縮で落とした droppedMaterialIds の割合が高いほど、その日は取りこぼしが多い。
+ * incorporatedAt が付いた（章・編纂・週のしょのいずれかに組み込まれた）
+ * 材料の割合で測る。編纂すればその日の数値も遡って改善する（生きた指標。
+ * 2026-08-16、生成時スナップショットのdroppedMaterialIdsから移行）。
  */
 export async function listMaterialCaptureHealth(limit = 14): Promise<
   Array<{
@@ -518,16 +520,30 @@ export async function listMaterialCaptureHealth(limit = 14): Promise<
     droppedCount: number;
   }>
 > {
-  const rows = await prisma.dailyTextbook.findMany({
+  const textbooks = await prisma.dailyTextbook.findMany({
     orderBy: { dateKey: "desc" },
     take: limit,
-    select: { dateKey: true, materialCount: true, droppedMaterialIds: true },
+    select: { dateKey: true },
   });
-  return rows
-    .map((r) => ({
-      dateKey: r.dateKey,
-      materialCount: r.materialCount,
-      droppedCount: parseIds(r.droppedMaterialIds).length,
-    }))
-    .reverse();
+  const results: Array<{ dateKey: string; materialCount: number; droppedCount: number }> = [];
+  for (const tb of textbooks) {
+    const { start, end } = dayRangeFromDateKey(tb.dateKey);
+    const [materialCount, incorporatedCount] = await Promise.all([
+      prisma.devEvent.count({
+        where: { receivedAt: { gte: start, lt: end } },
+      }),
+      prisma.devEvent.count({
+        where: {
+          receivedAt: { gte: start, lt: end },
+          incorporatedAt: { not: null },
+        },
+      }),
+    ]);
+    results.push({
+      dateKey: tb.dateKey,
+      materialCount,
+      droppedCount: materialCount - incorporatedCount,
+    });
+  }
+  return results.reverse();
 }
