@@ -9,6 +9,7 @@ import {
   distillChecks,
   ensureChapterCopyDiversity,
   extractThemes,
+  groupMaterialsIntoBandDrafts,
   JUMON_CONTEXT_MAX_CHARS,
   parseLessonSlots,
   TEXTBOOK_MAX_CHAPTERS,
@@ -200,6 +201,29 @@ describe("clusterMaterialsIntoChapters", () => {
     const chapter = chapters[0]!;
     assert.match(chapter.bodyPlain, /ほか \d+ 件は章の容量超過で畳んだ/);
     assert.match(chapter.bodyPlain, /捨ててはいない/);
+  });
+});
+
+describe("groupMaterialsIntoBandDrafts", () => {
+  it("groups materials by repo with a short digest and count", () => {
+    const materials = [
+      mat({ id: "a1", repo: "triple-report-infra", summary: "fix: cron retry" }),
+      mat({ id: "a2", repo: "triple-report-infra", summary: "feat: add queue" }),
+      mat({ id: "b1", repo: "workbench", summary: "chore: bump deps" }),
+    ];
+    const bands = groupMaterialsIntoBandDrafts(materials);
+    assert.equal(bands.length, 2);
+    const infra = bands.find((b) => b.repo === "triple-report-infra");
+    assert.ok(infra);
+    assert.equal(infra!.count, 2);
+    assert.deepEqual(infra!.materialIds.sort(), ["a1", "a2"]);
+    assert.match(infra!.digest, /cron retry/);
+    const wb = bands.find((b) => b.repo === "workbench");
+    assert.equal(wb!.count, 1);
+  });
+
+  it("returns empty array for no materials", () => {
+    assert.deepEqual(groupMaterialsIntoBandDrafts([]), []);
   });
 });
 

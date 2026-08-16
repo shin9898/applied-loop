@@ -464,6 +464,45 @@ function evidenceFrom(materials: MaterialRow[]): EvidenceLink[] {
   return out;
 }
 
+export type BandDraft = {
+  repo: string;
+  materialIds: string[];
+  digest: string;
+  count: number;
+};
+
+/**
+ * 章の予算（TEXTBOOK_MAX_CHAPTERS × TEXTBOOK_MAX_MATERIALS_PER_CHAPTER）から
+ * あふれた材料を、repo単位の「よみもの帯」下書きに束ねる。LLM不要。
+ */
+export function groupMaterialsIntoBandDrafts(
+  materials: MaterialRow[],
+): BandDraft[] {
+  const byRepo = new Map<string, MaterialRow[]>();
+  for (const m of materials) {
+    const list = byRepo.get(m.repo) ?? [];
+    list.push(m);
+    byRepo.set(m.repo, list);
+  }
+  const bands: BandDraft[] = [];
+  for (const [repo, rows] of byRepo) {
+    const sorted = [...rows].sort(
+      (a, b) => b.receivedAt.getTime() - a.receivedAt.getTime(),
+    );
+    const preview = sorted
+      .slice(0, 3)
+      .map((m) => (m.summary?.trim() || m.ref).slice(0, 28))
+      .join("、");
+    bands.push({
+      repo,
+      materialIds: sorted.map((m) => m.id),
+      digest: preview,
+      count: sorted.length,
+    });
+  }
+  return bands.sort((a, b) => b.count - a.count);
+}
+
 function overflowDigest(overflow: MaterialRow[]): string {
   if (overflow.length === 0) return "";
   const preview = overflow
