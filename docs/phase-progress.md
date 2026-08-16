@@ -25,7 +25,7 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 
 | ID | 項目 | Status | 完了条件（要約） | メモ |
 |---|---|---|---|---|
-| B1-1 | MCP `MCP_SURFACE=core\|full`（既定 core） | done | 初回接続で見えるツール ≤6 | `src/lib/mcp-surface.ts`。core 5本（request_gate 含む） |
+| B1-1 | MCP `MCP_SURFACE=core\|full`（既定 core） | done | 初回接続で見えるツール ≤6 | `src/lib/mcp-surface.ts`。core 6本（request_gate / watch_repos 含む） |
 | B1-3 | コアツール description 全面書き直し | done | 貼る文後に list を自発呼び出しやすい文面 | route.ts の4本 |
 | B2-1 | hook 1コマンド＋失敗時の次の一手 | done | setup-git-hook 一発、失敗で手順が出る | 引数なしで usage＋次の一手 |
 | B2-2 | 供給失敗の可視化 | done | setup 診断＋しれん空に理由 | grading_cli＋genFailures／gates supply |

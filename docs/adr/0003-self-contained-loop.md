@@ -1,6 +1,6 @@
 ---
 type: decision
-status: proposed
+status: accepted
 date: 2026-08-01
 tags: [product, onboarding]
 source_refs: []
@@ -53,3 +53,7 @@ MVP 時点のデータソースは開発者個人のローカルワークフロ�
 
 - ユーザーフィードバック (2026-08-01):
   「workbench みたいな仕組みがローカルにないと機能しないアプリ」
+
+## 追記（2026-08-16）
+
+status を proposed → accepted に更新。本 ADR の内容は実装済みで運用に入っており、表記を実態に合わせた（docs drift 解消の一環）。

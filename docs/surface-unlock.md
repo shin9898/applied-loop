@@ -6,10 +6,10 @@
 
 | 対象 | 解放条件 |
 |---|---|
-| core 5本（`morning_briefing` / `list_pending_gates` / `request_gate` / `answer_gate` / `get_gate_result`） | 既定（`MCP_SURFACE` 未設定 or `core`） |
+| core 6本（`morning_briefing` / `list_pending_gates` / `request_gate` / `answer_gate` / `get_gate_result` / `watch_repos`） | 既定（`MCP_SURFACE` 未設定 or `core`） |
 | `capture_learning_candidate` / `triage_inbox` / `record_application` / `find_related_learnings` | `MCP_SURFACE=full` |
-| goals 系（`register_goals` / `update_goal` / `list_goals` / `link_goal` 等） | `MCP_SURFACE=full` |
-| requirements 系（`register_requirement` / `list_requirements` / `link_requirement` 等） | `MCP_SURFACE=full` |
+| goals 系（`register_goals` / `update_goal` / `approve_goal_link` / `reject_goal_link`） | `MCP_SURFACE=full` |
+| requirements 系（`register_requirement` / `list_requirements` / `link_requirement` / `approve_requirement_link` / `reject_requirement_link`） | `MCP_SURFACE=full` |
 | `suggest_cache_prefix_fix` | `MCP_SURFACE=full`（UI のどうぐ `/harness` は別フラグ） |
 | `enrich_gate_places` / `save_task_mappings` | `MCP_SURFACE=full` |
 

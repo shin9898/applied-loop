@@ -1,6 +1,6 @@
 ---
 type: decision
-status: proposed
+status: accepted
 date: 2026-08-01
 tags: [product, capture, mcp]
 source_refs: [docs/adr/0003-self-contained-loop.md]
@@ -51,3 +51,7 @@ Applied Loop を **MCP サーバー**として LLM ワークフローに埋め�
 - ユーザーフィードバック (2026-08-01):
   「自身のLLMを使う過程で自動で貯まるみたいな自動要素を入れないと
   まず使われない」
+
+## 追記（2026-08-16）
+
+status を proposed → accepted に更新。本 ADR の内容は実装済みで運用に入っており、表記を実態に合わせた（docs drift 解消の一環）。

@@ -1,6 +1,6 @@
 ---
 type: decision
-status: proposed
+status: accepted
 date: 2026-08-01
 tags: [mcp, distribution, architecture]
 source_refs: [docs/adr/0004-llm-embedded-capture.md]
@@ -82,3 +82,7 @@ ignored 候補を DB に残すのはこの計測のため。
 ## 出典
 
 - Fable レビュー (2026-08-01): Critical#2, Major(配布形態/朝トリガー)
+
+## 追記（2026-08-16）
+
+status を proposed → accepted に更新。本 ADR の内容は実装済みで運用に入っており、表記を実態に合わせた（docs drift 解消の一環）。
