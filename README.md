@@ -60,6 +60,7 @@ npm run dev:all
 - Prisma + SQLite（公開時は Postgres 移行予定）
 - MCP: `POST /api/mcp`（Streamable HTTP）
 - アプリ内じゅもん: `scripts/terminal-server.mjs`（`ENABLE_TERMINAL=true`）
+- ライセンス: [FSL-1.1-MIT](LICENSE.md)（個人利用・改変・再配布は自由。競合サービス化のみ2年間制限、以後 MIT）
 
 ## よく使うスクリプト
 
