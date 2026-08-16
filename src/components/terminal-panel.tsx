@@ -280,7 +280,7 @@ export function TerminalPanel({
       term?.dispose();
     };
     // cmd/model は親の key 再マウント、または restart UI で切替。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [gateId, wsToken, session, intent, context, initialCmd, initialModel]);
 
   const handleRestart = () => {

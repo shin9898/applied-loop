@@ -273,7 +273,7 @@ export function AtlasWorldMap({
       [33, 5],
       [9, 20],
     ].forEach(([x, y]) => town(x, y));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- regionBrightness は初回ロード時に確定するデータ
+     
   }, [regionBrightness]);
 
   return (
