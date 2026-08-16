@@ -24,6 +24,7 @@
     "dev:terminal": "node scripts/terminal-server.mjs",
     "dev:all": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" concurrently \"npm run dev -- -p 3100\" \"npm run dev:terminal\"",
     "regrade": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" tsx scripts/regrade-gate.ts",
+    "requeue:gen": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" tsx scripts/requeue-failed-gen.ts",
     "funnel:report": "node scripts/activation-funnel-report.mjs",
     "supply:health": "tsx scripts/supply-health-weekly.ts",
     "eval:gate-gen": "tsx scripts/eval-gate-gen.ts",

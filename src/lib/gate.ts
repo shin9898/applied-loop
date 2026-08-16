@@ -53,6 +53,8 @@ export type EventInput = {
   repoPath?: string;
   ref: string;
   summary?: string;
+  /** hook がコミット時点で添付する base64 済み diff（worktree 削除後も生成できるように） */
+  diffB64?: string;
 };
 
 export type RecordEventResult =
@@ -79,6 +81,7 @@ export async function recordEvent(input: EventInput): Promise<RecordEventResult>
       ...key,
       repoPath: input.repoPath ?? null,
       summary: input.summary?.slice(0, 200) ?? null,
+      diffSnapshot: decodeDiffBase64(input.diffB64),
       fired: !skip,
       skipReason: skip ?? null,
     },
@@ -113,7 +116,19 @@ async function checkThrottle(repo: string): Promise<string | null> {
   return null;
 }
 
-/** diff 本文を切り詰め（ADR-0006: DB には保存しない） */
+/** hook が添付した base64 diff を復号して切り詰める。不正な入力は null（イベント自体は受理） */
+export function decodeDiffBase64(diffB64: string | undefined): string | null {
+  if (!diffB64?.trim()) return null;
+  try {
+    const decoded = Buffer.from(diffB64, "base64").toString("utf8");
+    const trimmed = truncateDiffForGate(decoded);
+    return trimmed || null;
+  } catch {
+    return null;
+  }
+}
+
+/** diff 本文を切り詰め（DB には diffSnapshot としてローカル専用保存, ADR-0006 追記 2026-08-16） */
 export function truncateDiffForGate(diff: string): string {
   const trimmed = diff.trim();
   if (!trimmed) return "";
@@ -341,9 +356,19 @@ export async function generateGate(eventId: string): Promise<void> {
     });
   };
 
-  if (!event.repoPath) return fail("gen_failed");
-  const diff = await getDiff(event.repoPath, event.ref);
-  if (!diff) return fail("gen_failed_diff");
+  // snapshot 優先（worktree 削除後や auth 復旧後の再試行でも生成できる）。
+  // git から取れた場合は後の再採点・再試行用に backfill する。
+  let diff = event.diffSnapshot;
+  if (!diff && event.repoPath) {
+    diff = await getDiff(event.repoPath, event.ref);
+    if (diff) {
+      await prisma.devEvent.update({
+        where: { id: eventId },
+        data: { diffSnapshot: diff },
+      });
+    }
+  }
+  if (!diff) return fail(event.repoPath ? "gen_failed_diff" : "gen_failed");
 
   const built = await buildQuestionFromDiff(diff);
   if (!built.ok) return fail(built.reason);
@@ -692,8 +717,8 @@ export async function gradeGate(gateId: string): Promise<void> {
 
   await prisma.gate.update({ where: { id: gateId }, data: { status: "grading" } });
 
-  let diff: string | null = null;
-  if (gate.event?.repoPath && gate.event?.ref) {
+  let diff: string | null = gate.event?.diffSnapshot ?? null;
+  if (!diff && gate.event?.repoPath && gate.event?.ref) {
     diff = await getDiff(gate.event.repoPath, gate.event.ref);
   }
 

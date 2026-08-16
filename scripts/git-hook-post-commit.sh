@@ -25,8 +25,13 @@ build_payload() {
   fi
   repo=$(basename "$main_repo_path")
   summary=$(git log -1 --pretty=%s 2>/dev/null | sed 's/"/\\"/g' | head -c 200)
-  printf '{"kind":"commit","repo":"%s","repoPath":"%s","ref":"%s","summary":"%s"}' \
-    "$repo" "$repo_path" "$sha" "$summary"
+  # diff はコミット時点で base64 添付する（ADR-0006 追記 2026-08-16）。
+  # queue 退避やworktree削除後でも出題生成が diff を失わない。base64 は
+  # シェルの JSON エスケープ問題を避けるため。9KB 超はサーバー側でも切り詰める。
+  diff_b64=$(git show HEAD --format='%s%n%b' --unified=3 --no-color 2>/dev/null \
+    | head -c 9000 | base64 2>/dev/null | tr -d '\n')
+  printf '{"kind":"commit","repo":"%s","repoPath":"%s","ref":"%s","summary":"%s","diffB64":"%s"}' \
+    "$repo" "$repo_path" "$sha" "$summary" "$diff_b64"
 }
 
 send() {

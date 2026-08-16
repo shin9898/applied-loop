@@ -4,6 +4,8 @@
 
 生成失敗は `DevEvent.skipReason`（`gen_failed*`）、採点失敗は `Gate.status=grading_failed`、オフライン退避は `~/.applied-loop/event-queue.jsonl`。週次集計は `npm run supply:health`。
 
+**生成失敗の再試行（2026-08-16 追加）**: CLI 認証切れ等の復旧後に `npm run requeue:gen`（`--dry-run` で対象確認、`--limit N` で件数指定、既定5件）。hook がコミット時点の diff を `DevEvent.diffSnapshot` に添付保存するため、worktree 削除後でも再試行できる（ADR-0006 追記）。
+
 ## 再出題スケジューラ（B12-1）
 
 `scheduleDueGates()` は cron ではなく次で発火する:

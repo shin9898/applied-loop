@@ -109,6 +109,7 @@ model DevEvent {
   summary    String?
   fired      Boolean  @default(false) // ゲート発火したか
   skipReason String? // dedupe / throttled / daily_cap / backlog / gen_failed
+  diffSnapshot String? // 切り詰め済みdiff。ローカルのみ、クラウド同期から除外すること (ADR-0006 追記 2026-08-16)
   receivedAt DateTime @default(now())
   gates      Gate[]
 

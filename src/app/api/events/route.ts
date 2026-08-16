@@ -11,6 +11,8 @@ const eventSchema = z.object({
   repoPath: z.string().max(500).optional(),
   ref: z.string().min(1).max(120),
   summary: z.string().max(500).optional(),
+  // hook がコミット時点で添付する base64 diff（~9KB を base64 化した上限）
+  diffB64: z.string().max(16000).optional(),
 });
 
 /**
