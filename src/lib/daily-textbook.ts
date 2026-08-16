@@ -321,6 +321,40 @@ export async function loadMaterialBandsForDate(dateKey: string): Promise<
   });
 }
 
+/** 書庫: 全期間の帯を検索する（読む前提ゼロ・引く時に引く） */
+export async function loadMaterialArchive(query?: string): Promise<
+  Array<{
+    id: string;
+    dateKey: string;
+    repo: string;
+    digest: string;
+    count: number;
+    compiledChapterId: string | null;
+  }>
+> {
+  const rows = await prisma.materialBand.findMany({
+    where: query
+      ? {
+          OR: [
+            { repo: { contains: query } },
+            { digest: { contains: query } },
+          ],
+        }
+      : undefined,
+    orderBy: { dateKey: "desc" },
+    take: 200,
+    select: {
+      id: true,
+      dateKey: true,
+      repo: true,
+      digest: true,
+      count: true,
+      compiledChapterId: true,
+    },
+  });
+  return rows;
+}
+
 function parseEvidence(raw: string): EvidenceLink[] {
   try {
     const v = JSON.parse(raw) as unknown;
