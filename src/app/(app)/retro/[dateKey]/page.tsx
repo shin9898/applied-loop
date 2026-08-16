@@ -3,6 +3,7 @@ import { AtlasDailyTextbook } from "@/components/living-atlas/atlas-daily-textbo
 import {
   dayRangeFromDateKey,
   loadDailyTextbook,
+  loadMaterialBandsForDate,
 } from "@/lib/daily-textbook";
 import { buildSessionDigestForDate } from "@/lib/session-digest";
 import { prisma } from "@/lib/db";
@@ -18,7 +19,7 @@ export default async function RetroDatePage({
   const { dateKey } = await params;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) notFound();
 
-  const [textbook, materialCount, sessionDigest] =
+  const [textbook, materialCount, sessionDigest, bands] =
     await Promise.all([
       loadDailyTextbook(dateKey),
       (() => {
@@ -28,6 +29,7 @@ export default async function RetroDatePage({
         });
       })(),
       buildSessionDigestForDate(dateKey),
+      loadMaterialBandsForDate(dateKey),
     ]);
 
   return (
@@ -37,6 +39,7 @@ export default async function RetroDatePage({
       wsToken={getTerminalWsToken()}
       materialCountToday={materialCount}
       sessionDigest={sessionDigest}
+      bands={bands}
     />
   );
 }
