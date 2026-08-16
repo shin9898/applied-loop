@@ -563,7 +563,7 @@ function buildBodyPlain(input: {
     .join("\n");
 }
 
-function draftChapterFromRepo(
+export function draftChapterFromRepo(
   index: number,
   repo: string,
   kept: MaterialRow[],
@@ -910,6 +910,16 @@ function summarizeSkip(materials: MaterialRow[]): string {
     counts.set(k, (counts.get(k) ?? 0) + 1);
   }
   return [...counts.entries()].map(([k, n]) => `${k}:${n}`).join(", ") || "なし";
+}
+
+/** 編纂（帯→章の昇格）で追加する1問だけの確認問い */
+export function distillSingleCheck(
+  chapter: ChapterDraft,
+): { chapterIndex: number; question: string } {
+  return {
+    chapterIndex: chapter.index,
+    question: `「${chapter.title}」で進めていた改修と、ナレッジが溜まったタイミングを1文で。とった対応も添えること。（改修: ${chapter.work.slice(0, 36)}）`,
+  };
 }
 
 /** 章あたりスロット連動問い＋横断。合計は 3〜7。 */

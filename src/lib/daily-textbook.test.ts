@@ -7,6 +7,8 @@ import {
   chaptersHaveLessonSlots,
   clusterMaterialsIntoChapters,
   distillChecks,
+  distillSingleCheck,
+  draftChapterFromRepo,
   ensureChapterCopyDiversity,
   extractThemes,
   groupMaterialsIntoBandDrafts,
@@ -253,6 +255,18 @@ describe("distillChecks", () => {
       checks.some((c) => /なぜ|別案|結果|ベスト/.test(c.question)),
       "checks should reference lesson slots",
     );
+  });
+});
+
+describe("distillSingleCheck", () => {
+  it("asks a work+timing question scoped to one chapter", () => {
+    const materials = [
+      mat({ id: "c1", repo: "triple-report-infra", summary: "fix: retry cron" }),
+    ];
+    const chapter = draftChapterFromRepo(1, "triple-report-infra", materials, []);
+    const check = distillSingleCheck(chapter);
+    assert.equal(check.chapterIndex, chapter.index);
+    assert.match(check.question, new RegExp(chapter.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 });
 
