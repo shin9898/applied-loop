@@ -13,6 +13,7 @@ import {
   dayDigest,
   dayRangeFromDateKey,
   distillChecks,
+  groupMaterialsIntoBandDrafts,
   isMasteryState,
   parseLessonSlots,
   peakHourFromMaterials,
@@ -67,57 +68,130 @@ export async function generateDailyTextbook(
     where: { dateKey },
     select: { id: true },
   });
+
+  let textbookId: string;
   if (existing) {
-    await prisma.dailyTextbook.delete({ where: { id: existing.id } });
+    textbookId = existing.id;
+    // source="compiled" の章・チェック（編纂で足したもの）は再圧縮の対象外。
+    // 自動生成分だけを作り直す（2026-08-16、Phase1設計の核心）。
+    await prisma.dailyTextbookCheck.deleteMany({
+      where: { textbookId, source: "auto" },
+    });
+    await prisma.dailyTextbookChapter.deleteMany({
+      where: { textbookId, source: "auto" },
+    });
+    await prisma.dailyTextbook.update({
+      where: { id: textbookId },
+      data: {
+        title,
+        lead,
+        status: "ready",
+        materialCount: materials.length,
+        chapterCount: chapters.length,
+        peakHour,
+        droppedMaterialIds: JSON.stringify([]),
+      },
+    });
+    await prisma.dailyTextbookChapter.createMany({
+      data: chapters.map((ch) => ({
+        textbookId,
+        index: ch.index,
+        title: ch.title,
+        oneLiner: ch.oneLiner,
+        bodyPlain: ch.bodyPlain,
+        bodyDeep: ch.bodyDeep,
+        diagramKind: ch.diagramKind,
+        evidenceJson: JSON.stringify(ch.evidence),
+        materialIds: JSON.stringify(ch.materialIds),
+        source: "auto",
+      })),
+    });
+  } else {
+    const created = await prisma.dailyTextbook.create({
+      data: {
+        dateKey,
+        title,
+        lead,
+        status: "ready",
+        materialCount: materials.length,
+        chapterCount: chapters.length,
+        peakHour,
+        droppedMaterialIds: JSON.stringify([]),
+        chapters: {
+          create: chapters.map((ch) => ({
+            index: ch.index,
+            title: ch.title,
+            oneLiner: ch.oneLiner,
+            bodyPlain: ch.bodyPlain,
+            bodyDeep: ch.bodyDeep,
+            diagramKind: ch.diagramKind,
+            evidenceJson: JSON.stringify(ch.evidence),
+            materialIds: JSON.stringify(ch.materialIds),
+            source: "auto",
+          })),
+        },
+      },
+    });
+    textbookId = created.id;
   }
 
-  const textbook = await prisma.dailyTextbook.create({
-    data: {
-      dateKey,
-      title,
-      lead,
-      status: "ready",
-      materialCount: materials.length,
-      chapterCount: chapters.length,
-      peakHour,
-      droppedMaterialIds: JSON.stringify(droppedMaterialIds),
-      chapters: {
-        create: chapters.map((ch) => ({
-          index: ch.index,
-          title: ch.title,
-          oneLiner: ch.oneLiner,
-          bodyPlain: ch.bodyPlain,
-          bodyDeep: ch.bodyDeep,
-          diagramKind: ch.diagramKind,
-          evidenceJson: JSON.stringify(ch.evidence),
-          materialIds: JSON.stringify(ch.materialIds),
-        })),
-      },
-    },
-    include: { chapters: { orderBy: { index: "asc" } } },
+  const freshChapters = await prisma.dailyTextbookChapter.findMany({
+    where: { textbookId, source: "auto" },
+    select: { id: true, index: true },
   });
-
   const chapterIdByIndex = new Map(
-    textbook.chapters.map((c) => [c.index, c.id] as const),
+    freshChapters.map((c) => [c.index, c.id] as const),
   );
 
   if (checks.length > 0) {
     await prisma.dailyTextbookCheck.createMany({
       data: checks.map((ck) => ({
-        textbookId: textbook.id,
+        textbookId,
         chapterId:
           ck.chapterIndex != null
             ? (chapterIdByIndex.get(ck.chapterIndex) ?? null)
             : null,
         index: ck.index,
         question: ck.question,
+        source: "auto",
       })),
+    });
+  }
+
+  // あふれた材料を repo 単位で帯へ保存する（2026-08-16、取りこぼし対応）
+  const droppedSet = new Set(droppedMaterialIds);
+  const droppedMaterials = materials.filter((m) => droppedSet.has(m.id));
+  const bandDrafts = groupMaterialsIntoBandDrafts(droppedMaterials);
+  for (const band of bandDrafts) {
+    await prisma.materialBand.upsert({
+      where: { dateKey_repo: { dateKey, repo: band.repo } },
+      update: {
+        materialIds: JSON.stringify(band.materialIds),
+        digest: band.digest,
+        count: band.count,
+      },
+      create: {
+        dateKey,
+        repo: band.repo,
+        materialIds: JSON.stringify(band.materialIds),
+        digest: band.digest,
+        count: band.count,
+      },
+    });
+  }
+
+  // 章に入った（kept）材料を「捕捉済み」として記録する（2026-08-16）
+  const keptIds = chapters.flatMap((ch) => ch.materialIds);
+  if (keptIds.length > 0) {
+    await prisma.devEvent.updateMany({
+      where: { id: { in: keptIds } },
+      data: { incorporatedAt: new Date() },
     });
   }
 
   return {
     dateKey,
-    textbookId: textbook.id,
+    textbookId,
     materialCount: materials.length,
     chapterCount: chapters.length,
     checkCount: checks.length,
