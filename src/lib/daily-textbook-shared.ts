@@ -640,12 +640,12 @@ export function ensureChapterCopyDiversity(
     let diagramBad = ch.diagramBad;
     let diagramOk = ch.diagramOk;
     let work = ch.work;
-    let timing = ch.timing;
-    let action = ch.action;
+    const timing = ch.timing;
+    const action = ch.action;
     let why = ch.why;
     let practice = ch.practice;
-    let consequence = ch.consequence;
-    let alternative = ch.alternative;
+    const consequence = ch.consequence;
+    const alternative = ch.alternative;
     if (seenTitle.has(title)) title = `${title} · ${ch.index}`;
     if (seenOne.has(oneLiner)) oneLiner = `${oneLiner}（章${ch.index}）`;
     if (seenWork.has(work)) work = `${work}（章${ch.index}）`;

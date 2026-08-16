@@ -181,7 +181,7 @@ export async function polishTextbookChapter(
     };
   }
 
-  let parsed: PolishJson;
+  let parsed: PolishJson | null;
   try {
     parsed = parseLLMJson<PolishJson>(await runHeadlessLLM(prompt));
   } catch (e) {
@@ -193,6 +193,10 @@ export async function polishTextbookChapter(
           : "LLM 失敗";
     console.warn(`[textbook-polish] chapter ${chapterId}: ${msg}`);
     return { ok: false, chapterId, error: msg, keptRule: true };
+  }
+  if (!parsed) {
+    console.warn(`[textbook-polish] chapter ${chapterId}: JSON パース失敗`);
+    return { ok: false, chapterId, error: "JSON パース失敗", keptRule: true };
   }
 
   const nextLessons: LessonSlots = {

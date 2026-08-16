@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AtlasBrandMark } from "@/components/living-atlas/atlas-brand-mark";
 import { LpHeroBattle } from "@/components/living-atlas/lp-hero-battle";
+import { LpWaitlistForm } from "@/components/living-atlas/lp-waitlist-form";
 
 export const dynamic = "force-static";
 
@@ -361,6 +362,13 @@ npm run dev:all
               すでに起動中ならじゅんびへ
             </Link>
           </div>
+        </div>
+        <div className="dq-win mt-6 max-w-2xl p-5">
+          <h2 className="dq-win-title m-0">先どりのしらせ</h2>
+          <p className="mt-2 mb-0 font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#c9c3a0]">
+            かんたんインストール版や新しい機能が出たら、メールで知らせを受け取れる。それ以外には使わない。
+          </p>
+          <LpWaitlistForm />
         </div>
       </section>
 

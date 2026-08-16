@@ -27,11 +27,13 @@ const REPO_ROOT = resolve(SCRIPT_DIR, "..");
 const HOST = "127.0.0.1";
 const PORT = 3101;
 /** spawn 可能な先頭コマンド。実行サンドボックスではない (ADR-0015) */
-const ALLOWED_CMDS = new Set(["claude", "codex", "bash"]);
+const ALLOWED_CMDS = new Set(["claude", "codex"]);
 /** 子プロセス環境から除去する秘密。APPLIED_LOOP_MCP_TOKEN は CLI の MCP 認証に必要なので残す */
 const SCRUB_ENV_KEYS = ["MCP_TOKEN", "APPLIED_LOOP_WS_TOKEN"];
 
 loadDotEnv(join(REPO_ROOT, ".env"));
+// 素のシェルは明示オプトイン（ADR-0015 追記）。LLM CLI と違い操作ログも残らないため既定では出さない。
+if (process.env.TERMINAL_ALLOW_BASH === "true") ALLOWED_CMDS.add("bash");
 ensureSpawnHelperExecutable(REPO_ROOT);
 
 if (process.env.ENABLE_TERMINAL !== "true") {

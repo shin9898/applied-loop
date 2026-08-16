@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { requireBearerToken } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -31,13 +32,8 @@ const harnessRunSchema = z.object({
  * 会話本文は受け取らない (メタデータのみ)。
  */
 export async function POST(request: Request) {
-  const token = process.env.MCP_TOKEN;
-  if (token) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${token}`) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = requireBearerToken(request);
+  if (denied) return denied;
 
   const body = await request.json().catch(() => null);
   const parsed = harnessRunSchema.safeParse(body);

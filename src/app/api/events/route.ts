@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { z } from "zod";
 import { recordEvent, generateGate } from "@/lib/gate";
+import { requireBearerToken } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +18,8 @@ const eventSchema = z.object({
  * 認証は MCP と同じ Bearer トークン。出題生成は非同期 (after) で行う。
  */
 export async function POST(request: Request) {
-  const token = process.env.MCP_TOKEN;
-  if (token) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${token}`) {
-      return Response.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const denied = requireBearerToken(request);
+  if (denied) return denied;
 
   const body = await request.json().catch(() => null);
   const parsed = eventSchema.safeParse(body);

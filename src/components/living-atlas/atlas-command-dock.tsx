@@ -197,7 +197,7 @@ export function AtlasCommandDock({ streakDays }: { streakDays?: number }) {
     requestAnimationFrame(() => {
       const el = rootRef.current;
       if (!el) return;
-      let left = anchor.left;
+      const left = anchor.left;
       let top = anchor.top;
       if (!collapsed) {
         top = anchor.top + anchor.height - el.offsetHeight;

@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # postinstall で node-pty のビルドと prisma generate が走る
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run audit:onboarding
+      - name: Build（.env生成 + SQLiteマイグレーション込み）
+        run: |
+          cp .env.example .env
+          npx prisma migrate deploy
+          npx next build
