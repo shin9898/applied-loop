@@ -511,7 +511,7 @@ git commit -m "feat(daily-textbook): 生成時にあふれた材料を帯へ保�
 
 - [ ] **Step 1: `compileMaterialBand`を実装する**
 
-`src/lib/daily-textbook.ts`の`generateDailyTextbook`関数の直後（128行目付近）に追加:
+`src/lib/daily-textbook.ts`の`generateDailyTextbook`関数の直後に追加する（Task 4でこの関数を書き換えた後は行番号がずれているため、`export async function generateDailyTextbook`の閉じ`}`の後、次の関数（`parseEvidence`）の前、という位置で探すこと。行番号ではなく関数名で位置を特定する）:
 
 ```ts
 /** よみもの帯を、今日の教科書に追加章として編纂する（2026-08-16） */
@@ -680,11 +680,13 @@ git commit -m "feat(daily-textbook): よみもの帯を章に編纂するアク�
 - Consumes: `prisma.devEvent.groupBy`
 - Produces: `listMaterialCaptureHealth`の戻り値の型は不変（`{dateKey, materialCount, droppedCount}[]`）だが算出方法を変更。呼び出し元（`load-atlas-data.ts`の`loadMaterialCaptureHealth`）は無改修で動く
 
-現状（319-338行）は生成時点の`DailyTextbook.droppedMaterialIds`という**スナップショット**から算出しており、あとから編纂しても指標が改善されない。`DevEvent.incorporatedAt`という**生きた状態**から算出するよう書き換える。
+現状の`listMaterialCaptureHealth`は生成時点の`DailyTextbook.droppedMaterialIds`という**スナップショット**から算出しており、あとから編纂しても指標が改善されない。`DevEvent.incorporatedAt`という**生きた状態**から算出するよう書き換える。
+
+（このタスクの時点でTask 4・Task 5により`daily-textbook.ts`の行番号は元のファイルから大きくずれている。行番号ではなく関数名で位置を特定すること）
 
 - [ ] **Step 1: 実装を書き換える**
 
-`src/lib/daily-textbook.ts`の319-338行目を以下に置き換える:
+`src/lib/daily-textbook.ts`内で、以下の**関数まるごと**（`export async function listMaterialCaptureHealth(limit = 14): Promise<`で始まり、対応する閉じ`}`まで。直前のJSDocコメント`/** 日次教科書が「材料を漏れなく拾えているか」...`も含む）を検索し、以下に置き換える:
 
 ```ts
 /**
