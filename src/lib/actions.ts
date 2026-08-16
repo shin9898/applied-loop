@@ -718,6 +718,16 @@ export async function regenerateDailyTextbookAction(dateKey: string) {
   return result;
 }
 
+/** よみもの帯を今日の教科書に編纂する（2026-08-16） */
+export async function compileMaterialBandAction(bandId: string) {
+  await requireAuth();
+  const { compileMaterialBand } = await import("@/lib/daily-textbook");
+  const result = await compileMaterialBand(bandId);
+  revalidatePath(`/retro/${result.dateKey}`);
+  revalidatePath("/harness");
+  return result;
+}
+
 /**
  * 材料はあるのに未作成の日を、まとめて教科書化する（LLMなし・手元の規則だけ）。
  * 1日失敗したら全部止める、ではなく日付ごとに成否を返して部分成功を許す。

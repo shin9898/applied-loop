@@ -8,15 +8,19 @@ import { prisma } from "@/lib/db";
 import { dateKeyJST } from "@/lib/date";
 import {
   chapterDidSummary,
+  chapterHasLessonSlots,
   chaptersHaveLessonSlots,
   clusterMaterialsIntoChapters,
   dayDigest,
   dayRangeFromDateKey,
   distillChecks,
+  distillSingleCheck,
+  draftChapterFromRepo,
   groupMaterialsIntoBandDrafts,
   isMasteryState,
   parseLessonSlots,
   peakHourFromMaterials,
+  TEXTBOOK_MAX_MATERIALS_PER_CHAPTER,
   type EvidenceLink,
   type MaterialRow,
   type MasteryState,
@@ -198,6 +202,123 @@ export async function generateDailyTextbook(
     droppedMaterialIds,
     peakHour,
   };
+}
+
+/** よみもの帯を、今日の教科書に追加章として編纂する（2026-08-16） */
+export async function compileMaterialBand(
+  bandId: string,
+): Promise<{ chapterId: string; dateKey: string }> {
+  const band = await prisma.materialBand.findUnique({ where: { id: bandId } });
+  if (!band) throw new Error(`compileMaterialBand: band not found: ${bandId}`);
+  if (band.compiledChapterId) {
+    return { chapterId: band.compiledChapterId, dateKey: band.dateKey };
+  }
+
+  const ids: string[] = JSON.parse(band.materialIds);
+  const events = await prisma.devEvent.findMany({
+    where: { id: { in: ids } },
+    orderBy: { receivedAt: "desc" },
+  });
+  const materials: MaterialRow[] = events.map((e) => ({
+    id: e.id,
+    kind: e.kind,
+    repo: e.repo,
+    ref: e.ref,
+    summary: e.summary,
+    skipReason: e.skipReason,
+    receivedAt: e.receivedAt,
+  }));
+
+  const kept = materials.slice(0, TEXTBOOK_MAX_MATERIALS_PER_CHAPTER);
+  const overflow = materials.slice(TEXTBOOK_MAX_MATERIALS_PER_CHAPTER);
+
+  let textbook = await prisma.dailyTextbook.findUnique({
+    where: { dateKey: band.dateKey },
+  });
+  if (!textbook) {
+    await generateDailyTextbook(band.dateKey);
+    textbook = await prisma.dailyTextbook.findUnique({
+      where: { dateKey: band.dateKey },
+    });
+    if (!textbook) throw new Error("compileMaterialBand: textbook creation failed");
+  }
+
+  const maxIndex = await prisma.dailyTextbookChapter.aggregate({
+    where: { textbookId: textbook.id },
+    _max: { index: true },
+  });
+  const nextIndex = (maxIndex._max.index ?? 0) + 1;
+
+  const draft = draftChapterFromRepo(nextIndex, band.repo, kept, overflow);
+  if (!chapterHasLessonSlots(draft)) {
+    throw new Error("compileMaterialBand: lesson slots missing");
+  }
+
+  const chapter = await prisma.dailyTextbookChapter.create({
+    data: {
+      textbookId: textbook.id,
+      index: draft.index,
+      title: draft.title,
+      oneLiner: draft.oneLiner,
+      bodyPlain: draft.bodyPlain,
+      bodyDeep: draft.bodyDeep,
+      diagramKind: draft.diagramKind,
+      evidenceJson: JSON.stringify(draft.evidence),
+      materialIds: JSON.stringify(draft.materialIds),
+      source: "compiled",
+    },
+  });
+
+  const maxCheckIndex = await prisma.dailyTextbookCheck.aggregate({
+    where: { textbookId: textbook.id },
+    _max: { index: true },
+  });
+  const check = distillSingleCheck(draft);
+  await prisma.dailyTextbookCheck.create({
+    data: {
+      textbookId: textbook.id,
+      chapterId: chapter.id,
+      index: (maxCheckIndex._max.index ?? 0) + 1,
+      question: check.question,
+      source: "compiled",
+    },
+  });
+
+  await prisma.devEvent.updateMany({
+    where: { id: { in: kept.map((m) => m.id) } },
+    data: { incorporatedAt: new Date() },
+  });
+  await prisma.materialBand.update({
+    where: { id: band.id },
+    data: { compiledChapterId: chapter.id },
+  });
+
+  return { chapterId: chapter.id, dateKey: band.dateKey };
+}
+
+/** 指定日の帯（未編纂・編纂済み双方）を新しい順で返す */
+export async function loadMaterialBandsForDate(dateKey: string): Promise<
+  Array<{
+    id: string;
+    repo: string;
+    digest: string;
+    count: number;
+    compiledChapterId: string | null;
+    createdAt: Date;
+  }>
+> {
+  return prisma.materialBand.findMany({
+    where: { dateKey },
+    orderBy: { count: "desc" },
+    select: {
+      id: true,
+      repo: true,
+      digest: true,
+      count: true,
+      compiledChapterId: true,
+      createdAt: true,
+    },
+  });
 }
 
 function parseEvidence(raw: string): EvidenceLink[] {
