@@ -19,3 +19,8 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run audit:onboarding
+      - name: Build（.env生成 + SQLiteマイグレーション込み）
+        run: |
+          cp .env.example .env
+          npx prisma migrate deploy
+          npx next build
