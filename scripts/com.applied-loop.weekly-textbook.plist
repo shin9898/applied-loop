@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Applied Loop 週のしょ (WeeklyTextbook) の自動生成 (毎週月曜 09:00)
+
+  weekly-textbook.sh が直近8週の欠落をまとめて冪等に補完生成する。
+  weekly-audio (月曜10:00、週次ナレーションの音声化) より前に走らせること。
+
+  インストール手順:
+    1. このファイルを編集し、YOUR_USER を実際のユーザ名に置換する
+       (ProgramArguments のパスもリポジトリ実パスに合わせる)
+    2. cp scripts/com.applied-loop.weekly-textbook.plist ~/Library/LaunchAgents/
+    3. launchctl load ~/Library/LaunchAgents/com.applied-loop.weekly-textbook.plist
+    4. 動作確認: launchctl start com.applied-loop.weekly-textbook
+       ログ: scripts/weekly-textbook.log
+    5. 停止: launchctl unload ~/Library/LaunchAgents/com.applied-loop.weekly-textbook.plist
+
+  前提:
+    - このスクリプトは dev.db に直接 Prisma で接続する（Next.js サーバー起動は不要）
+-->
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.applied-loop.weekly-textbook</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/bash</string>
+      <string>/Users/YOUR_USER/tools/applied-loop/scripts/weekly-textbook.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+      <key>Weekday</key>
+      <integer>1</integer>
+      <key>Hour</key>
+      <integer>9</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/applied-loop-weekly-textbook.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/applied-loop-weekly-textbook.err.log</string>
+  </dict>
+</plist>
