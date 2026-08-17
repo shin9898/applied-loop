@@ -51,6 +51,17 @@ export function AtlasNikkiRetro({
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 pb-28">
       <AtlasPageTitle title="にっき" sub="月ごとのぼうけんにっき" />
+      {latestWeekly ? (
+        <Link
+          href={`/retro/weekly/${latestWeekly.weekKey}`}
+          className="atlas-weekly-chip"
+        >
+          週のしょ · {latestWeekly.weekKey}
+          <span className="atlas-weekly-chip__count">
+            材料 {latestWeekly.materialCount}
+          </span>
+        </Link>
+      ) : null}
       <div className="atlas-journal">
         <header className="atlas-journal__masthead">
           <AtlasSurfaceIcon surface="retro" size={28} color="#d8f0c8" />
