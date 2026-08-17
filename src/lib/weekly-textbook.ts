@@ -253,6 +253,24 @@ export async function loadWeeklyTextbook(
   };
 }
 
+export async function loadAdjacentWeeklyTextbookKeys(
+  weekKey: string,
+): Promise<{ prev: string | null; next: string | null }> {
+  const [prev, next] = await Promise.all([
+    prisma.weeklyTextbook.findFirst({
+      where: { weekKey: { lt: weekKey } },
+      orderBy: { weekKey: "desc" },
+      select: { weekKey: true },
+    }),
+    prisma.weeklyTextbook.findFirst({
+      where: { weekKey: { gt: weekKey } },
+      orderBy: { weekKey: "asc" },
+      select: { weekKey: true },
+    }),
+  ]);
+  return { prev: prev?.weekKey ?? null, next: next?.weekKey ?? null };
+}
+
 export async function loadLatestWeeklyTextbookSummary(): Promise<{
   weekKey: string;
   materialCount: number;

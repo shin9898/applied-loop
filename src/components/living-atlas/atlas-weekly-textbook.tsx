@@ -9,8 +9,12 @@ import type { WeeklyTextbookView } from "@/lib/weekly-textbook";
 
 export function AtlasWeeklyTextbook({
   textbook,
+  prevWeekKey,
+  nextWeekKey,
 }: {
   textbook: WeeklyTextbookView;
+  prevWeekKey?: string | null;
+  nextWeekKey?: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [localMastery, setLocalMastery] = useState<Record<string, string>>({});
@@ -25,6 +29,32 @@ export function AtlasWeeklyTextbook({
       <AtlasPageTitle title="週のしょ" sub={textbook.weekKey} />
       <div className="atlas-journal">
         <div className="atlas-journal__page space-y-4">
+          <div className="flex items-center justify-between text-[10px]">
+            {prevWeekKey ? (
+              <Link
+                href={`/retro/weekly/${prevWeekKey}`}
+                className="atlas-band-shelf__archive"
+              >
+                ← {prevWeekKey}
+              </Link>
+            ) : (
+              <span className="atlas-journal__note opacity-40">
+                これより前は無い
+              </span>
+            )}
+            {nextWeekKey ? (
+              <Link
+                href={`/retro/weekly/${nextWeekKey}`}
+                className="atlas-band-shelf__archive"
+              >
+                {nextWeekKey} →
+              </Link>
+            ) : (
+              <span className="atlas-journal__note opacity-40">
+                これより後は無い
+              </span>
+            )}
+          </div>
           <p className="atlas-journal__lead">{textbook.lead}</p>
 
           {textbook.chapters.length === 0 ? (

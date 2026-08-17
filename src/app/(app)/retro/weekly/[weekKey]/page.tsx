@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import { AtlasWeeklyTextbook } from "@/components/living-atlas/atlas-weekly-textbook";
-import { loadWeeklyTextbook } from "@/lib/weekly-textbook";
+import {
+  loadAdjacentWeeklyTextbookKeys,
+  loadWeeklyTextbook,
+} from "@/lib/weekly-textbook";
 
 export const dynamic = "force-dynamic";
 
@@ -15,5 +18,7 @@ export default async function RetroWeeklyPage({
   const textbook = await loadWeeklyTextbook(weekKey);
   if (!textbook) notFound();
 
-  return <AtlasWeeklyTextbook textbook={textbook} />;
+  const { prev, next } = await loadAdjacentWeeklyTextbookKeys(weekKey);
+
+  return <AtlasWeeklyTextbook textbook={textbook} prevWeekKey={prev} nextWeekKey={next} />;
 }
