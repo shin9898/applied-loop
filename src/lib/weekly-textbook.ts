@@ -75,64 +75,75 @@ export async function generateWeeklyTextbook(
   const title = buildWeeklyTitle(range.weekKey);
   const lead = buildWeeklyLead(materials.length, chapters.length);
 
-  const created = await prisma.weeklyTextbook.create({
-    data: {
-      weekKey: range.weekKey,
-      title,
-      lead,
-      status: "ready",
-      materialCount: materials.length,
-      chapterCount: chapters.length,
-      chapters: {
-        create: chapters.map((ch) => ({
-          index: ch.index,
-          title: ch.title,
-          oneLiner: ch.oneLiner,
-          bodyPlain: ch.bodyPlain,
-          bodyDeep: ch.bodyDeep,
-          diagramKind: ch.diagramKind,
-          evidenceJson: JSON.stringify(ch.evidence),
-          materialIds: JSON.stringify(ch.materialIds),
-        })),
+  // create → checks の chapterId 解決 → incorporatedAt スタンプを1トランザクションに
+  // まとめる（2026-08-17）。束ねないと、create 成功直後・checks/updateMany 実行前に
+  // プロセスが落ちた場合、WeeklyTextbook 行は既に存在してしまい、次回呼び出しは
+  // findUnique で既存行を検出して即 skip するだけになる（週のしょは delete→recreate
+  // しない設計のため）。結果、確認問いが永久欠落／材料が実際は章に入っているのに
+  // incorporatedAt が永久 null のまま残り、自己修復できなくなる。
+  // 日次側 generateDailyTextbook（daily-textbook.ts）の $transaction パターンに倣う。
+  const weeklyId = await prisma.$transaction(async (tx) => {
+    const created = await tx.weeklyTextbook.create({
+      data: {
+        weekKey: range.weekKey,
+        title,
+        lead,
+        status: "ready",
+        materialCount: materials.length,
+        chapterCount: chapters.length,
+        chapters: {
+          create: chapters.map((ch) => ({
+            index: ch.index,
+            title: ch.title,
+            oneLiner: ch.oneLiner,
+            bodyPlain: ch.bodyPlain,
+            bodyDeep: ch.bodyDeep,
+            diagramKind: ch.diagramKind,
+            evidenceJson: JSON.stringify(ch.evidence),
+            materialIds: JSON.stringify(ch.materialIds),
+          })),
+        },
       },
-    },
+    });
+
+    if (checks.length > 0) {
+      const freshChapters = await tx.weeklyTextbookChapter.findMany({
+        where: { weeklyId: created.id },
+        select: { id: true, index: true },
+      });
+      const chapterIdByIndex = new Map(
+        freshChapters.map((c) => [c.index, c.id] as const),
+      );
+      await tx.weeklyTextbookCheck.createMany({
+        data: checks.map((ck) => ({
+          weeklyId: created.id,
+          chapterId:
+            ck.chapterIndex != null
+              ? (chapterIdByIndex.get(ck.chapterIndex) ?? null)
+              : null,
+          index: ck.index,
+          question: ck.question,
+        })),
+      });
+    }
+
+    // 章に入った材料を「捕捉済み」にする。溢れた分（droppedMaterialIds）は
+    // incorporatedAt を null のまま残す＝書庫のみで発見可能（spec L215）。
+    // MaterialBand への書き込みは行わない（週のしょは「編纂」を持たない）。
+    const keptIds = chapters.flatMap((ch) => ch.materialIds);
+    if (keptIds.length > 0) {
+      await tx.devEvent.updateMany({
+        where: { id: { in: keptIds } },
+        data: { incorporatedAt: new Date() },
+      });
+    }
+
+    return created.id;
   });
-
-  if (checks.length > 0) {
-    const freshChapters = await prisma.weeklyTextbookChapter.findMany({
-      where: { weeklyId: created.id },
-      select: { id: true, index: true },
-    });
-    const chapterIdByIndex = new Map(
-      freshChapters.map((c) => [c.index, c.id] as const),
-    );
-    await prisma.weeklyTextbookCheck.createMany({
-      data: checks.map((ck) => ({
-        weeklyId: created.id,
-        chapterId:
-          ck.chapterIndex != null
-            ? (chapterIdByIndex.get(ck.chapterIndex) ?? null)
-            : null,
-        index: ck.index,
-        question: ck.question,
-      })),
-    });
-  }
-
-  // 章に入った材料を「捕捉済み」にする。溢れた分（droppedMaterialIds）は
-  // incorporatedAt を null のまま残す＝書庫のみで発見可能（spec L215）。
-  // MaterialBand への書き込みは行わない（週のしょは「編纂」を持たない）。
-  const keptIds = chapters.flatMap((ch) => ch.materialIds);
-  if (keptIds.length > 0) {
-    await prisma.devEvent.updateMany({
-      where: { id: { in: keptIds } },
-      data: { incorporatedAt: new Date() },
-    });
-  }
 
   return {
     skipped: false,
-    weeklyId: created.id,
+    weeklyId,
     materialCount: materials.length,
     chapterCount: chapters.length,
   };
