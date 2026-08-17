@@ -9520,3 +9520,101 @@ a.uke-trial__hypo:hover {
     animation: none !important;
   }
 }
+
+/* —— AI回答待ち演出「めくりん」（AtlasWaitCompanion、しれん採点限定） —— */
+.atlas-wait-companion {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.atlas-wait-companion__aura {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(240, 210, 90, 0.35),
+    transparent 70%
+  );
+  animation: atlas-wait-companion-pulse 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes atlas-wait-companion-pulse {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+.atlas-wait-companion__ring {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 2px dashed var(--atlas-gold);
+  animation: atlas-wait-companion-spin 3.2s steps(8) infinite;
+  pointer-events: none;
+}
+
+@keyframes atlas-wait-companion-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.atlas-wait-companion__mote {
+  position: absolute;
+  bottom: 10px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--atlas-gold);
+  animation: atlas-float-up 2.6s steps(6) infinite;
+  pointer-events: none;
+}
+
+.atlas-wait-companion__mote--0 {
+  left: 26%;
+  animation-delay: 0s;
+}
+.atlas-wait-companion__mote--1 {
+  left: 46%;
+  animation-delay: 0.65s;
+}
+.atlas-wait-companion__mote--2 {
+  left: 64%;
+  animation-delay: 1.3s;
+}
+.atlas-wait-companion__mote--3 {
+  left: 38%;
+  animation-delay: 1.95s;
+}
+
+.atlas-wait-companion__canvas {
+  position: relative;
+  z-index: 1;
+  image-rendering: pixelated;
+  animation: dq-bob 1.2s steps(2) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-wait-companion__aura,
+  .atlas-wait-companion__ring,
+  .atlas-wait-companion__mote,
+  .atlas-wait-companion__canvas {
+    animation: none !important;
+  }
+}
