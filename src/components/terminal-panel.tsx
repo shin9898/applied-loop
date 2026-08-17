@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Maximize2, Minimize2, RotateCcw } from "lucide-react";
 import "xterm/css/xterm.css";
+import { AtlasSpellWait } from "./living-atlas/atlas-spell-wait";
 
 type ConnState =
   | "connecting"
@@ -59,6 +60,8 @@ export function TerminalPanel({
     (nextCmd: TerminalCmd, nextModel?: string | null) => void
   >(() => {});
   const ptyAliveRef = useRef(false);
+  const lastOutputAtRef = useRef(0);
+  const [spellActive, setSpellActive] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -179,6 +182,7 @@ export function TerminalPanel({
             break;
           case "output":
             if (typeof msg.data === "string") term?.write(msg.data);
+            lastOutputAtRef.current = Date.now();
             break;
           case "error":
             setConnState(authenticated ? "error" : "auth_failed");
@@ -280,8 +284,19 @@ export function TerminalPanel({
       term?.dispose();
     };
     // cmd/model は親の key 再マウント、または restart UI で切替。
-     
+
   }, [gateId, wsToken, session, intent, context, initialCmd, initialModel]);
+
+  useEffect(() => {
+    if (connState !== "ready") {
+      setSpellActive(false);
+      return;
+    }
+    const id = window.setInterval(() => {
+      setSpellActive(Date.now() - lastOutputAtRef.current < 1500);
+    }, 300);
+    return () => window.clearInterval(id);
+  }, [connState]);
 
   const handleRestart = () => {
     restartRef.current(restartCmd, restartModel);
@@ -304,6 +319,13 @@ export function TerminalPanel({
         {statusMessage && (
           <span className="text-ink-secondary">{statusMessage}</span>
         )}
+        {connState === "ready" ? (
+          <AtlasSpellWait
+            variant="inline"
+            active={spellActive}
+            label="じゅもんを かきとめている……"
+          />
+        ) : null}
         <button
           type="button"
           onClick={() => setIsFullscreen((v) => !v)}
