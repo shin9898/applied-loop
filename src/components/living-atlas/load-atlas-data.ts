@@ -412,6 +412,7 @@ function mapGateRow(g: {
   kind?: string | null;
   createdAt?: Date | null;
   gradedAt?: Date | null;
+  misconceptionId?: string | null;
 }): GateListItem {
   const place = placeFrom(g.event?.repo, g.domain);
   const system = classifySystem({
@@ -431,6 +432,7 @@ function mapGateRow(g: {
     kind: g.kind ?? null,
     createdAt: g.createdAt ? g.createdAt.toISOString() : null,
     gradedAt: g.gradedAt ? g.gradedAt.toISOString() : null,
+    misconceptionId: g.misconceptionId ?? null,
   };
 }
 

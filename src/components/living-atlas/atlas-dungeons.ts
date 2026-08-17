@@ -139,12 +139,20 @@ function statusWord(status: GateListItem["status"]): string {
   }
 }
 
+/** 再出現（boss）時の一言。retry は「負けて再挑戦」、sr_review は「たおしたが再出題」で意味が逆なので出し分ける */
+function bossReturnPhrase(item: GateListItem): string {
+  return item.kind === "retry"
+    ? "一度は退けられたが、もう一度挑む"
+    : "一度たおしたが また現れた";
+}
+
 function floorMeta(
   item: GateListItem,
   cleared: boolean,
   boss: boolean,
   fog: boolean,
   now: Date,
+  duplicateCount: number,
 ): string {
   const born = whenLabel(daysAgo(item.createdAt, now));
   const parts: string[] = [];
@@ -154,10 +162,11 @@ function floorMeta(
   } else {
     parts.push(statusWord(item.status));
     if (born) parts.push(`${born}に生まれた`);
-    if (boss) parts.push("一度たおしたが また現れた");
+    if (boss) parts.push(bossReturnPhrase(item));
   }
   if (fog) parts.push("ばしょ未特定（霧から）");
   if (item.placeLabel && !fog) parts.push(item.placeLabel);
+  if (duplicateCount > 1) parts.push(`同じ誤解が計${duplicateCount}件`);
   return parts.join(" ・ ");
 }
 
@@ -187,6 +196,16 @@ function representativePlace(items: GateListItem[]): string | null {
 
 /** 系統ごとに ダンジョン化する。挑めるものが多い順、次に 古い順 */
 export function buildDungeons(items: GateListItem[], now = new Date()): Dungeon[] {
+  // しれん重複の見える化: 同一 misconceptionId を持つ Gate の総数（系統をまたいで数える）
+  const misconceptionCounts = new Map<string, number>();
+  for (const item of items) {
+    if (!item.misconceptionId) continue;
+    misconceptionCounts.set(
+      item.misconceptionId,
+      (misconceptionCounts.get(item.misconceptionId) ?? 0) + 1,
+    );
+  }
+
   const bySystem = new Map<SystemKind, GateListItem[]>();
   for (const item of items) {
     const key = item.system ?? "other";
@@ -200,7 +219,8 @@ export function buildDungeons(items: GateListItem[], now = new Date()): Dungeon[
     const lore = LORE[system] ?? LORE.other;
     const clearedItems = group.filter((i) => isCleared(i.status)).sort(byCreatedAsc);
     const remainingItems = group.filter((i) => !isCleared(i.status));
-    const isBoss = (i: GateListItem) => i.kind === "sr_review";
+    const isBoss = (i: GateListItem) =>
+      i.kind === "sr_review" || i.kind === "retry";
     // 再出題（ぬし）は最深部へ沈める。それ以外は古い順＝上から順に片づける
     remainingItems.sort((a, b) => {
       const ab = isBoss(a) ? 1 : 0;
@@ -220,6 +240,9 @@ export function buildDungeons(items: GateListItem[], now = new Date()): Dungeon[
       }
       const fog = isUnknownPlace(placeFrom(gate.repo, gate.domain));
       const boss = !cleared && isBoss(gate);
+      const duplicateCount = gate.misconceptionId
+        ? (misconceptionCounts.get(gate.misconceptionId) ?? 0)
+        : 0;
       return {
         gate,
         floorLabel: `B${index + 1}F`,
@@ -231,7 +254,7 @@ export function buildDungeons(items: GateListItem[], now = new Date()): Dungeon[
           domain: gate.domain,
           text: gate.question,
         }),
-        meta: floorMeta(gate, cleared, boss, fog, now),
+        meta: floorMeta(gate, cleared, boss, fog, now, duplicateCount),
         canFight:
           gate.status === "pending" ||
           gate.status === "failed" ||

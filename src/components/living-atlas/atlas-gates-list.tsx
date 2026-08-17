@@ -35,6 +35,8 @@ export type GateListItem = {
   /** ISO。ダンジョンの階層順（古い順）と「n日前」表示に使う */
   createdAt?: string | null;
   gradedAt?: string | null;
+  /** 同じ誤解に紐づく他 Gate との重複検知に使う（しれん重複の見える化） */
+  misconceptionId?: string | null;
 };
 
 function statusLabel(status: GateListItem["status"]): string {
