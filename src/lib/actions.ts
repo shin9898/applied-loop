@@ -818,5 +818,5 @@ export async function setWeeklyCheckMasteryAction(
 /** /setup の「賢者に伺いを立てる」ボタン用: live probe を手動実行する */
 export async function runGradingProbeLiveAction(): Promise<GradingProbeResult> {
   await requireAuth();
-  return probeGradingCliLive();
+  return probeGradingCliLive({ force: true });
 }

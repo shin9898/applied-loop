@@ -104,20 +104,25 @@ export function probeGradingPathOnly(): GradingProbeResult {
  * 極小プロンプトで疎通。キャッシュヒット時は LLM を呼ばない。
  * setup 診断でのみ使うこと。
  */
-export async function probeGradingCliLive(): Promise<GradingProbeResult> {
+export async function probeGradingCliLive(opts?: {
+  /** true でキャッシュの読み取りだけをスキップし、必ず実際に呼ぶ（書き込みは従来通り行う） */
+  force?: boolean;
+}): Promise<GradingProbeResult> {
   const pathProbe = probeGradingCli();
   if (!pathProbe.ok) {
     return { ...pathProbe, dryRun: false };
   }
 
-  const cached = readCache();
-  if (cached) {
-    const ttl = cached.result.ok ? OK_TTL_MS : FAIL_TTL_MS;
-    if (Date.now() - cached.at < ttl) {
-      return {
-        ...cached.result,
-        detail: `${cached.result.detail}（キャッシュ）`,
-      };
+  if (!opts?.force) {
+    const cached = readCache();
+    if (cached) {
+      const ttl = cached.result.ok ? OK_TTL_MS : FAIL_TTL_MS;
+      if (Date.now() - cached.at < ttl) {
+        return {
+          ...cached.result,
+          detail: `${cached.result.detail}（キャッシュ）`,
+        };
+      }
     }
   }
 
