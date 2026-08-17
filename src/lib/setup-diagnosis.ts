@@ -117,6 +117,8 @@ function probePort(host: string, port: number, ms = 250): Promise<boolean> {
 export async function loadSetupDiagnosis(opts?: {
   /** /setup のみ true。採点 CLI を dry-run する（G7） */
   gradingDryRun?: boolean;
+  /** /setup のみ true。live probe を呼ばず、直近のキャッシュ結果を表示する */
+  gradingFromCache?: boolean;
 }): Promise<SetupDiagnosis> {
   const mcpEndpoint = getMcpEndpointInfo();
   const mcpToken = mcpEndpoint.tokenConfigured;
@@ -162,7 +164,9 @@ export async function loadSetupDiagnosis(opts?: {
 
   const grading = opts?.gradingDryRun
     ? await (await import("@/lib/grading-probe")).probeGradingCliLive()
-    : (await import("@/lib/grading-probe")).probeGradingPathOnly();
+    : opts?.gradingFromCache
+      ? (await import("@/lib/grading-probe")).cachedGradingProbeResult()
+      : (await import("@/lib/grading-probe")).probeGradingPathOnly();
   const [gateCount, learningCount, todayMap, yesterdayMap, genFailures] =
     await Promise.all([
       prisma.gate.count(),
@@ -296,7 +300,7 @@ export async function loadSetupDiagnosis(opts?: {
           : grading.detail,
       howTo: grading.howTo,
       plain:
-        "提出後の採点はヘッドレス LLM（claude または codex）。じゅんびでは dry-run で認証まで確認する。無い／認証切れだと保留になる。CLI が戻ると自動再採点を試す。",
+        "提出後の採点はヘッドレス LLM（claude または codex）。無い／認証切れだと保留になり、CLI が戻ると自動再採点を試す。認証まで確認したいときは下のボタンで賢者に伺いを立てよ。",
     },
     {
       id: "first_gate",
