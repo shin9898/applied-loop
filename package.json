@@ -21,6 +21,7 @@
     "seed:exp1": "tsx scripts/seed-exp1.ts",
     "seed:tutorial": "tsx scripts/seed-tutorial.ts",
     "digest": "node scripts/weekly-digest.mjs",
+    "weekly:textbook": "NODE_OPTIONS=--conditions=react-server tsx scripts/generate-weekly-textbook.ts",
     "dev:terminal": "node scripts/terminal-server.mjs",
     "dev:all": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" concurrently \"npm run dev -- -p 3100\" \"npm run dev:terminal\"",
     "regrade": "PATH=\"$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\" tsx scripts/regrade-gate.ts",

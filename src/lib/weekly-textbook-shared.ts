@@ -39,10 +39,11 @@ export function buildWeeklyTitle(weekKey: string): string {
 
 export function buildWeeklyLead(
   materialCount: number,
+  keptCount: number,
   chapterCount: number,
 ): string {
   if (materialCount === 0) {
-    return "先週、まだ拾えていない材料はなかった。";
+    return "その週、まだ拾えていない材料はなかった。";
   }
-  return `先週の材料 ${materialCount} 件 → 章 ${chapterCount}。日々の教科書でこぼれた分を、週の終わりにもう一度編み直した。`;
+  return `その週にまだ拾えていなかった材料 ${materialCount} 件のうち、${keptCount} 件を ${chapterCount} 章にまとめた。`;
 }

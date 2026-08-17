@@ -53,6 +53,7 @@ dev.db-journal
 # Harness collect incremental state (local machine only)
 scripts/.harness-collect-state.json
 scripts/harness-collect.log
+scripts/weekly-textbook.log
 
 # Weekly audio (AivisSpeech headless engine log, local machine only)
 scripts/weekly-audio-engine.log

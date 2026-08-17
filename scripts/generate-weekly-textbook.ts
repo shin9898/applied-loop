@@ -1,7 +1,10 @@
 // 週のしょのcron用エントリポイント。ensureRecentWeeklyTextbooks は冪等なので
 // 手動実行しても launchd から叩かれても安全（既存週は即skip）。
 //
-// Usage: npx tsx scripts/generate-weekly-textbook.ts
+// server-only パッケージ利用モジュール（weekly-textbook.ts）を tsx 直接実行から
+// 解決可能にするため、NODE_OPTIONS="--conditions=react-server" が必須。
+// Usage: npm run weekly:textbook
+//   （直接叩く場合: NODE_OPTIONS="--conditions=react-server" npx tsx scripts/generate-weekly-textbook.ts）
 import { prisma } from "../src/lib/db";
 import { ensureRecentWeeklyTextbooks } from "../src/lib/weekly-textbook";
 

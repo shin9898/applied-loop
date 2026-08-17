@@ -72,8 +72,9 @@ export async function generateWeeklyTextbook(
     throw new Error("generateWeeklyTextbook: lesson slots missing after cluster");
   }
   const checks = distillChecks(chapters);
+  const keptIds = chapters.flatMap((ch) => ch.materialIds);
   const title = buildWeeklyTitle(range.weekKey);
-  const lead = buildWeeklyLead(materials.length, chapters.length);
+  const lead = buildWeeklyLead(materials.length, keptIds.length, chapters.length);
 
   // create → checks の chapterId 解決 → incorporatedAt スタンプを1トランザクションに
   // まとめる（2026-08-17）。束ねないと、create 成功直後・checks/updateMany 実行前に
@@ -130,7 +131,6 @@ export async function generateWeeklyTextbook(
     // 章に入った材料を「捕捉済み」にする。溢れた分（droppedMaterialIds）は
     // incorporatedAt を null のまま残す＝書庫のみで発見可能（spec L215）。
     // MaterialBand への書き込みは行わない（週のしょは「編纂」を持たない）。
-    const keptIds = chapters.flatMap((ch) => ch.materialIds);
     if (keptIds.length > 0) {
       await tx.devEvent.updateMany({
         where: { id: { in: keptIds } },
@@ -152,16 +152,18 @@ export async function generateWeeklyTextbook(
 /**
  * 直近 `count` 週のうち、まだ週のしょが無い週をまとめて生成する。
  * cron が落ちていた期間があってもこれで埋まる（取りこぼしゼロ）。
- * `/retro` 訪問時に毎回呼ぶ想定。既存週は1クエリで skip されるため軽い。
+ * `/retro` 訪問時に毎回呼ぶ想定。既存週は generateWeeklyTextbook 内部で即 skip される。
+ * 1週分の生成失敗（例: 同時アクセスによる weekKey unique 制約違反）で
+ * にっき画面全体を巻き込まないよう、週ごとに例外を握りつぶして次へ進む
+ * （このアプリには error.tsx が無く、未処理の例外は /retro 全体を落とす）。
  */
 export async function ensureRecentWeeklyTextbooks(count = 8): Promise<void> {
   for (const range of recentCompletedWeekRanges(new Date(), count)) {
-    const existing = await prisma.weeklyTextbook.findUnique({
-      where: { weekKey: range.weekKey },
-      select: { id: true },
-    });
-    if (existing) continue;
-    await generateWeeklyTextbook(range);
+    try {
+      await generateWeeklyTextbook(range);
+    } catch (e) {
+      console.error(`[weekly-textbook] ${range.weekKey} の生成に失敗（次回再試行）:`, e);
+    }
   }
 }
 

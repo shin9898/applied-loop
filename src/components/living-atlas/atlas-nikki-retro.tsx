@@ -58,7 +58,7 @@ export function AtlasNikkiRetro({
         >
           週のしょ · {latestWeekly.weekKey}
           <span className="atlas-weekly-chip__count">
-            材料 {latestWeekly.materialCount}
+            {latestWeekly.chapterCount}章
           </span>
         </Link>
       ) : null}

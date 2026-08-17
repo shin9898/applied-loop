@@ -41,9 +41,17 @@ describe("buildWeeklyTitle / buildWeeklyLead", () => {
     assert.equal(buildWeeklyTitle("2026-W33"), "週のしょ — 2026-W33");
   });
 
-  it("builds a lead describing material and chapter counts", () => {
-    const lead = buildWeeklyLead(12, 3);
-    assert.match(lead, /12 件/);
-    assert.match(lead, /章 3/);
+  it("builds a lead distinguishing considered materials from kept materials", () => {
+    assert.equal(
+      buildWeeklyLead(12, 5, 3),
+      "その週にまだ拾えていなかった材料 12 件のうち、5 件を 3 章にまとめた。",
+    );
+  });
+
+  it("builds a lead for a week with zero uncaptured materials", () => {
+    assert.equal(
+      buildWeeklyLead(0, 0, 0),
+      "その週、まだ拾えていない材料はなかった。",
+    );
   });
 });
