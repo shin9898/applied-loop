@@ -19,6 +19,8 @@ import {
   loadMicroProgress,
 } from "@/lib/micro-progress";
 import { AtlasMicroDrill, AtlasRecallDrill } from "./atlas-micro-drill";
+import { AtlasSpellWait } from "./atlas-spell-wait";
+import { AtlasWaitCompanion } from "./atlas-wait-companion";
 import { formatRubricHint } from "@/lib/gate-hint";
 import type { GateTaskLink } from "@/lib/task-map";
 
@@ -842,25 +844,34 @@ export function AtlasBattle({
         </div>
 
         <div className="grid grid-cols-1 gap-2 border-t-4 border-black bg-[#000c4a] p-2.5 md:grid-cols-[0.85fr_1.15fr]">
-          <div className="dq-win p-3">
-            <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[12px] text-[#f0d25a]">
-              あなた
+          {phase === "waiting" ? (
+            <div className="flex flex-wrap items-start gap-2">
+              <AtlasSpellWait
+                variant="panel"
+                active={phase === "waiting"}
+                label="さいばんの じゅもんを かきとめている……"
+              />
+              <AtlasWaitCompanion active={phase === "waiting"} />
             </div>
-            <div className="mt-2 flex justify-between text-[14px]">
-              <span>状態</span>
-              <span className="truncate pl-2 text-[#c9c3a0]">
-                {phase === "waiting"
-                  ? "採点中…"
-                  : verdict === "pass"
+          ) : (
+            <div className="dq-win p-3">
+              <div className="mb-1.5 font-[family-name:var(--font-pixel)] text-[12px] text-[#f0d25a]">
+                あなた
+              </div>
+              <div className="mt-2 flex justify-between text-[14px]">
+                <span>状態</span>
+                <span className="truncate pl-2 text-[#c9c3a0]">
+                  {verdict === "pass"
                     ? "CLEAR"
                     : verdict === "retry"
                       ? "miss"
                       : verdict === "grading_failed"
                         ? "保留"
                         : "たたかい中"}
-              </span>
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="dq-win grid grid-cols-2 gap-2 p-3">
             {(
