@@ -1,5 +1,7 @@
 # Applied Loop
 
+*[English README](README.en.md)*
+
 実装の足跡を**材料**として貯め、1日の**教科書（きょうのしょ）**に圧縮し、確認で理解状態（Mastery）を振り分けて翌日を進めるローカルツール（[ADR-0020](docs/adr/0020-daily-retro-knowledge-loop.md)）。
 
 即時の理解チェック（しれん）も過渡期の互換として残る。答えたつまずきは**ずかん**に貯まる。UI は Living Atlas。操作の正典は **MCP**（Web は地図・診断・提出入口）。

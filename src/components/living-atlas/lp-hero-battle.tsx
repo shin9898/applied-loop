@@ -3,8 +3,28 @@
 import { useEffect, useRef } from "react";
 import { ENEMY_CACHE, paintEnemyFrame } from "./atlas-enemies";
 
+const COPY = {
+  ja: {
+    gateLabel: "◆ しれん（理解度チェック）",
+    enemyName: "いみキャッシュまぼろし",
+    lineLabel: "つまずきのセリフ",
+    question: "「このキャッシュ設計、なぜ必要？」",
+    hint: "コミットの差分から出た理解チェック。答えるとずかんに残る。",
+    actions: ["▶ こたえる", "　ヒント", "　ずかん", "　にげる"],
+  },
+  en: {
+    gateLabel: "◆ Understanding Check",
+    enemyName: "Cache Semantics Phantom",
+    lineLabel: "The Question",
+    question: '"Why does this caching design work this way?"',
+    hint: "A check generated from your commit diff. Answer it and it's saved to your field guide.",
+    actions: ["▶ Answer", "  Hint", "  Field Guide", "  Skip"],
+  },
+} as const;
+
 /** LP ヒーロー用のミニバトル構図（本番バトルの見た目を縮小） */
-export function LpHeroBattle() {
+export function LpHeroBattle({ lang = "ja" }: { lang?: "ja" | "en" }) {
+  const t = COPY[lang];
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -29,7 +49,7 @@ export function LpHeroBattle() {
     >
       <div className="flex items-center justify-between border-b-4 border-black bg-[#001a8c] px-3 py-2">
         <p className="m-0 font-[family-name:var(--font-pixel)] text-[9px] text-[#f0d25a]">
-          ◆ しれん（理解度チェック）
+          {t.gateLabel}
         </p>
         <p className="m-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff]">
           SAMPLE
@@ -39,7 +59,7 @@ export function LpHeroBattle() {
       <div className="relative grid items-center gap-3 bg-[linear-gradient(#2a4a7a_0%,#1a3a18_48%,#0c220c_100%)] px-3 py-4 shadow-[inset_0_0_0_3px_#3d6b3a] sm:grid-cols-[0.9fr_1.2fr] sm:gap-4 sm:px-4">
         <div className="flex flex-col items-center gap-2">
           <div className="border-[3px] border-white bg-[#001a8c] px-2 py-1.5 font-[family-name:var(--font-pixel)] text-[8px] leading-relaxed text-[#f0d25a] shadow-[3px_3px_0_#000]">
-            いみキャッシュまぼろし
+            {t.enemyName}
           </div>
           <canvas
             ref={canvasRef}
@@ -65,23 +85,23 @@ export function LpHeroBattle() {
 
         <div className="border-4 border-white bg-[#001a8c] px-3 py-3 shadow-[4px_4px_0_#000]">
           <p className="m-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a]">
-            つまずきのセリフ
+            {t.lineLabel}
           </p>
           <p className="mt-2 mb-0 font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#f7f3d9]">
-            「このキャッシュ設計、なぜ必要？」
+            {t.question}
           </p>
           <p className="mt-2 mb-0 font-[family-name:var(--font-jp)] text-[12px] leading-relaxed text-[#c9c3a0]">
-            コミットの差分から出た理解チェック。答えるとずかんに残る。
+            {t.hint}
           </p>
         </div>
       </div>
 
       <div className="border-t-4 border-black bg-[#001a8c] px-3 py-2.5">
         <div className="grid grid-cols-2 gap-2 border-2 border-white bg-[#000c4a] p-2 font-[family-name:var(--font-pixel)] text-[8px] leading-relaxed text-[#f7f3d9]">
-          <span className="text-[#f0d25a]">▶ こたえる</span>
-          <span className="text-[#9a9470]">　ヒント</span>
-          <span className="text-[#9a9470]">　ずかん</span>
-          <span className="text-[#9a9470]">　にげる</span>
+          <span className="text-[#f0d25a]">{t.actions[0]}</span>
+          <span className="text-[#9a9470]">{t.actions[1]}</span>
+          <span className="text-[#9a9470]">{t.actions[2]}</span>
+          <span className="text-[#9a9470]">{t.actions[3]}</span>
         </div>
       </div>
     </div>
