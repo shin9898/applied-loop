@@ -19,11 +19,12 @@
 
 ```bash
 npm run setup          # preflight / install / .env生成 / migrate / sample seed
+                        # 採点CLI検出 → 使うLLMを選ぶとMCP登録コマンドをそのまま出す
 npm run dev:all        # http://localhost:3100
 ```
 
 2. ブラウザで **[じゅんび](http://localhost:3100/setup)** → サンプルしれんを1問提出（合否は待たなくてよい）
-3. LLM を選び、画面の**貼る文**をチャットへ → 先に `list_pending_gates` が走る
+3. LLM を選び、`npm run setup` が出した MCP 登録コマンドをそのまま貼る → 先に `list_pending_gates` が走る
 4. 本運用の供給（どちらか）: じゅんびで**監視リポジトリ**＋鉤、または会話で `request_gate`
 
 つまずきやすい3点:

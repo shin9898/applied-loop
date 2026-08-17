@@ -24,8 +24,12 @@ LLM を入れたばかりでも、**ツール名を覚えなくてよい**。順
 
 ```bash
 npm run setup          # preflight / install / .env生成 / migrate / sample seed
+                        # → 採点CLI(claude/codex)の検出状況を表示
+                        # → 使う LLM クライアントを選ぶと MCP 登録コマンドをそのまま表示
 npm run dev:all        # http://localhost:3100  +  WS :3101
 ```
+
+`npm run setup` の最後に出る MCP 登録コマンドは `.env` の実際の `MCP_TOKEN` が埋め込み済みなので、選んだクライアントにそのまま貼り付ければ #3 が完了する（詳細・他クライアント分は [mcp-setup.md](./mcp-setup.md)）。
 
 手動でバラす場合は README「クイックスタート」へ。サンプルデータは `/setup` を開いたときにも入る。手動なら:
 
