@@ -6,6 +6,10 @@ import {
   listTextbookDates,
   listUngeneratedDays,
 } from "@/lib/daily-textbook";
+import {
+  ensureRecentWeeklyTextbooks,
+  loadLatestWeeklyTextbookSummary,
+} from "@/lib/weekly-textbook";
 import { prisma } from "@/lib/db";
 import { regenerateDailyTextbookAction } from "@/lib/actions";
 
@@ -13,7 +17,12 @@ export const dynamic = "force-dynamic";
 
 export default async function RetroIndexPage() {
   const today = dateKeyJST();
-  const [dates, ungeneratedDays, materialCountToday] =
+
+  // 直近8週の週のしょ欠落をサイレントに補完する（取りこぼしゼロ）。
+  // 既に生成済みの週は generateWeeklyTextbook 側で即 skip されるため軽い。
+  await ensureRecentWeeklyTextbooks(8);
+
+  const [dates, ungeneratedDays, materialCountToday, latestWeekly] =
     await Promise.all([
       listTextbookDates(120),
       listUngeneratedDays(60),
@@ -23,6 +32,7 @@ export default async function RetroIndexPage() {
           where: { receivedAt: { gte: start, lt: end } },
         });
       })(),
+      loadLatestWeeklyTextbookSummary(),
     ]);
 
   const months = groupNikkiMonths(dates);
@@ -39,6 +49,7 @@ export default async function RetroIndexPage() {
       materialCountToday={materialCountToday}
       ungeneratedDays={ungeneratedDays}
       regenerateAction={regenerateAction}
+      latestWeekly={latestWeekly}
     />
   );
 }

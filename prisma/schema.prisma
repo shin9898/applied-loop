@@ -317,3 +317,49 @@ model MaterialBand {
 
   @@unique([dateKey, repo])
 }
+
+// 週のしょ (Phase 2)。直前に完了した週で incorporatedAt が null のままの
+// DevEvent を再クラスタリングし、週次レビューという回収儀式を実装する。
+model WeeklyTextbook {
+  id            String   @id @default(cuid())
+  weekKey       String   @unique // ISO週 "2026-W33"（JST基準、weekKeyJST()）
+  title         String
+  lead          String?
+  status        String   @default("ready")
+  materialCount Int      @default(0)
+  chapterCount  Int      @default(0)
+  createdAt     DateTime @default(now())
+  chapters      WeeklyTextbookChapter[]
+  checks        WeeklyTextbookCheck[]
+}
+
+model WeeklyTextbookChapter {
+  id           String   @id @default(cuid())
+  weeklyId     String
+  weekly       WeeklyTextbook @relation(fields: [weeklyId], references: [id], onDelete: Cascade)
+  index        Int
+  title        String
+  oneLiner     String
+  bodyPlain    String
+  bodyDeep     String?
+  diagramKind  String   @default("generic")
+  evidenceJson String   @default("[]")
+  materialIds  String   @default("[]")
+  checks       WeeklyTextbookCheck[]
+
+  @@unique([weeklyId, index])
+}
+
+model WeeklyTextbookCheck {
+  id         String   @id @default(cuid())
+  weeklyId   String
+  weekly     WeeklyTextbook @relation(fields: [weeklyId], references: [id], onDelete: Cascade)
+  chapterId  String?
+  chapter    WeeklyTextbookChapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  index      Int
+  question   String
+  mastery    String?
+  answeredAt DateTime?
+
+  @@unique([weeklyId, index])
+}
