@@ -288,10 +288,7 @@ export function TerminalPanel({
   }, [gateId, wsToken, session, intent, context, initialCmd, initialModel]);
 
   useEffect(() => {
-    if (connState !== "ready") {
-      setSpellActive(false);
-      return;
-    }
+    if (connState !== "ready") return;
     const id = window.setInterval(() => {
       setSpellActive(Date.now() - lastOutputAtRef.current < 1500);
     }, 300);

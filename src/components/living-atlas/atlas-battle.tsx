@@ -492,6 +492,9 @@ export function AtlasBattle({
         ? "result"
         : "idle",
   );
+  /** ポーリングが40回（約2分）試みても採点が終わらず諦めたかどうか。
+   * true の間は "あなた" カードのアニメーション（AtlasSpellWait / AtlasWaitCompanion）を止める。 */
+  const [pollExhausted, setPollExhausted] = useState(false);
   const [cmd, setCmd] = useState<"answer" | "hint" | "zukan" | "run">("answer");
   const [narrator, setNarrator] = useState(() => {
     if (
@@ -574,6 +577,7 @@ export function AtlasBattle({
       if (tries >= 40) {
         if (!cancelled) {
           setNarrator(narratorFor({ kind: "poll_timeout" }));
+          setPollExhausted(true);
         }
         return;
       }
@@ -686,6 +690,7 @@ export function AtlasBattle({
       if (onAccepted && autoLeaveOnAccept && result !== "grading_failed") {
         setAnim("idle");
         setPhase("waiting");
+        setPollExhausted(false);
         setNarrator(narratorFor({ kind: "accept_and_leave" }));
         window.setTimeout(() => {
           onAccepted();
@@ -717,6 +722,7 @@ export function AtlasBattle({
 
     setAnim("idle");
     setPhase("waiting");
+    setPollExhausted(false);
     if (onAccepted && autoLeaveOnAccept) {
       setNarrator(narratorFor({ kind: "accept_and_leave" }));
       window.setTimeout(() => {
@@ -848,10 +854,10 @@ export function AtlasBattle({
             <div className="flex flex-wrap items-start gap-2">
               <AtlasSpellWait
                 variant="panel"
-                active={phase === "waiting"}
+                active={phase === "waiting" && !pollExhausted}
                 label="さいばんの じゅもんを かきとめている……"
               />
-              <AtlasWaitCompanion active={phase === "waiting"} />
+              <AtlasWaitCompanion active={phase === "waiting" && !pollExhausted} />
             </div>
           ) : (
             <div className="dq-win p-3">
@@ -1058,6 +1064,7 @@ export function AtlasBattle({
                         void (async () => {
                           setNarrator(narratorFor({ kind: "retry_grading_start" }));
                           setPhase("waiting");
+                          setPollExhausted(false);
                           const r = (await onRetryGrading?.()) ?? "busy";
                           if (r !== "pending") {
                             setPhase("result");

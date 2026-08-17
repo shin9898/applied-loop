@@ -41,7 +41,7 @@ export function AtlasWaitCompanion({ active }: { active: boolean }) {
   if (!active) return null;
 
   return (
-    <div className="atlas-wait-companion" role="status" aria-live="polite">
+    <div className="atlas-wait-companion">
       <span className="atlas-wait-companion__aura" aria-hidden />
       <span className="atlas-wait-companion__ring" aria-hidden />
       <span

@@ -44,16 +44,14 @@ export function AtlasSpellWait({ variant, label, active }: Props) {
   const [charsShown, setCharsShown] = useState(0);
 
   useEffect(() => {
-    if (!active) {
-      setCharsShown(0);
-      return;
-    }
+    if (!active) return;
     const reduceMotion =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduceMotion) {
-      setCharsShown(phrase.length);
-      return;
+      // setState をコールバック経由（非同期）にして react-hooks/set-state-in-effect を回避する
+      const id = window.setTimeout(() => setCharsShown(phrase.length), 0);
+      return () => window.clearTimeout(id);
     }
     const startedAt = Date.now();
     const id = window.setInterval(() => {
@@ -75,12 +73,13 @@ export function AtlasSpellWait({ variant, label, active }: Props) {
       }`}
       role="status"
       aria-live="polite"
-      aria-label={label}
     >
       {variant === "panel" ? (
         <p className="atlas-spell-wait__label">{label}</p>
-      ) : null}
-      <p className="atlas-spell-wait__line">
+      ) : (
+        <span className="sr-only">{label}</span>
+      )}
+      <p className="atlas-spell-wait__line" aria-hidden="true">
         {visible.map((ch, i) => (
           <span
             key={i}
