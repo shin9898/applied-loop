@@ -6,6 +6,8 @@
 
 **生成失敗の再試行（2026-08-16 追加）**: CLI 認証切れ等の復旧後に `npm run requeue:gen`（`--dry-run` で対象確認、`--limit N` で件数指定、既定5件）。hook がコミット時点の diff を `DevEvent.diffSnapshot` に添付保存するため、worktree 削除後でも再試行できる（ADR-0006 追記）。
 
+**opt-in 匿名テレメトリ（2026-08-16 追加, W5-8 #15）**: `/setup` 下部で同意すると、正本7点（`ACTIVATION_STEPS`）のイベント名・匿名ID（`~/.applied-loop/telemetry-opt-in.json` で永続化）・タイムスタンプのみを `TELEMETRY_URL`（`.env`、未設定なら送らない）へ POST する。会話本文・repo 名・`meta` は送らない（ADR-0009 継承）。ローカル JSONL（`~/.applied-loop/activation-events.jsonl`）への記録は同意の有無に関わらず従来どおり。送信は fire-and-forget・3秒タイムアウトで失敗しても学習ループは止めない（`src/lib/activation-funnel.ts` の `maybeForwardTelemetry`）。
+
 ## 再出題スケジューラ（B12-1）
 
 `scheduleDueGates()` は cron ではなく次で発火する:

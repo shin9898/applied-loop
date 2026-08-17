@@ -775,3 +775,12 @@ export async function setTextbookMasteryAction(
   revalidatePath(`/retro/${dateKey}`);
   revalidatePath("/retro");
 }
+
+/** opt-in 匿名テレメトリの同意トグル（W5-8 #15） */
+export async function setTelemetryOptInAction(formData: FormData) {
+  await requireAuth();
+  const { setTelemetryOptIn } = await import("@/lib/telemetry-consent");
+  const optedIn = formData.get("optedIn") === "1";
+  setTelemetryOptIn(optedIn);
+  revalidatePath("/setup");
+}
