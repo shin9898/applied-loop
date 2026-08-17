@@ -9459,3 +9459,64 @@ a.uke-trial__hypo:hover {
   padding: 12px;
   color: var(--atlas-cream-dim);
 }
+
+/* —— AI回答待ち演出「じゅもんタイピング」（AtlasSpellWait） —— */
+.atlas-spell-wait {
+  font-family: var(--font-jp);
+  color: var(--atlas-cream);
+}
+
+.atlas-spell-wait--inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--atlas-cream-dim);
+  white-space: nowrap;
+}
+
+.atlas-spell-wait--panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  min-width: 180px;
+}
+
+.atlas-spell-wait__label {
+  margin: 0;
+  font-size: 11px;
+  color: var(--atlas-cream-dim);
+}
+
+.atlas-spell-wait__line {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.atlas-spell-wait--inline .atlas-spell-wait__line {
+  font-size: 11px;
+}
+
+@keyframes atlas-spell-wait-flash {
+  0% {
+    color: var(--atlas-gold);
+  }
+  50% {
+    color: var(--atlas-edge);
+  }
+  100% {
+    color: var(--atlas-cream);
+  }
+}
+
+.atlas-spell-wait__char--active {
+  animation: atlas-spell-wait-flash 0.5s steps(3) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-spell-wait__char--active {
+    animation: none !important;
+  }
+}
