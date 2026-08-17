@@ -18,6 +18,7 @@ import {
   type TextbookView,
 } from "@/lib/daily-textbook-shared";
 import {
+  compileMaterialBandAction,
   polishTextbookChapterAction,
   regenerateDailyTextbookAction,
   setTextbookMasteryAction,
@@ -48,6 +49,7 @@ export function AtlasDailyTextbook({
   wsToken,
   materialCountToday,
   sessionDigest,
+  bands,
 }: {
   dateKey: string;
   textbook: TextbookView | null;
@@ -55,6 +57,14 @@ export function AtlasDailyTextbook({
   /** 未生成時の材料件数 */
   materialCountToday?: number;
   sessionDigest?: SessionDigest | null;
+  bands?: Array<{
+    id: string;
+    repo: string;
+    digest: string;
+    count: number;
+    compiledChapterId: string | null;
+    createdAt: Date;
+  }>;
 }) {
   const [mode, setMode] = useState<Mode>("read");
   const [depth, setDepth] = useState<Depth>(() => {
@@ -425,6 +435,12 @@ export function AtlasDailyTextbook({
             </section>
           ) : null}
 
+          <MaterialBandShelf
+            bands={bands ?? []}
+            startTransition={startTransition}
+            pending={pending}
+          />
+
           {wsToken && activeChapter ? (
             <section id="atlas-jumon" className="scroll-mt-4 space-y-3">
               <div className="dq-win p-3.5">
@@ -558,6 +574,70 @@ function ModeToggle({
         </button>
       ))}
     </div>
+  );
+}
+
+function daysAgo(createdAt: Date): number {
+  const ms = Date.now() - new Date(createdAt).getTime();
+  return Math.max(0, Math.floor(ms / (24 * 3600 * 1000)));
+}
+
+const BAND_ARCHIVE_AFTER_DAYS = 7;
+
+function MaterialBandShelf({
+  bands,
+  startTransition,
+  pending,
+}: {
+  bands: NonNullable<Parameters<typeof AtlasDailyTextbook>[0]["bands"]>;
+  startTransition: (fn: () => void) => void;
+  pending: boolean;
+}) {
+  const open = bands.filter((b) => !b.compiledChapterId);
+  if (open.length === 0) return null;
+  return (
+    <section className="atlas-band-shelf">
+      <p className="atlas-band-shelf__title">
+        よみもの帯 ／ 材料 {open.reduce((s, b) => s + b.count, 0)}
+      </p>
+      <Link href="/retro/archive" className="atlas-band-shelf__archive">
+        書庫を見る
+      </Link>
+      <ul className="atlas-band-shelf__list">
+        {open.map((b) => {
+          const age = daysAgo(b.createdAt);
+          const remaining = BAND_ARCHIVE_AFTER_DAYS - age;
+          return (
+            <li key={b.id} className="atlas-band-shelf__item">
+              <div className="atlas-band-shelf__meta">
+                <span className="atlas-band-shelf__repo">{b.repo}</span>
+                <span className="atlas-band-shelf__count">材料 {b.count}</span>
+              </div>
+              <p className="atlas-band-shelf__digest">{b.digest}</p>
+              <div className="atlas-band-shelf__footer">
+                <span className="atlas-band-shelf__age">
+                  {remaining > 0
+                    ? `あと${remaining}日で書庫へ`
+                    : "まもなく書庫へ"}
+                </span>
+                <button
+                  type="button"
+                  disabled={pending}
+                  className="dq-btn dq-btn-ghost !px-2 !py-1 text-[8px]"
+                  onClick={() => {
+                    startTransition(async () => {
+                      await compileMaterialBandAction(b.id);
+                    });
+                  }}
+                >
+                  編纂する
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

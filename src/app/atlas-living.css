@@ -9313,3 +9313,125 @@ a.uke-trial__hypo:hover {
     opacity: 0;
   }
 }
+
+/* —— よみもの帯（Phase1、2026-08-16） —— */
+.atlas-band-shelf {
+  margin-top: 24px;
+  padding: 12px;
+  border: 1px solid #2a3a5a;
+  background: rgba(13, 47, 112, 0.35);
+}
+
+.atlas-band-shelf__title {
+  margin: 0 0 8px;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--atlas-cream-dim);
+}
+
+.atlas-band-shelf__archive {
+  display: inline-block;
+  margin: 0 0 8px;
+  font-size: 10px;
+  color: var(--atlas-cream-dim);
+  text-decoration: underline;
+}
+
+.atlas-band-shelf__archive:hover {
+  color: var(--atlas-cream);
+}
+
+.atlas-band-shelf__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.atlas-band-shelf__item {
+  padding: 8px;
+  border: 1px solid #2a3a5a;
+}
+
+.atlas-band-shelf__meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.atlas-band-shelf__repo {
+  color: var(--atlas-cream);
+}
+
+.atlas-band-shelf__count {
+  color: var(--atlas-cream-dim);
+}
+
+.atlas-band-shelf__digest {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--atlas-cream-dim);
+}
+
+.atlas-band-shelf__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.atlas-band-shelf__age {
+  font-size: 10px;
+  color: var(--atlas-cream-dim);
+}
+
+/* —— 書庫（Phase1、2026-08-16） —— */
+.atlas-archive-search {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.atlas-archive-search__input {
+  flex: 1;
+  padding: 6px 8px;
+  background: #000814;
+  border: 1px solid #2a3a5a;
+  color: var(--atlas-cream);
+  font-size: 12px;
+}
+
+.atlas-archive-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.atlas-archive-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #2a3a5a;
+  font-size: 12px;
+  color: var(--atlas-cream-dim);
+}
+
+.atlas-archive-list__date {
+  color: var(--atlas-cream);
+  font-family: var(--font-pixel);
+  font-size: 9px;
+}
+
+.atlas-archive-list__done {
+  color: var(--atlas-gold);
+}
+
+.atlas-archive-list__empty {
+  padding: 12px;
+  color: var(--atlas-cream-dim);
+}

@@ -12,6 +12,18 @@
 export const TEXTBOOK_MAX_CHAPTERS = 5;
 export const TEXTBOOK_MAX_MATERIALS_PER_CHAPTER = 8;
 export const TEXTBOOK_MAX_EVIDENCE_URLS = 5;
+
+/**
+ * 編纂（source="compiled"）の章・チェックに使う index 専用レンジの起点。
+ *
+ * 自動生成分は章が 1..TEXTBOOK_MAX_CHAPTERS(5)、チェックが 1..7（distillChecks の
+ * slice(0,7)）に必ず収まる。再生成は source="auto" の行だけを作り直すため、
+ * 「編纂した後にあふれ repo が増えて自動章が伸びた」順序だと、編纂章が占めていた
+ * index と衝突して @@unique([textbookId, index]) で createMany が落ちていた
+ * （その日の自動章が消えたまま復旧不能になる）。
+ * 編纂側を 1000 以上に固定で隔離すれば、自動側が上限まで伸びても交差しない。
+ */
+export const COMPILED_INDEX_BASE = 1000;
 /** じゅもん注入の文字数上限（章本文・diff 全量は入れない） */
 export const JUMON_CONTEXT_MAX_CHARS = 900;
 
@@ -33,7 +45,22 @@ export type MaterialRow = {
   summary: string | null;
   skipReason: string | null;
   receivedAt: Date;
+  /** 章（きょう／編纂）に組み込まれた瞬間。null = まだどこにも入っていない */
+  incorporatedAt: Date | null;
 };
+
+/**
+ * source="compiled" の行に振る次の index。章・チェックで同じ規則を使う。
+ * 引数はその教科書の **compiled 行だけ** の MAX(index)（1件も無ければ null）。
+ *
+ * 事後条件: 戻り値は常に COMPILED_INDEX_BASE 以上（＝自動側 1..5 / 1..7 と交差しない）で、
+ * かつ既存の compiled 最大値より必ず大きい。Math.max があるのは、この規則より前に
+ * 採番された低い index の compiled 行が残っていても自動側へ落ちてこないようにするため。
+ */
+export function nextCompiledIndex(existingCompiledMaxIndex: number | null): number {
+  if (existingCompiledMaxIndex == null) return COMPILED_INDEX_BASE;
+  return Math.max(existingCompiledMaxIndex + 1, COMPILED_INDEX_BASE);
+}
 
 /** 教科書として必須の教育学スロット（ADR-0020・物語順） */
 export type LessonSlots = {
@@ -464,6 +491,45 @@ function evidenceFrom(materials: MaterialRow[]): EvidenceLink[] {
   return out;
 }
 
+export type BandDraft = {
+  repo: string;
+  materialIds: string[];
+  digest: string;
+  count: number;
+};
+
+/**
+ * 章の予算（TEXTBOOK_MAX_CHAPTERS × TEXTBOOK_MAX_MATERIALS_PER_CHAPTER）から
+ * あふれた材料を、repo単位の「よみもの帯」下書きに束ねる。LLM不要。
+ */
+export function groupMaterialsIntoBandDrafts(
+  materials: MaterialRow[],
+): BandDraft[] {
+  const byRepo = new Map<string, MaterialRow[]>();
+  for (const m of materials) {
+    const list = byRepo.get(m.repo) ?? [];
+    list.push(m);
+    byRepo.set(m.repo, list);
+  }
+  const bands: BandDraft[] = [];
+  for (const [repo, rows] of byRepo) {
+    const sorted = [...rows].sort(
+      (a, b) => b.receivedAt.getTime() - a.receivedAt.getTime(),
+    );
+    const preview = sorted
+      .slice(0, 3)
+      .map((m) => (m.summary?.trim() || m.ref).slice(0, 28))
+      .join("、");
+    bands.push({
+      repo,
+      materialIds: sorted.map((m) => m.id),
+      digest: preview,
+      count: sorted.length,
+    });
+  }
+  return bands.sort((a, b) => b.count - a.count);
+}
+
 function overflowDigest(overflow: MaterialRow[]): string {
   if (overflow.length === 0) return "";
   const preview = overflow
@@ -524,7 +590,7 @@ function buildBodyPlain(input: {
     .join("\n");
 }
 
-function draftChapterFromRepo(
+export function draftChapterFromRepo(
   index: number,
   repo: string,
   kept: MaterialRow[],
@@ -871,6 +937,16 @@ function summarizeSkip(materials: MaterialRow[]): string {
     counts.set(k, (counts.get(k) ?? 0) + 1);
   }
   return [...counts.entries()].map(([k, n]) => `${k}:${n}`).join(", ") || "なし";
+}
+
+/** 編纂（帯→章の昇格）で追加する1問だけの確認問い */
+export function distillSingleCheck(
+  chapter: ChapterDraft,
+): { chapterIndex: number; question: string } {
+  return {
+    chapterIndex: chapter.index,
+    question: `「${chapter.title}」で進めていた改修と、ナレッジが溜まったタイミングを1文で。とった対応も添えること。（改修: ${chapter.work.slice(0, 36)}）`,
+  };
 }
 
 /** 章あたりスロット連動問い＋横断。合計は 3〜7。 */

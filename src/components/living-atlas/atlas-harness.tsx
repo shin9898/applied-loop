@@ -376,7 +376,7 @@ function FlowSection({ health }: { health: MaterialCaptureHealth }) {
         実装の足あとが、どこで どれだけ こぼれているか。管の中の粒が材料じゃ。
         かまどの下に落ちた粒は、だまって消えたのではなく
         <span style={{ color: "var(--atlas-danger)" }}> とりこぼし </span>
-        として残っておる。ひろい直せる。
+        として よみもの帯に 残っておる。ひろい直せる。
       </p>
 
       <div className="atlas-dg-flow-wrap">
@@ -486,11 +486,11 @@ function FlowSection({ health }: { health: MaterialCaptureHealth }) {
       <div className="atlas-dg-flow-caption">
         <p>
           {dropped > 0
-            ? `かまどで こぼれた ${dropped} は、まだ 消えてはおらぬ。いま ひろえば きょうの教科書に間に合う。`
+            ? `かまどで こぼれた ${dropped} は、まだ 消えてはおらぬ。よみもの帯に 置いてある。`
             : "きょうは まだ 一粒も こぼれておらぬ。この まま 焼き上げてよい。"}
         </p>
-        <Link href="/entries" className="atlas-link-gold">
-          きょうの教科書を みる
+        <Link href={`/retro/${today.dateKey}`} className="atlas-link-gold">
+          {dropped > 0 ? "よみもの帯を みる" : "きょうの教科書を みる"}
         </Link>
       </div>
     </AtlasReveal>

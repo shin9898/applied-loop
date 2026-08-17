@@ -111,6 +111,7 @@ model DevEvent {
   skipReason String? // dedupe / throttled / daily_cap / backlog / gen_failed
   diffSnapshot String? // 切り詰め済みdiff。ローカルのみ、クラウド同期から除外すること (ADR-0006 追記 2026-08-16)
   receivedAt DateTime @default(now())
+  incorporatedAt DateTime? // 章（きょう／編纂／週のしょ）のいずれかに組み込まれた瞬間にセット
   gates      Gate[]
 
   @@unique([kind, repo, ref])
@@ -280,6 +281,7 @@ model DailyTextbookChapter {
   diagramKind  String         @default("generic") // silent_gap / drift / prefix / generic
   evidenceJson String         @default("[]") // JSON EvidenceLink[]
   materialIds  String         @default("[]") // JSON string[]
+  source       String         @default("auto") // "auto"（毎日自動生成）/ "compiled"（帯から編纂）
   checks       DailyTextbookCheck[]
 
   @@unique([textbookId, index])
@@ -296,6 +298,22 @@ model DailyTextbookCheck {
   question    String
   mastery     String? // clear / partial / stuck / parked
   answeredAt  DateTime?
+  source      String                @default("auto") // "auto" / "compiled"
 
   @@unique([textbookId, index])
+}
+
+// よみもの帯・書庫の実体。日次生成であふれた材料をrepo単位で保存する
+// （2026-08-16、5repo×8件キャップでの取りこぼし対応）
+model MaterialBand {
+  id                String   @id @default(cuid())
+  dateKey           String   // 材料を受け取った日 (JST)
+  repo              String
+  materialIds       String   // JSON string[]（あふれた DevEvent.id 全量）
+  digest            String   // 1行サマリ
+  count             Int
+  compiledChapterId String?  // 「編纂する」で章に昇格したらセット
+  createdAt         DateTime @default(now())
+
+  @@unique([dateKey, repo])
 }
