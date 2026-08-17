@@ -8,6 +8,10 @@ import { requireAuth } from "@/lib/auth";
 import { dayStartJST } from "@/lib/date";
 import { gradeGate } from "@/lib/gate";
 import {
+  probeGradingCliLive,
+  type GradingProbeResult,
+} from "@/lib/grading-probe";
+import {
   approveRequirementLink,
   rejectRequirementLink,
   refreshRequirementsForGate,
@@ -809,4 +813,10 @@ export async function setWeeklyCheckMasteryAction(
   await setWeeklyCheckMastery(checkId, mastery);
   revalidatePath(`/retro/weekly/${weekKey}`);
   revalidatePath("/retro");
+}
+
+/** /setup の「賢者に伺いを立てる」ボタン用: live probe を手動実行する */
+export async function runGradingProbeLiveAction(): Promise<GradingProbeResult> {
+  await requireAuth();
+  return probeGradingCliLive();
 }
