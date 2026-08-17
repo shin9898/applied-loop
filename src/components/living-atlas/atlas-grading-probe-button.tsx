@@ -25,7 +25,8 @@ export function AtlasGradingProbeButton({
             try {
               const result = await runGradingProbeLiveAction();
               onResult(result);
-            } catch {
+            } catch (e) {
+              console.error("[atlas-grading-probe-button] runGradingProbeLiveAction failed:", e);
               setError("確認できなかった。もう一度試してほしい。");
             }
           });
