@@ -872,7 +872,8 @@ git commit -m "feat(weekly-textbook): にっき画面に週のしょへのリン
 - Create: `src/app/(app)/retro/weekly/[weekKey]/page.tsx`
 - Create: `src/app/(app)/retro/weekly/[weekKey]/loading.tsx`
 - Create: `src/components/living-atlas/atlas-weekly-textbook.tsx`
-- Modify: `src/app/atlas-living.css`
+
+（`src/app/atlas-living.css`は変更しない。既存の`atlas-journal__*`・`dq-btn`系グローバルクラスをそのまま再利用するため新規CSSは不要）
 
 **Interfaces:**
 - Consumes: `loadWeeklyTextbook`（Task 3）, `setWeeklyCheckMasteryAction`（Task 4）, `MASTERY_STATES`（`@/lib/daily-textbook-shared`、既存）
