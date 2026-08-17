@@ -20,7 +20,7 @@ export type GradingProbeResult = {
   dryRun: boolean;
 };
 
-type CacheRow = {
+export type GradingProbeCacheRow = {
   at: number;
   result: GradingProbeResult;
 };
@@ -29,10 +29,10 @@ const CACHE_PATH = join(homedir(), ".applied-loop", "grading-probe-cache.json");
 const OK_TTL_MS = 60 * 60 * 1000;
 const FAIL_TTL_MS = 5 * 60 * 1000;
 
-function readCache(): CacheRow | null {
+function readCacheFrom(path: string): GradingProbeCacheRow | null {
   try {
-    if (!existsSync(CACHE_PATH)) return null;
-    const row = JSON.parse(readFileSync(CACHE_PATH, "utf8")) as CacheRow;
+    if (!existsSync(path)) return null;
+    const row = JSON.parse(readFileSync(path, "utf8")) as GradingProbeCacheRow;
     if (!row?.at || !row?.result) return null;
     return row;
   } catch {
@@ -40,14 +40,58 @@ function readCache(): CacheRow | null {
   }
 }
 
+function readCache(): GradingProbeCacheRow | null {
+  return readCacheFrom(CACHE_PATH);
+}
+
 function writeCache(result: GradingProbeResult): void {
   try {
     mkdirSync(dirname(CACHE_PATH), { recursive: true });
-    const row: CacheRow = { at: Date.now(), result };
+    const row: GradingProbeCacheRow = { at: Date.now(), result };
     writeFileSync(CACHE_PATH, `${JSON.stringify(row)}\n`, "utf8");
   } catch (e) {
     console.error("[grading-probe] cache write failed:", e);
   }
+}
+
+/** テスト・`/setup` 表示用: live probe を呼ばずキャッシュだけ読む */
+export function readGradingProbeCache(
+  cachePath: string = CACHE_PATH,
+): GradingProbeCacheRow | null {
+  return readCacheFrom(cachePath);
+}
+
+export function formatCheckedLabel(elapsedMs: number): string {
+  if (elapsedMs < 60_000) return "たった今確認";
+  const min = Math.floor(elapsedMs / 60_000);
+  if (min < 60) return `${min}分前に確認`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}時間前に確認`;
+  const day = Math.floor(hr / 24);
+  return `${day}日前に確認`;
+}
+
+const UNCHECKED_GRADING_RESULT: GradingProbeResult = {
+  ok: false,
+  provider: "none",
+  detail: "まだ確認しておらぬ",
+  howTo: "下のボタンで賢者に伺いを立てよ",
+  dryRun: false,
+};
+
+/**
+ * `/setup` の通常表示用: live probe を呼ばず、直近のキャッシュ結果 + 鮮度ラベルを返す。
+ * キャッシュが無ければ「未確認」を表す既定値を返す。
+ */
+export function cachedGradingProbeResult(
+  cachePath: string = CACHE_PATH,
+): GradingProbeResult {
+  const cached = readGradingProbeCache(cachePath);
+  if (!cached) return UNCHECKED_GRADING_RESULT;
+  return {
+    ...cached.result,
+    detail: `${cached.result.detail}（${formatCheckedLabel(Date.now() - cached.at)}）`,
+  };
 }
 
 /** PATH のみ（ホーム等）。dryRun=false */
