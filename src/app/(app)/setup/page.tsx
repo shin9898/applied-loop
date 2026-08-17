@@ -18,16 +18,14 @@ export default async function SetupPage({ searchParams }: Props) {
   await ensureTutorialSeed();
   const { recordActivationOnce } = await import("@/lib/activation-funnel");
   recordActivationOnce("setup_opened");
-  const diagnosis = await loadSetupDiagnosis({ gradingDryRun: true });
-  // B5-3: 採点 CLI が戻っていれば保留しれんを自動再採点
-  if (diagnosis.checks.some((c) => c.id === "grading_cli" && c.ok)) {
-    const { requeueFailedGradingIfCliReady } = await import(
-      "@/lib/requeue-failed-grading"
-    );
-    await requeueFailedGradingIfCliReady().catch((e) =>
-      console.error("[setup] auto-regrade:", e),
-    );
-  }
+  const diagnosis = await loadSetupDiagnosis({ gradingFromCache: true });
+  // B5-3: 保留しれんを自動再採点（内部の軽量 PATH チェックで CLI 不在時は no-op）
+  const { requeueFailedGradingIfCliReady } = await import(
+    "@/lib/requeue-failed-grading"
+  );
+  await requeueFailedGradingIfCliReady().catch((e) =>
+    console.error("[setup] auto-regrade:", e),
+  );
   const progress = await loadTutorialProgress(diagnosis);
   if (diagnosis.gitHookInstalled) {
     recordActivationOnce("hook_installed");
