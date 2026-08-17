@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Applied Loop dev サーバーの常駐化 (Web :3100 / terminal WS :3101)
+
+  Claude Desktop / Cursor Desktop 等の「手元」MCPクライアントは常に
+  http://localhost:3100/api/mcp へ接続する設計（docs/mcp-setup.md）。
+  サーバーが落ちていると answer_gate（しれんの回答提出）等のツール呼び出しが
+  丸ごと失敗する（2026-08-17、koki実機で発生を確認・Fable UXレビューで常駐化を推奨）。
+
+  インストール手順:
+    1. このファイルを編集し、YOUR_USER を実際のユーザ名に置換する
+       (ProgramArguments のパスもリポジトリ実パスに合わせる)
+    2. cp scripts/com.applied-loop.dev.plist ~/Library/LaunchAgents/
+    3. launchctl load ~/Library/LaunchAgents/com.applied-loop.dev.plist
+    4. 動作確認: lsof -nP -iTCP:3100 -sTCP:LISTEN / curl http://localhost:3100
+       ログ: /tmp/applied-loop-dev.out.log / /tmp/applied-loop-dev.err.log
+    5. 停止: launchctl unload ~/Library/LaunchAgents/com.applied-loop.dev.plist
+    6. 異常終了からの手動復旧: launchctl kickstart -k gui/$UID/com.applied-loop.dev
+
+  前提・注意:
+    - 常駐化した場合、これとは別に手動で npm run dev:all を起動すると
+      ポート3100/3101が競合する。常駐化後は手動起動をやめること
+    - KeepAlive で異常終了時に自動再起動する。ThrottleInterval で
+      連続クラッシュ時の再起動間隔に下限を設ける
+-->
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.applied-loop.dev</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>/bin/bash</string>
+      <string>/Users/YOUR_USER/tools/applied-loop/scripts/dev-server-daemon.sh</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>StandardOutPath</key>
+    <string>/tmp/applied-loop-dev.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/applied-loop-dev.err.log</string>
+  </dict>
+</plist>

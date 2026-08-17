@@ -11,6 +11,7 @@ Applied Loop の配布物は 3 点セット (ADR-0005):
 ## 1. MCP エンドポイントの登録
 
 前提: `npm run dev:all`（または `npm run dev -- -p 3100`）でアプリが起動していること。
+手動起動を毎回忘れがちな場合は `scripts/com.applied-loop.dev.plist`（launchd 常駐化、KeepAlive で自動再起動）を使う。
 
 | 使い方 | URL | 登録先 |
 |---|---|---|
@@ -73,6 +74,10 @@ CLAUDE.md / Cursor Rules / Codex AGENTS に追記する文（必要に応じて�
 - 「この学びを使った」と言われた時は `record_application`。
 - 理解度ゲートは `list_pending_gates` → 対話 → ユーザーが提出を明示したら `answer_gate`。
   合否は会話中に断定せず `get_gate_result` で確認する。
+- applied-loop のツールが見当たらない／接続エラーになった場合、ローカルサーバー
+  （`npm run dev:all`）が落ちている可能性が高い。回答本文は会話に残っているので
+  失われてはいない。ユーザーへ「`npm run dev:all` で起動してから、もう一度
+  『提出して』と言ってください」と案内し、推測で合否や受理を偽装しない。
 ```
 
 ## 3. hook
