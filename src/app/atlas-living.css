@@ -9329,6 +9329,18 @@ a.uke-trial__hypo:hover {
   color: var(--atlas-cream-dim);
 }
 
+.atlas-band-shelf__archive {
+  display: inline-block;
+  margin: 0 0 8px;
+  font-size: 10px;
+  color: var(--atlas-cream-dim);
+  text-decoration: underline;
+}
+
+.atlas-band-shelf__archive:hover {
+  color: var(--atlas-cream);
+}
+
 .atlas-band-shelf__list {
   list-style: none;
   margin: 0;

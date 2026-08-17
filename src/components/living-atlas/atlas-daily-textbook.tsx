@@ -600,6 +600,9 @@ function MaterialBandShelf({
       <p className="atlas-band-shelf__title">
         よみもの帯 ／ 材料 {open.reduce((s, b) => s + b.count, 0)}
       </p>
+      <Link href="/retro/archive" className="atlas-band-shelf__archive">
+        書庫を見る
+      </Link>
       <ul className="atlas-band-shelf__list">
         {open.map((b) => {
           const age = daysAgo(b.createdAt);
