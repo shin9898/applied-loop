@@ -6,6 +6,10 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import {
+  readTelemetryConsent,
+  telemetryDestinationConfigured,
+} from "./telemetry-consent";
 
 /** 合否に使う正本7点（Fable B9-1） */
 export const ACTIVATION_STEPS = [
@@ -35,15 +39,14 @@ export type ActivationEvent = {
   meta?: Record<string, string | number | boolean | null>;
 };
 
-const EVENTS_PATH = join(homedir(), ".applied-loop", "activation-events.jsonl");
-
 const ALL_STEPS = new Set<string>([
   ...ACTIVATION_STEPS,
   ...ACTIVATION_EXTRA_STEPS,
 ]);
 
+/** テストで HOME を差し替えられるよう、都度 homedir() を読む（固定しない） */
 export function activationEventsPath(): string {
-  return EVENTS_PATH;
+  return join(homedir(), ".applied-loop", "activation-events.jsonl");
 }
 
 export function recordActivation(
@@ -51,16 +54,44 @@ export function recordActivation(
   meta?: ActivationEvent["meta"],
 ): void {
   try {
-    mkdirSync(dirname(EVENTS_PATH), { recursive: true });
+    const eventsPath = activationEventsPath();
+    mkdirSync(dirname(eventsPath), { recursive: true });
     const row: ActivationEvent = {
       step,
       at: new Date().toISOString(),
       ...(meta ? { meta } : {}),
     };
-    appendFileSync(EVENTS_PATH, `${JSON.stringify(row)}\n`, "utf8");
+    appendFileSync(eventsPath, `${JSON.stringify(row)}\n`, "utf8");
   } catch (e) {
     console.error("[activation] record failed:", e);
   }
+  maybeForwardTelemetry(step);
+}
+
+/**
+ * opt-in 済み・TELEMETRY_URL 設定済みのときだけ、正本7点に限り
+ * イベント名+匿名ID+タイムスタンプを送る。fire-and-forget、失敗は無視。
+ * meta（gateId 等を含みうる）は送らない。
+ */
+function maybeForwardTelemetry(step: ActivationStep): void {
+  if (!(ACTIVATION_STEPS as readonly string[]).includes(step)) return;
+  if (!telemetryDestinationConfigured()) return;
+  const consent = readTelemetryConsent();
+  if (!consent.optedIn) return;
+  const url = process.env.TELEMETRY_URL!.trim();
+  const body = JSON.stringify({
+    step,
+    at: new Date().toISOString(),
+    anonId: consent.anonId,
+  });
+  fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+    signal: AbortSignal.timeout(3000),
+  }).catch(() => {
+    /* ネットワーク不調で学習ループを止めない */
+  });
 }
 
 /** 初回のみ記録（同じ step が既にあればスキップ） */
@@ -75,8 +106,9 @@ export function recordActivationOnce(
 
 export function readActivationEvents(): ActivationEvent[] {
   try {
-    if (!existsSync(EVENTS_PATH)) return [];
-    return readFileSync(EVENTS_PATH, "utf8")
+    const eventsPath = activationEventsPath();
+    if (!existsSync(eventsPath)) return [];
+    return readFileSync(eventsPath, "utf8")
       .split("\n")
       .map((l) => l.trim())
       .filter(Boolean)

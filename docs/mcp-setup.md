@@ -20,7 +20,7 @@ Applied Loop の配布物は 3 点セット (ADR-0005):
 **.env にトンネル URL があっても、Desktop の `mcp.json` には localhost だけ書く。**  
 混ぜると quick tunnel 失効時に手元まで死ぬ。Cloud 手順は [cloud-mcp.md](./cloud-mcp.md)。
 
-`.env` の `MCP_TOKEN` を Bearer に使う。
+`.env` の `MCP_TOKEN` を Bearer に使う。**`npm run setup` を実行すると、実際のトークンを埋め込んだ下記スニペットを対話式で1つ選んで表示する**（W5-8 #14）。手動で組み立てる場合は以下を参照。
 
 ### Claude Code
 

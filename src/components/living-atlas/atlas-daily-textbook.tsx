@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -74,8 +74,6 @@ export function AtlasDailyTextbook({
   const [activeChapterId, setActiveChapterId] = useState<string | null>(
     textbook?.chapters[0]?.id ?? null,
   );
-  /** 章導線から最下部じゅもんへスクロールする予約 */
-  const [pendingJumonScroll, setPendingJumonScroll] = useState(false);
   const [polishError, setPolishError] = useState<string | null>(null);
   const [polishingId, setPolishingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -107,15 +105,11 @@ export function AtlasDailyTextbook({
     });
   }, [textbook, activeChapter, depth]);
 
-  useEffect(() => {
-    if (!pendingJumonScroll) return;
-    scrollToJumon();
-    setPendingJumonScroll(false);
-  }, [pendingJumonScroll, activeChapterId]);
-
   function openJumonForChapter(chapterId: string) {
     setActiveChapterId(chapterId);
-    setPendingJumonScroll(true);
+    // #atlas-jumon は章に関わらず常に同じ位置にある静的セクションなので、
+    // 描画コミットを待たずクリックハンドラ内で直接スクロールできる
+    scrollToJumon();
   }
 
   function setDepthPersist(next: Depth) {

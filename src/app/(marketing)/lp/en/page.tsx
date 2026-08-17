@@ -9,138 +9,138 @@ const GITHUB = "https://github.com/shin9898/applied-loop";
 
 const PAINS = [
   {
-    title: "コードは進むのに、説明できない",
-    body: "AIとマージできたのに、レビューで「なぜこの設計？」と聞かれて言葉が出ない。",
+    title: "Code ships, but you can't explain it",
+    body: "You merged with your AI's help — then a reviewer asks \"why this design?\" and the words don't come.",
   },
   {
-    title: "学びがチャットに消える",
-    body: "わかったつもりでも、セッションが終わると痕跡も結論も残らない。",
+    title: "What you learned disappears into the chat",
+    body: "It felt like it clicked in the moment. Once the session ends, no trace and no conclusion survive.",
   },
   {
-    title: "同じ勘違いが戻ってくる",
-    body: "先週通した話が、別タスクで同じミスとして再発する。",
+    title: "The same misunderstanding keeps coming back",
+    body: "Something you sorted out last week resurfaces as the exact same mistake on a different task.",
   },
 ] as const;
 
 const RESOLVES = [
   {
-    title: "足跡を材料として残せる",
-    body: "commit や会話の痕跡は捨てない。即時チェックが止まっても材料は残る。",
+    title: "Your footprint becomes material",
+    body: "Commits and session traces aren't discarded. Material accumulates even if you skip a day's check.",
   },
   {
-    title: "1日の教科書に圧縮できる",
-    body: "夜（または朝）にきょうのしょへ。章を読み、少数の確認で理解状態を振り分ける。",
+    title: "It compresses into one daily textbook",
+    body: "At night (or in the morning), it becomes today's textbook. Read the chapters, answer a short check, and your understanding gets sorted.",
   },
   {
-    title: "翌日の一手が状態で決まる",
-    body: "Mastery（clear / partial / stuck / parked）が朝の要約とちず CTA になる。",
+    title: "Tomorrow's next step is decided by state",
+    body: "Mastery (clear / partial / stuck / parked) drives your morning summary and home-screen call to action.",
   },
 ] as const;
 
 const SHOWCASE = [
   {
-    title: "ちず（ホーム）",
-    body: "コミットが増えるほど学びの領土が育つ。いまどこにいるかが一目で分かる。",
+    title: "Home / world map",
+    body: "Your territory of learning grows with every commit. See exactly where you are at a glance.",
     image: "/lp/lp-chizu.png",
     width: 900,
     height: 533,
-    alt: "ちず（ホーム画面）のスクリーンショット。ドットタイルの地図と、ぼうけんしゃステータスが並ぶ",
+    alt: "Screenshot of the home screen: a dotted-tile map alongside traveler status.",
   },
   {
-    title: "きょうのしょ（日次教科書）",
-    body: "その日の材料を章立てし、なぜ／型／別案で振り返る。※初クリア後にひらく",
+    title: "Daily textbook",
+    body: "The day's material is organized into chapters — why, pattern, and alternatives. Unlocks after your first clear.",
     image: "/lp/lp-kyounosho.png",
     width: 820,
     height: 856,
-    alt: "きょうのしょ（日次教科書）のスクリーンショット。3つの章タイトルと本文が並ぶ",
+    alt: "Screenshot of the daily textbook: three chapter titles with their body text.",
   },
   {
-    title: "ずかん（つまずき一覧）",
-    body: "解けた問い・解けていない問いをカテゴリ別に一覧。再出題にもつながる。",
+    title: "Field guide of misconceptions",
+    body: "Solved and unsolved questions, listed by category — and the source for spaced re-checks.",
     image: "/lp/lp-zukan.png",
     width: 820,
     height: 546,
-    alt: "ずかん（つまずき一覧）のスクリーンショット。カテゴリ別件数と学びカードが並ぶ",
+    alt: "Screenshot of the field guide: per-category counts alongside learning cards.",
   },
 ] as const;
 
 const AI_LINK_EXAMPLE = [
-  "Applied Loop の MCP で request_gate を呼んでください。",
-  "引数 diff には、いまの変更差分を渡してください。",
+  "Call request_gate on the Applied Loop MCP server.",
+  "Pass your current diff as the diff argument.",
 ].join("\n");
 
 const STEPS = [
   {
     n: "①",
-    title: "手元で起動する",
-    plain: "clone → setup → ブラウザでじゅんび。サンプルしれんの最初の1問は Web で提出してよい。",
+    title: "Start it locally",
+    plain: "clone → setup → open the wizard in your browser. You can submit the first sample check right from the web.",
   },
   {
     n: "②",
-    title: "いつもどおり働く",
-    plain: "監視中の repo で commit。材料が増える。PR 作成だけでは溜まらない。",
+    title: "Work like you normally do",
+    plain: "Commit in a watched repo. Material accumulates. Opening a PR alone won't do it.",
   },
   {
     n: "③",
-    title: "教科書で閉じ、翌朝へ",
-    plain: "きょうのしょ → 確認 → Mastery。朝の一手が状態で変わる。",
+    title: "Close the day with the textbook",
+    plain: "Daily textbook → check → Mastery. Tomorrow's next step changes based on your state.",
   },
 ] as const;
 
-export default function LpPage() {
+export default function LpPageEn() {
   return (
     <div className="flex min-h-full flex-1 flex-col text-[#f7f3d9]">
       <header className="absolute top-0 right-0 left-0 z-10 flex items-center justify-between gap-4 px-5 py-4 md:px-10">
         <Link
-          href="/lp"
+          href="/lp/en"
           className="inline-flex no-underline border-[3px] border-white bg-[#000c4a]/95 px-2.5 py-1.5 shadow-[3px_3px_0_#000]"
           aria-label="Applied Loop"
         >
-          <AtlasBrandMark size={36} withWordmark withSubtitle />
+          <AtlasBrandMark size={36} withWordmark wordmarkOverride="Applied Loop" />
         </Link>
         <nav className="flex flex-wrap items-center justify-end gap-4">
-        <a
-          href="#pain"
-          className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
-        >
-          困りごと
-        </a>
-        <a
-          href="#resolve"
-          className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
-        >
-          解消
-        </a>
-        <a
-          href="#how"
-          className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
-        >
-          仕組み
-        </a>
-        <a
-          href={GITHUB}
-          className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
-          rel="noreferrer"
-          target="_blank"
-        >
-          GitHub
-        </a>
-        <Link
-          href="/lp/en"
-          className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
-        >
-          English
-        </Link>
-        <Link
-          href="/setup"
-          className="font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a] no-underline hover:underline"
-        >
-          じゅんびへ
-        </Link>
+          <a
+            href="#pain"
+            className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
+          >
+            Problems
+          </a>
+          <a
+            href="#resolve"
+            className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
+          >
+            Resolved
+          </a>
+          <a
+            href="#how"
+            className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
+          >
+            How it works
+          </a>
+          <a
+            href={GITHUB}
+            className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
+            rel="noreferrer"
+            target="_blank"
+          >
+            GitHub
+          </a>
+          <Link
+            href="/lp"
+            className="font-[family-name:var(--font-pixel)] text-[8px] text-[#9ec0ff] no-underline hover:text-[#f0d25a]"
+          >
+            日本語
+          </Link>
+          <Link
+            href="/setup"
+            className="font-[family-name:var(--font-pixel)] text-[8px] text-[#f0d25a] no-underline hover:underline"
+          >
+            Get started
+          </Link>
         </nav>
       </header>
 
-      {/* Hero: 何のツールかが一視線で分かる */}
+      {/* Hero: what this tool is, in one glance */}
       <section className="relative flex min-h-[100svh] flex-col justify-center overflow-hidden border-b-4 border-white px-5 pb-12 pt-20 md:px-10 md:pb-16">
         <div
           className="pointer-events-none absolute inset-0 bg-[#000c4a]"
@@ -166,21 +166,24 @@ export default function LpPage() {
               <AtlasBrandMark size={56} />
               <div>
                 <p className="m-0 font-[family-name:var(--font-pixel)] text-[11px] leading-relaxed text-[#f0d25a] md:text-[12px]">
-                  ぼうけんのしょ
+                  Applied Loop
                 </p>
                 <p className="mt-1 mb-0 font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#9ec0ff]">
-                  Applied Loop — AIコーディング向けの、理解ギャップ学習ループ
+                  A learning loop for the comprehension gap left by AI-assisted coding
                 </p>
               </div>
             </div>
             <h1 className="mt-5 mb-0 font-[family-name:var(--font-jp)] text-[26px] leading-tight text-[#f7f3d9] md:text-[36px]">
-              「わかったつもり」を、
+              Turn &ldquo;I get it&rdquo; into
               <br className="hidden sm:block" />
-              しっかり説明できるレベルまで。
+              something you can actually explain.
             </h1>
             <p className="mt-4 mb-0 font-[family-name:var(--font-jp)] text-[15px] leading-relaxed text-[#c9c3a0] md:text-[16px]">
-              Cursor や Claude
-              で書いたコードの足跡を材料として貯め、1日の教科書に圧縮し、確認で理解状態を振り分ける。レビューでも自分の言葉で話せる状態へ——手元のローカルツール。
+              Keeps the footprint of code you wrote with Cursor or Claude as
+              material, compresses it into a daily textbook, and sorts your
+              understanding through a short check — so you can talk about
+              your own code in review, in your own words. A local tool that
+              runs on your machine.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
@@ -189,17 +192,17 @@ export default function LpPage() {
                 rel="noreferrer"
                 target="_blank"
               >
-                GitHub を見る
+                View on GitHub
               </a>
               <Link href="/setup" className="dq-btn dq-btn-ghost !text-[10px]">
-                じゅんびへ進む
+                Open the setup wizard
               </Link>
             </div>
             <p className="mt-4 mb-0 font-[family-name:var(--font-jp)] text-[12px] leading-relaxed text-[#9a9470]">
-              いまはセルフホスト dogfood。SaaS / マルチユーザーはまだない。
+              Currently self-hosted dogfood. No SaaS or multi-user support yet.
             </p>
           </div>
-          <LpHeroBattle />
+          <LpHeroBattle lang="en" />
         </div>
       </section>
 
@@ -207,9 +210,9 @@ export default function LpPage() {
         id="pain"
         className="border-b-4 border-white bg-[#001a8c] px-5 py-14 md:px-10"
       >
-        <h2 className="dq-win-title m-0">こんな困りごと向け</h2>
+        <h2 className="dq-win-title m-0">Built for these problems</h2>
         <p className="mt-2 mb-8 max-w-2xl font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#c9c3a0]">
-          速度だけが先に行き、理解と記録が置いていかれる——その穴を埋める。
+          Speed races ahead while understanding and the record of it get left behind — this fills that gap.
         </p>
         <div className="grid gap-4 md:grid-cols-3">
           {PAINS.map((item, i) => (
@@ -233,9 +236,9 @@ export default function LpPage() {
         id="resolve"
         className="border-b-4 border-white bg-[#000c4a] px-5 py-14 md:px-10"
       >
-        <h2 className="dq-win-title m-0">なにが解消できるか</h2>
+        <h2 className="dq-win-title m-0">What it resolves</h2>
         <p className="mt-2 mb-8 max-w-2xl font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#c9c3a0]">
-          教材を増やすのではなく、自分の作業（コミット・セッション）を理解の材料にする。
+          Not more course material — it turns your own work (commits, sessions) into material for understanding.
         </p>
         <ol className="m-0 grid list-none gap-4 p-0 md:grid-cols-3">
           {RESOLVES.map((item, i) => (
@@ -259,9 +262,9 @@ export default function LpPage() {
       </section>
 
       <section className="border-b-4 border-white bg-[#001a8c] px-5 py-14 md:px-10">
-        <h2 className="dq-win-title m-0">なにができるか</h2>
+        <h2 className="dq-win-title m-0">What you get</h2>
         <p className="mt-2 mb-8 max-w-2xl font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#c9c3a0]">
-          UI の呼び名はゲーム風。中身は全部、理解を残すための機能——実際の画面はこちら。
+          The UI uses playful RPG-style names. Every one of them is a feature for keeping your understanding — here are the actual screens.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           {SHOWCASE.map((item, i) => (
@@ -292,25 +295,25 @@ export default function LpPage() {
             style={{ ["--motion-delay" as string]: `${SHOWCASE.length * 60}ms` }}
           >
             <h3 className="m-0 font-[family-name:var(--font-pixel)] text-[10px] text-[#9ec0ff]">
-              自分の LLM とつなぐ
+              Connect your own LLM
             </h3>
             <p className="mt-2 mb-2 font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#f7f3d9]">
-              Claude / Cursor / Codex などに、この1文を貼るだけ。
+              Paste this one line into Claude, Cursor, Codex, or whatever you use.
             </p>
             <pre className="m-0 whitespace-pre-wrap border-2 border-[#001a8c] bg-[#000814] p-2 font-mono text-[11px] leading-relaxed text-[#c9c3a0]">
               {AI_LINK_EXAMPLE}
             </pre>
             <p className="mt-2 mb-0 font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#9ec0ff]">
-              → しれんが生成され、答えるとずかんに残る。操作の正典はツール側。
+              → A check gets generated; answer it and it&apos;s saved to your field guide. The tool is the source of truth for actions.
             </p>
           </div>
         </div>
       </section>
 
       <section id="how" className="border-b-4 border-white bg-[#000c4a] px-5 py-14 md:px-10">
-        <h2 className="dq-win-title m-0">どう動くか</h2>
+        <h2 className="dq-win-title m-0">How it works</h2>
         <p className="mt-2 mb-8 max-w-2xl font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#c9c3a0]">
-          初日はツール名を覚えなくてよい。起動 → 働く → 答える、の3手。
+          You don&apos;t need to memorize tool names on day one. Start → work → answer — that&apos;s the whole loop.
         </p>
         <ol className="m-0 grid list-none gap-4 p-0 md:grid-cols-3">
           {STEPS.map((s, i) => (
@@ -332,16 +335,16 @@ export default function LpPage() {
           ))}
         </ol>
         <p className="mt-6 mb-0 max-w-2xl font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#9ec0ff]">
-          ④ 翌日からは毎朝この3つだけ見ればいい —— ちずの一手・ずかんの未解明・きょうのしょの続き。
+          ④ From day two on, check just three things each morning — your home screen&apos;s next step, unresolved items in your field guide, and where you left off in the daily textbook.
         </p>
       </section>
 
       <section className="bg-[#001a8c] px-5 py-14 md:px-10">
         <div className="dq-win max-w-2xl p-5">
-          <h2 className="dq-win-title m-0">手元で始める</h2>
+          <h2 className="dq-win-title m-0">Start locally</h2>
           <p className="mt-2 mb-0 font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#c9c3a0]">
-            自分のマシンで動かすオープンソース。API
-            キーを渡してクラウド学習させる製品ではない。
+            Open source, runs on your own machine. This isn&apos;t a product
+            you hand your API key to for cloud-side learning.
           </p>
           <pre className="mt-3 mb-0 overflow-x-auto whitespace-pre-wrap font-mono text-[12px] leading-relaxed text-[#f7f3d9]">
             {`git clone https://github.com/shin9898/applied-loop.git
@@ -351,9 +354,8 @@ npm run dev:all
 # → http://localhost:3100/setup`}
           </pre>
           <p className="mt-3 mb-0 font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#c9c3a0]">
-            正本は{" "}
-            <code className="text-[#9ec0ff]">docs/onboarding.md</code>
-            。仲間向け最短は README 冒頭。
+            Canonical docs: <code className="text-[#9ec0ff]">docs/onboarding.md</code> (Japanese) ·{" "}
+            <code className="text-[#9ec0ff]">README.en.md</code> for an English summary.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <a
@@ -362,25 +364,25 @@ npm run dev:all
               rel="noreferrer"
               target="_blank"
             >
-              リポジトリへ
+              Go to the repo
             </a>
             <Link href="/setup" className="dq-btn dq-btn-ghost !text-[10px]">
-              すでに起動中ならじゅんびへ
+              Already running? Open setup
             </Link>
           </div>
         </div>
         <div className="dq-win mt-6 max-w-2xl p-5">
-          <h2 className="dq-win-title m-0">先どりのしらせ</h2>
+          <h2 className="dq-win-title m-0">Get notified early</h2>
           <p className="mt-2 mb-0 font-[family-name:var(--font-jp)] text-[13px] leading-relaxed text-[#c9c3a0]">
-            かんたんインストール版や新しい機能が出たら、メールで知らせを受け取れる。それ以外には使わない。
+            We&apos;ll email you when a simpler installer or new features ship. Nothing else.
           </p>
-          <LpWaitlistForm />
+          <LpWaitlistForm lang="en" />
         </div>
       </section>
 
       <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t-4 border-white bg-[#000c4a] px-5 py-6 md:px-10">
         <p className="m-0 font-[family-name:var(--font-jp)] text-[12px] text-[#9a9470]">
-          Applied Loop — AIコーディングの理解ギャップを、地図に残す
+          Applied Loop — keeping the AI-coding comprehension gap on the map
         </p>
         <p className="m-0 font-[family-name:var(--font-pixel)] text-[8px] text-[#9a9470]">
           © 2026

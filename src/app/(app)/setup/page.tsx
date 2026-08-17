@@ -1,6 +1,7 @@
 import { AtlasSetupPanel } from "@/components/living-atlas/atlas-onboarding";
 import { AtlasReveal } from "@/components/living-atlas/atlas-reveal";
 import { AtlasShell } from "@/components/living-atlas/atlas-shell";
+import { AtlasTelemetryToggle } from "@/components/living-atlas/atlas-telemetry-toggle";
 import { loadSetupDiagnosis } from "@/lib/setup-diagnosis";
 import { loadTutorialProgress } from "@/lib/tutorial-progress";
 import { ensureTutorialSeed } from "@/lib/tutorial-seed";
@@ -45,6 +46,7 @@ export default async function SetupPage({ searchParams }: Props) {
           progress={progress}
           fromSampleGate={sp.from === "sample_gate"}
         />
+        <AtlasTelemetryToggle />
       </AtlasReveal>
     </AtlasShell>
   );

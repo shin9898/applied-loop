@@ -31,6 +31,9 @@ export function GateTerminalSection({
 
   useEffect(() => {
     const loaded = loadJumonPrefs(defaultCmd);
+    // localStorage は client-only。SSR/初回描画は既定値のままにし、
+    // マウント後に水和することで hydration mismatch を避ける
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPrefs(loaded);
     if (loaded.modelId === "custom" && loaded.modelValue) {
       setCustomModel(loaded.modelValue);
