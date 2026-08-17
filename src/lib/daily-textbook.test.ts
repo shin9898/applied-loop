@@ -13,6 +13,8 @@ import {
   extractThemes,
   groupMaterialsIntoBandDrafts,
   JUMON_CONTEXT_MAX_CHARS,
+  COMPILED_INDEX_BASE,
+  nextCompiledIndex,
   parseLessonSlots,
   TEXTBOOK_MAX_CHAPTERS,
   type ChapterDraft,
@@ -29,6 +31,7 @@ function mat(
     summary: partial.summary ?? `work ${partial.id}`,
     skipReason: partial.skipReason ?? null,
     receivedAt: partial.receivedAt ?? new Date("2026-08-10T03:00:00Z"),
+    incorporatedAt: partial.incorporatedAt ?? null,
     ...partial,
   };
 }
@@ -267,6 +270,45 @@ describe("distillSingleCheck", () => {
     const check = distillSingleCheck(chapter);
     assert.equal(check.chapterIndex, chapter.index);
     assert.match(check.question, new RegExp(chapter.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
+});
+
+describe("nextCompiledIndex", () => {
+  // 自動生成分が取りうる index の天井。章は TEXTBOOK_MAX_CHAPTERS、
+  // チェックは distillChecks の slice(0, 7) で閉じている。
+  const AUTO_MAX_INDEX = Math.max(TEXTBOOK_MAX_CHAPTERS, 7);
+
+  it("starts compiled numbering at the reserved base", () => {
+    assert.equal(nextCompiledIndex(null), COMPILED_INDEX_BASE);
+  });
+
+  it("increments from the existing compiled max", () => {
+    assert.equal(
+      nextCompiledIndex(COMPILED_INDEX_BASE),
+      COMPILED_INDEX_BASE + 1,
+    );
+    assert.equal(
+      nextCompiledIndex(COMPILED_INDEX_BASE + 41),
+      COMPILED_INDEX_BASE + 42,
+    );
+  });
+
+  it("never returns into the auto range, even from a pre-base compiled row", () => {
+    for (const legacy of [1, 3, TEXTBOOK_MAX_CHAPTERS, 7, 999]) {
+      assert.ok(
+        nextCompiledIndex(legacy) >= COMPILED_INDEX_BASE,
+        `legacy ${legacy} leaked below the compiled base`,
+      );
+    }
+  });
+
+  it("stays above the auto ceilings so regenerated chapters cannot collide", () => {
+    for (const existing of [null, 1, 3, 7, COMPILED_INDEX_BASE, 4200]) {
+      assert.ok(
+        nextCompiledIndex(existing) > AUTO_MAX_INDEX,
+        `compiled index collided with the auto range from ${existing}`,
+      );
+    }
   });
 });
 
