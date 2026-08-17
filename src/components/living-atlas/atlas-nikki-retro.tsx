@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { AtlasPageTitle } from "./atlas-chrome";
 import { AtlasNikkiShelf } from "./atlas-nikki-shelf";
 import { AtlasSurfaceIcon } from "./atlas-surface-icons";
+import { AtlasSpellWait } from "./atlas-spell-wait";
 import type { NikkiMonth } from "./nikki-months";
 import { bulkGenerateDailyTextbooksAction } from "@/lib/actions";
 
@@ -234,27 +235,34 @@ function NikkiBulkPanel({ days }: { days: UngeneratedDay[] }) {
       </ul>
 
       <div className="atlas-nikki-bulk__foot">
-        <button
-          type="button"
-          className="dq-btn !px-3 !py-2 text-[8px]"
-          disabled={pending || selected.length === 0}
-          onClick={() => {
-            setResult(null);
-            startTransition(async () => {
-              const res = await bulkGenerateDailyTextbooksAction(selected);
-              setResult(
-                res.failed.length > 0
-                  ? `${res.done.length}日ぶん作成。${res.failed.length}日は失敗（材料なしかも）。`
-                  : `${res.done.length}日ぶん、教科書にした。`,
-              );
-              router.refresh();
-            });
-          }}
-        >
-          {pending
-            ? "教科書にしている…"
-            : `えらんだ日を教科書化する（${selected.length}日）`}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="dq-btn !px-3 !py-2 text-[8px]"
+            disabled={pending || selected.length === 0}
+            onClick={() => {
+              setResult(null);
+              startTransition(async () => {
+                const res = await bulkGenerateDailyTextbooksAction(selected);
+                setResult(
+                  res.failed.length > 0
+                    ? `${res.done.length}日ぶん作成。${res.failed.length}日は失敗（材料なしかも）。`
+                    : `${res.done.length}日ぶん、教科書にした。`,
+                );
+                router.refresh();
+              });
+            }}
+          >
+            {pending
+              ? "教科書にしている…"
+              : `えらんだ日を教科書化する（${selected.length}日）`}
+          </button>
+          <AtlasSpellWait
+            variant="inline"
+            active={pending}
+            label="しょを あんでいる……"
+          />
+        </div>
         <p className="atlas-nikki-bulk__caution">
           LLMなし・手元の規則だけで圧縮する。あとから章ごとに「LLMで磨く」を選べる。
         </p>
