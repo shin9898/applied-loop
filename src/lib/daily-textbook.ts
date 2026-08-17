@@ -207,6 +207,8 @@ export async function generateDailyTextbook(
         // 中身が入れ替わった帯は「編纂済み」ではない。未捕捉のあふれが残っている
         // 以上、もう一度編纂できる状態に戻す（章そのものは消さない）。
         compiledChapterId: null,
+        // 再びあふれが発生した以上「解決済み」ではない（2026-08-17、書庫の物理削除撤回）。
+        resolvedAt: null,
       },
       create: {
         dateKey,
@@ -217,12 +219,14 @@ export async function generateDailyTextbook(
       },
     });
   }
-  // 未捕捉のあふれが1件も残らなくなった repo の帯は消す。
-  // 中身が全部どこかの章に入っている帯を「編纂待ち」として並べても意味がない。
+  // 未捕捉のあふれが1件も残らなくなった repo の帯は「解決済み」にする。
+  // 中身が全部どこかの章に入っている帯を「編纂待ち」として並べても意味がないが、
+  // 物理削除はしない（書庫が全期間検索できるという設計を守るため。2026-08-17）。
   const openRepos = bandDrafts.map((b) => b.repo);
-  await prisma.materialBand.deleteMany({
+  await prisma.materialBand.updateMany({
     where:
       openRepos.length > 0 ? { dateKey, repo: { notIn: openRepos } } : { dateKey },
+    data: { resolvedAt: new Date() },
   });
 
   // 章に入った（kept）材料を「捕捉済み」として記録する（2026-08-16）

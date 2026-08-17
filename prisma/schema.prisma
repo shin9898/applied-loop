@@ -313,6 +313,7 @@ model MaterialBand {
   digest            String   // 1行サマリ
   count             Int
   compiledChapterId String?  // 「編纂する」で章に昇格したらセット
+  resolvedAt        DateTime? // あふれが1件も残らなくなった時刻。物理削除はしない（書庫が全期間検索できる設計を保つため）
   createdAt         DateTime @default(now())
 
   @@unique([dateKey, repo])
