@@ -282,6 +282,9 @@ export function AtlasRequirements({
         ) : (
           <AtlasAssistUnavailable />
         )}
+        <p className="mt-2 mb-0 text-[11px] text-[#9a9470]">
+          出典: ひさじゅ『メテオフォール開発』(Zenn, hisaju01)
+        </p>
       </AtlasReveal>
     </AtlasShell>
   );
