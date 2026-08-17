@@ -78,6 +78,9 @@ export function AtlasCloudMcpWizard({
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    // localStorage は client-only。SSR/初回描画は既定値のままにし、
+    // マウント後に水和することで hydration mismatch を避ける
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(loadWizard());
     setHydrated(true);
   }, []);
@@ -118,6 +121,9 @@ export function AtlasCloudMcpWizard({
       const start = Date.parse(state.verifyEnteredAt);
       const mcp = Date.parse(diagnosis.mcpLastAt);
       if (!Number.isNaN(start) && !Number.isNaN(mcp) && mcp >= start) {
+        // 外部プロセス(手元 MCP 疎通)の到達を検知して localStorage へ永続化する
+        // 副作用そのものが目的の同期であり、描画中には計算できない
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         patch({ verifiedAt: diagnosis.mcpLastAt });
       }
     }
@@ -617,6 +623,9 @@ export function AtlasCloudMcpWizardSection({
     // ADR-0019 P0 B12-3: 初回視界から外す。明示オープン時のみ開く
     try {
       const saved = localStorage.getItem(CLOUD_WIZARD_OPEN_KEY);
+      // localStorage は client-only。SSR/初回描画は既定値のままにし、
+      // マウント後に水和することで hydration mismatch を避ける
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpen(saved === "1");
     } catch {
       setOpen(false);

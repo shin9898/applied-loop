@@ -13,13 +13,6 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
-  {
-    rules: {
-      // 既存10箇所の改修が必要なため一時的に warn 降格。
-      // 解消したら error に戻す（CI 導入時の暫定措置）。
-      "react-hooks/set-state-in-effect": "warn",
-    },
-  },
 ]);
 
 export default eslintConfig;

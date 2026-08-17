@@ -60,11 +60,7 @@ export function AtlasMicroDrill({
   const total = aspects.length;
 
   useEffect(() => {
-    if (!busy) {
-      setWaitSec(0);
-      return;
-    }
-    setWaitSec(0);
+    if (!busy) return;
     const id = window.setInterval(() => setWaitSec((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, [busy]);
@@ -127,6 +123,8 @@ export function AtlasMicroDrill({
   async function submitCheck() {
     if (busy || passedPending) return;
     setBusy(true);
+    // 表示は busy 中のみなので、開始時にだけリセットすれば足りる
+    setWaitSec(0);
     setFeedback(null);
     setPassedPending(false);
     try {

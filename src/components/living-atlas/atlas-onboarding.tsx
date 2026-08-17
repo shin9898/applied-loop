@@ -85,6 +85,9 @@ export function AtlasWorldIntroModal() {
   useEffect(() => {
     try {
       if (localStorage.getItem(INTRO_KEY) === "1") return;
+      // localStorage は client-only。SSR/初回描画は既定値のままにし、
+      // マウント後に水和することで hydration mismatch を避ける
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setOpen(true);
     } catch {
       setOpen(true);

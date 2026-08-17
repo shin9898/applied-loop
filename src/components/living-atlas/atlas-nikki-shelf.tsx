@@ -201,6 +201,9 @@ function AtlasNikkiBook({
     let cancelled = false;
     let openTimer = 0;
     openedRef.current = false;
+    // 非 React な page-flip インスタンスを bookKey ごとに作り直す前の初期化。
+    // 対象 DOM は同一コンポーネントインスタンス内で使い回すため key リセットは使えない
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReady(false);
     setPageIndex(0);
     setPageCount(0);
