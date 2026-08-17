@@ -26,6 +26,8 @@ import {
   skipTutorialHookAction,
 } from "@/lib/actions";
 import { AtlasCloudMcpWizardSection } from "./atlas-cloud-mcp-wizard";
+import { AtlasGradingProbeButton } from "./atlas-grading-probe-button";
+import type { GradingProbeResult } from "@/lib/grading-probe";
 import { AtlasSurfaceIcon } from "./atlas-surface-icons";
 import { AtlasVoicePlain } from "./atlas-voice-plain";
 import { AtlasWatchedReposPanel } from "./atlas-watched-repos";
@@ -1122,6 +1124,17 @@ function CheckRow({
   check: SetupCheck;
   highlight: boolean;
 }) {
+  const [override, setOverride] = useState<GradingProbeResult | null>(null);
+  const effective =
+    check.id === "grading_cli" && override
+      ? {
+          ...check,
+          ok: override.ok,
+          detail: `${override.detail}（たった今確認）`,
+          howTo: override.howTo,
+        }
+      : check;
+
   return (
     <li
       className={`flex min-w-0 items-start gap-2 py-1.5 text-[13px] ${
@@ -1130,30 +1143,33 @@ function CheckRow({
     >
       <span
         className={`shrink-0 font-[family-name:var(--font-pixel)] text-[10px] ${
-          check.ok ? "text-[#3ecf5a]" : "text-[#e84848]"
+          effective.ok ? "text-[#3ecf5a]" : "text-[#e84848]"
         }`}
       >
-        {check.ok ? "✓" : "！"}
+        {effective.ok ? "✓" : "！"}
       </span>
       <div className="min-w-0 flex-1">
         <p className="m-0 leading-snug">
-          {check.label}
-          {!check.required ? (
+          {effective.label}
+          {!effective.required ? (
             <span className="ml-1 text-[10px] text-[#9ec0ff]">任意</span>
           ) : null}
         </p>
         <p className="mt-0.5 mb-0 text-[11px] leading-relaxed text-[#9ec0ff]">
-          {check.plain}
+          {effective.plain}
         </p>
-        {check.detail ? (
+        {effective.detail ? (
           <p className="mt-0.5 mb-0 text-[11px] leading-relaxed text-[#9a9470]">
-            {check.detail}
+            {effective.detail}
           </p>
         ) : null}
-        {!check.ok ? (
+        {!effective.ok ? (
           <p className="mt-0.5 mb-0 font-mono text-[10px] leading-relaxed text-[#c9c3a0]">
-            → {check.howTo}
+            → {effective.howTo}
           </p>
+        ) : null}
+        {check.id === "grading_cli" ? (
+          <AtlasGradingProbeButton onResult={setOverride} />
         ) : null}
       </div>
     </li>
