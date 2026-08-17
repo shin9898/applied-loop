@@ -785,3 +785,19 @@ export async function setTextbookMasteryAction(
   revalidatePath(`/retro/${dateKey}`);
   revalidatePath("/retro");
 }
+
+export async function setWeeklyCheckMasteryAction(
+  checkId: string,
+  mastery: string,
+  weekKey: string,
+) {
+  await requireAuth();
+  const { isMasteryState } = await import("@/lib/daily-textbook-shared");
+  const { setWeeklyCheckMastery } = await import("@/lib/weekly-textbook");
+  if (!isMasteryState(mastery)) {
+    throw new Error(`invalid mastery: ${mastery}`);
+  }
+  await setWeeklyCheckMastery(checkId, mastery);
+  revalidatePath(`/retro/weekly/${weekKey}`);
+  revalidatePath("/retro");
+}
