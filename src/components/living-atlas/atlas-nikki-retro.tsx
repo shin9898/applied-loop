@@ -21,6 +21,7 @@ export function AtlasNikkiRetro({
   materialCountToday,
   ungeneratedDays = [],
   regenerateAction,
+  latestWeekly,
 }: {
   months: NikkiMonth[];
   todayKey: string;
@@ -28,6 +29,8 @@ export function AtlasNikkiRetro({
   /** 材料はあるのに教科書になっていない日 */
   ungeneratedDays?: UngeneratedDay[];
   regenerateAction: () => Promise<void>;
+  /** 最新の週のしょ（無ければ null＝先週は全部拾いきれていた） */
+  latestWeekly: { weekKey: string; materialCount: number; chapterCount: number } | null;
 }) {
   const [openMonth, setOpenMonth] = useState<string | null>(null);
   const reading = Boolean(openMonth);
