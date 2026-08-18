@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { dayStartJST } from "@/lib/date";
 import { gradeGate } from "@/lib/gate";
+import { computeDismissRecoveryNextReviewAt } from "@/lib/gate-dismiss-recovery";
 import {
   probeGradingCliLive,
   type GradingProbeResult,
@@ -474,15 +475,59 @@ export async function dismissGateWithReason(
   const id = gateId.trim();
   const r = DISMISS_REASONS.has(reason) ? reason : "other";
   if (!id) return "busy";
+  const gate = await prisma.gate.findUnique({
+    where: { id },
+    select: { kind: true, misconceptionId: true },
+  });
   const updated = await prisma.gate.updateMany({
     where: { id, status: { in: ["pending", "failed", "grading_failed"] } },
     data: { status: "dismissed", dismissReason: r },
   });
   if (updated.count === 0) return "busy";
+  // gate 自体の dismiss は既に成功済み。復旧処理は本筋でない後処理なので
+  // best-effort にする（refreshRequirementsForGate 等の既存パターンと同様）。
+  // ここで throw すると dismiss 成功なのに "busy" 扱いになってしまう
+  // (opusレビュー指摘)
+  await recoverMisconceptionReviewIfStuck(gate).catch((e) =>
+    console.error("[gate] recover nextReviewAt failed:", e),
+  );
   revalidatePath("/gates");
   revalidatePath(`/gates/${id}`);
   revalidatePath("/");
   return "ok";
+}
+
+// 明示的な見送り・悪問スキップからの復旧間隔。「悪問だ」と判断した直後に
+// 同一文面の問いがすぐ戻る不快感を避けるため、stale sweep の RETRY_DELAY_MS
+// （72h、gate.ts）より長くする（koki判断、2026-08-18）
+const DISMISS_RECOVERY_DELAY_MS = 14 * 86400000;
+
+/**
+ * dismiss 後、対象 Misconception の nextReviewAt が null に取り残されて
+ * いないか確認して復旧する。scheduleDueGates が gate 生成時に null
+ * リセットするため、採点を経ない終端では onGateFailed 等の再設定が
+ * 起きない (G4 休眠バグ、2026-08-18)
+ */
+async function recoverMisconceptionReviewIfStuck(
+  gate: { kind: string; misconceptionId: string | null } | null,
+): Promise<void> {
+  if (!gate || gate.misconceptionId === null) return;
+  if (gate.kind !== "retry" && gate.kind !== "sr_review") return;
+  const m = await prisma.misconception.findUnique({
+    where: { id: gate.misconceptionId },
+    select: { nextReviewAt: true },
+  });
+  if (!m) return;
+  const recovered = computeDismissRecoveryNextReviewAt(
+    m.nextReviewAt,
+    new Date(),
+    DISMISS_RECOVERY_DELAY_MS,
+  );
+  if (!recovered) return;
+  await prisma.misconception.update({
+    where: { id: gate.misconceptionId },
+    data: { nextReviewAt: recovered },
+  });
 }
 
 /**

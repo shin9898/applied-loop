@@ -229,7 +229,7 @@ export function narratorFor(event: NarratorEvent): string {
     case "dismiss_start":
       return "悪問として閉じるぞ…";
     case "dismiss_done":
-      return "閉じた。しれん一覧へ戻る。";
+      return "閉じた。しばらくは出さぬ。しれん一覧へ戻る。";
     case "dismiss_failed":
       return "閉じられなかった。すでに提出済みか、状態が変わっておる。";
     case "back_to_debrief":

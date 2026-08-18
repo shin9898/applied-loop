@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { prisma } from "@/lib/db";
+import { computeDismissRecoveryNextReviewAt } from "@/lib/gate-dismiss-recovery";
 import { runHeadlessLLM, parseLLMJson, HeadlessLLMError } from "@/lib/headless-llm";
 import {
   activeGoalsPromptBlock,
@@ -1000,18 +1001,76 @@ export async function confirmMisconception(
  */
 const STALE_REVIEW_MS = 7 * 86400000; // 滞留 pending の再出題を解放（G4）
 
+/**
+ * dismiss された gate の対象 Misconception の nextReviewAt が null に
+ * 取り残されていないか確認して復旧する。scheduleDueGates は gate 生成時に
+ * nextReviewAt を null にリセットするため (採点結果で再設定される前提)、
+ * stale sweep のように採点フローを経ない終端では再設定が起きない。
+ */
+async function recoverStuckMisconceptionReviews(
+  gates: { misconceptionId: string | null }[],
+  now: Date,
+): Promise<void> {
+  const ids = [
+    ...new Set(
+      gates
+        .map((g) => g.misconceptionId)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  if (ids.length === 0) return;
+  const misconceptions = await prisma.misconception.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, nextReviewAt: true },
+  });
+  for (const m of misconceptions) {
+    // stale sweep（未回答放置）は取りこぼしからの復旧なので、明示的な
+    // 見送り・悪問スキップ（actions.ts の DISMISS_RECOVERY_DELAY_MS=14日）
+    // より短い既存の RETRY_DELAY_MS（72h）を使う（koki判断、2026-08-18）
+    const recovered = computeDismissRecoveryNextReviewAt(
+      m.nextReviewAt,
+      now,
+      RETRY_DELAY_MS,
+    );
+    if (!recovered) continue;
+    await prisma.misconception.update({
+      where: { id: m.id },
+      data: { nextReviewAt: recovered },
+    });
+  }
+}
+
 export async function scheduleDueGates(): Promise<number> {
   const now = new Date();
   // 未回答のまま古い retry/sr_review が残ると新規再出題が永久停止するため片付ける
   const staleBefore = new Date(now.getTime() - STALE_REVIEW_MS);
-  await prisma.gate.updateMany({
+  const staleGates = await prisma.gate.findMany({
     where: {
       kind: { in: ["retry", "sr_review"] },
       status: "pending",
       createdAt: { lte: staleBefore },
     },
-    data: { status: "dismissed", dismissReason: "stale_review" },
+    select: { id: true, misconceptionId: true },
   });
+  if (staleGates.length > 0) {
+    // findMany と updateMany の間に koki が当該 gate へ回答する窓がある
+    // ため、status: "pending" を書き込み側にも残す（無いと提出済みの
+    // 回答ごと dismissed で上書きしてしまう。opus 2周目レビュー指摘）
+    await prisma.gate.updateMany({
+      where: {
+        id: { in: staleGates.map((g) => g.id) },
+        status: "pending",
+      },
+      data: { status: "dismissed", dismissReason: "stale_review" },
+    });
+    // stale sweep は採点フローを経ないため nextReviewAt が null のまま
+    // 取り残されうる (G4 休眠バグ、2026-08-18)。復旧は本筋でない後処理
+    // なので best-effort にする。ここで throw すると scheduleDueGates
+    // 全体が落ち、以降の due gate 生成が一切走らなくなる (opusレビュー指摘)
+    await recoverStuckMisconceptionReviews(staleGates, now).catch((e) =>
+      console.error("[gate] recover stale-swept nextReviewAt failed:", e),
+    );
+  }
   const due = await prisma.misconception.findMany({
     where: {
       nextReviewAt: { lte: now },
