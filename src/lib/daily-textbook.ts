@@ -557,6 +557,7 @@ export async function listTextbookDates(limit = 14): Promise<
         chapterDidSummary({
           oneLiner: c.oneLiner ?? "",
           action: parseLessonSlots(c.bodyDeep).action,
+          title: c.title,
         }) || c.title,
     })),
   }));

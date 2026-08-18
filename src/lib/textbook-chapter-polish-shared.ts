@@ -35,12 +35,15 @@ export function buildPolishPrompt(input: PolishPromptInput): string {
     "次の1章だけを、物語順の教科書として厚く磨き直せ。他章・日次全量・diff 全文は持っていないし、捏造しない。",
     "物語順: 改修 → タイミング → 対応 → 理由 → 一般化（型／結果／別案）。",
     "出力は JSON オブジェクトのみ。キー:",
-    "work, timing, action, why, practice, consequence, alternative, diagramBad, diagramOk, bodyFacts",
+    "work, timing, action, why, practice, consequence, alternative, diagramBad, diagramOk, bodyFacts, oneLiner",
     "各値は日本語の短文（1〜3文）。コードブロックや前置きは禁止。",
     "work=いま進めていた改修 / timing=ナレッジが溜まったタイミング / action=とった対応 / why=その理由",
     "practice=ベストプラクティス / consequence=従うとどうなる / alternative=やりがちな別案と採らない理由",
     "diagramBad/Ok は技術選定の対比（態度の説教ではない）。",
     "bodyFacts は足跡の箇条書きのみ（スロット見出しは含めない）。",
+    "oneLiner=にっきの1ページ要約に使う1〜2文の自然な日本語。実際に何をしたかを地の文で書け。" +
+      "英語のコミット文でも意味を読み取って日本語で説明してよい。" +
+      "conventional commitの記法（type(scope):）やPR番号・角括弧タグはそのまま繰り返さない。",
     "",
     `title: ${input.title}`,
     `oneLiner: ${input.oneLiner}`,

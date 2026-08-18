@@ -32,6 +32,7 @@ type PolishJson = {
   diagramBad?: unknown;
   diagramOk?: unknown;
   bodyFacts?: unknown;
+  oneLiner?: unknown;
 };
 
 function asNonEmpty(v: unknown, fallback: string): string {
@@ -211,6 +212,21 @@ export async function polishTextbookChapter(
   const nextBad = asNonEmpty(parsed.diagramBad, diagramBad);
   const nextOk = asNonEmpty(parsed.diagramOk, diagramOk);
 
+  // にっき要約（dayDigest/chapterDidSummary）はここのoneLinerをそのまま使う
+  // （2026-08、item①・ADR-0020拡張）。titleは磨きの対象にしない — 生成時に
+  // 確認問い・じゅもんヘッダへ文字列で焼き込まれるため、後から書き換えると
+  // 表示と確認問いの参照がずれる（Fableレビュー指摘）。
+  let nextOneLiner = asNonEmpty(parsed.oneLiner, chapter.oneLiner);
+  if (nextOneLiner !== chapter.oneLiner) {
+    const siblings = await prisma.dailyTextbookChapter.findMany({
+      where: { textbookId: chapter.textbookId, id: { not: chapterId } },
+      select: { oneLiner: true },
+    });
+    if (siblings.some((s) => s.oneLiner === nextOneLiner)) {
+      nextOneLiner = `${nextOneLiner}（章${chapter.index}）`;
+    }
+  }
+
   const nameLine =
     chapter.bodyPlain.match(/^場所:.*$/m)?.[0] ??
     `場所: 章${chapter.index}`;
@@ -249,7 +265,7 @@ export async function polishTextbookChapter(
 
   await prisma.dailyTextbookChapter.update({
     where: { id: chapterId },
-    data: { bodyPlain, bodyDeep },
+    data: { bodyPlain, bodyDeep, oneLiner: nextOneLiner },
   });
 
   return { ok: true, chapterId };

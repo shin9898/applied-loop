@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildJumonContext,
+  buildOneLinerSentence,
+  chapterDidSummary,
   chapterHasLessonSlots,
   chaptersHaveDistinctCopy,
   chaptersHaveLessonSlots,
   clusterMaterialsIntoChapters,
+  dayDigest,
   distillChecks,
   distillSingleCheck,
   draftChapterFromRepo,
@@ -15,7 +18,9 @@ import {
   JUMON_CONTEXT_MAX_CHARS,
   COMPILED_INDEX_BASE,
   nextCompiledIndex,
+  normalizeOneLinerForDisplay,
   parseLessonSlots,
+  pickHeadlineSummary,
   TEXTBOOK_MAX_CHAPTERS,
   type ChapterDraft,
   type MaterialRow,
@@ -68,6 +73,103 @@ describe("extractThemes", () => {
     ]);
     assert.ok(themes.includes("observability") || themes.includes("infra"));
     assert.ok(!themes.some((t) => /^merge/i.test(t)));
+  });
+});
+
+describe("pickHeadlineSummary", () => {
+  it("prefers feat/fix over chore even when chore is most recent", () => {
+    const headline = pickHeadlineSummary([
+      "chore: bump deps",
+      "fix(my-copy): stop dropping retries",
+      "docs: update readme",
+    ]);
+    assert.equal(headline, "fix(my-copy): stop dropping retries");
+  });
+
+  it("keeps the first (most recent) item when significance ties", () => {
+    const headline = pickHeadlineSummary([
+      "fix(my-copy): first thing",
+      "fix(my-copy): second thing",
+    ]);
+    assert.equal(headline, "fix(my-copy): first thing");
+  });
+
+  it("returns undefined for an empty list", () => {
+    assert.equal(pickHeadlineSummary([]), undefined);
+  });
+});
+
+describe("buildOneLinerSentence", () => {
+  it("turns a Japanese conventional commit into a frame + verbatim quote", () => {
+    const s = buildOneLinerSentence(
+      "fix(my-copy): cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加",
+      "cron-discord-notify",
+    );
+    assert.match(s, /^my-copy/);
+    assert.match(s, /直した/);
+    assert.ok(
+      s.includes(
+        "「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」",
+      ),
+      s,
+    );
+    assert.ok(
+      !s.includes("fix(my-copy):"),
+      "conventional prefix should not leak into the quote",
+    );
+  });
+
+  it("quotes an English commit verbatim without attempting translation", () => {
+    const s = buildOneLinerSentence("add explicit returns to cic", "infra");
+    assert.ok(s.includes("「add explicit returns to cic」"), s);
+    assert.match(s, /^infra/);
+  });
+
+  it("falls back to the repo name when the commit has no conventional scope", () => {
+    const s = buildOneLinerSentence(
+      "docs: write the migration notes",
+      "workbench",
+    );
+    assert.match(s, /^workbench/);
+  });
+
+  it("strips a bracket-style type tag from the quoted text", () => {
+    const s = buildOneLinerSentence(
+      "[Docs] Wave1 台帳: rehearsal DB bootstrap 完走 + PR #573 merge を反映",
+      "infra",
+    );
+    assert.ok(
+      s.includes("「Wave1 台帳: rehearsal DB bootstrap 完走 + PR #573 merge を反映」"),
+      s,
+    );
+    assert.ok(!s.includes("[Docs]"));
+  });
+});
+
+describe("normalizeOneLinerForDisplay", () => {
+  it("passes the new frame+quote format through unchanged", () => {
+    const s = "my-copyのほころびを直した。「cron週次・月次リトライ機構を追加」";
+    assert.equal(normalizeOneLinerForDisplay(s, "my-copy"), s);
+  });
+
+  it("reformats a legacy 核: oneLiner on the fly", () => {
+    const legacy =
+      "核: fix(my-copy): cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加";
+    const out = normalizeOneLinerForDisplay(legacy, "hermes / my-copy");
+    assert.ok(!out.startsWith("核:"));
+    assert.ok(
+      out.includes(
+        "「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」",
+      ),
+      out,
+    );
+  });
+
+  it("drops the trailing ／ついでに clause from legacy oneLiners before quoting", () => {
+    const legacy = "核: fix: main thing ／ ついでに docs: side note";
+    const out = normalizeOneLinerForDisplay(legacy, "repo");
+    assert.ok(out.includes("「main thing」"), out);
+    assert.ok(!out.includes("side note"));
   });
 });
 
@@ -273,6 +375,101 @@ describe("distillSingleCheck", () => {
   });
 });
 
+describe("draftChapterFromRepo oneLiner/title", () => {
+  it("titles the chapter after the repo and headlines the most significant commit, not just the latest", () => {
+    const materials = [
+      mat({
+        id: "m1",
+        repo: "cron-discord-notify",
+        summary: "chore: tidy imports",
+        receivedAt: new Date("2026-08-17T09:00:00Z"),
+      }),
+      mat({
+        id: "m2",
+        repo: "cron-discord-notify",
+        summary:
+          "fix(my-copy): cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加",
+        receivedAt: new Date("2026-08-17T08:00:00Z"),
+      }),
+    ];
+    const chapter = draftChapterFromRepo(1, "cron-discord-notify", materials, []);
+    assert.equal(chapter.title, "cron-discord-notify");
+    assert.ok(
+      chapter.oneLiner.includes(
+        "「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」",
+      ),
+      chapter.oneLiner,
+    );
+    assert.ok(!chapter.oneLiner.startsWith("核:"));
+  });
+});
+
+describe("dayDigest", () => {
+  it("returns an empty string for no chapters", () => {
+    assert.equal(dayDigest([]), "");
+  });
+
+  it("frames a single-chapter day around its already-diary-style oneLiner", () => {
+    const out = dayDigest([
+      {
+        title: "my-copy",
+        oneLiner: "my-copyのほころびを直した。「cron週次リトライを追加」",
+      },
+    ]);
+    assert.match(out, /^この日は「my-copy」ひとすじの一日じゃった。/);
+    assert.ok(out.includes("「cron週次リトライを追加」"));
+  });
+
+  it("reformats a legacy oneLiner instead of leaking raw commit text", () => {
+    const out = dayDigest([
+      {
+        title: "goal-os",
+        oneLiner:
+          "核: docs(goal-os): require weekly wall-bounce before enrich (#24)",
+      },
+    ]);
+    assert.ok(!out.includes("核:"));
+    assert.ok(
+      !/docs\(goal-os\):/.test(out),
+      "conventional-commit prefix should not leak into the diary sentence",
+    );
+  });
+
+  it("names every chapter once without repeating the headline chapter's title before the dash", () => {
+    const out = dayDigest([
+      {
+        title: "hermes",
+        oneLiner: "hermesのほころびを直した。「cronのリトライを追加」",
+      },
+      { title: "infra", oneLiner: "infraの説明を書いた。「台帳を整備」" },
+    ]);
+    assert.match(out, /「hermes」・「infra」/);
+    assert.equal(
+      out.split("「hermes」").length - 1,
+      1,
+      "the headline chapter's title should not be repeated before the dash",
+    );
+  });
+});
+
+describe("chapterDidSummary", () => {
+  it("reformats a legacy oneLiner using the chapter title as the scope fallback", () => {
+    const out = chapterDidSummary({
+      oneLiner:
+        "核: fix(my-copy): cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加",
+      action: null,
+      title: "hermes / my-copy",
+    });
+    assert.ok(!out.includes("核:"));
+    assert.ok(
+      out.includes(
+        "「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」",
+      ),
+      out,
+    );
+  });
+});
+
 describe("nextCompiledIndex", () => {
   // 自動生成分が取りうる index の天井。章は TEXTBOOK_MAX_CHAPTERS、
   // チェックは distillChecks の slice(0, 7) で閉じている。
@@ -370,5 +567,28 @@ describe("buildPolishPrompt", () => {
     assert.ok(!prompt.includes("日次全材料"));
     assert.ok(!prompt.includes("全章"));
     assert.ok(!prompt.includes("org/other-repo-secret"));
+  });
+
+  it("asks the LLM for a diary-style oneLiner instead of copying commit jargon verbatim", () => {
+    const prompt = buildPolishPrompt({
+      title: "tasks / sort",
+      oneLiner: "核: fix sort",
+      diagramKind: "generic",
+      lessons: {
+        work: "work-a",
+        timing: "timing-a",
+        action: "action-a",
+        why: "why-a",
+        practice: "practice-a",
+        consequence: "cons-a",
+        alternative: "alt-a",
+      },
+      diagramBad: "bad",
+      diagramOk: "ok",
+      evidence: [{ label: "c1", ref: "abc1234" }],
+      materialSummaries: ["fix(tasks): harden sort"],
+    });
+    assert.match(prompt, /\boneLiner\b/);
+    assert.match(prompt, /そのまま(繰り返さない|引き写さない)/);
   });
 });

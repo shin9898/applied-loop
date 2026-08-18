@@ -590,6 +590,107 @@ function buildBodyPlain(input: {
     .join("\n");
 }
 
+const CONVENTIONAL_TYPES = "feat|fix|chore|test|refactor|docs|ci|perf|build";
+
+const TYPE_VERB: Record<string, string> = {
+  feat: "に機能を足した",
+  fix: "のほころびを直した",
+  refactor: "を整理した",
+  perf: "を速くした",
+  docs: "の説明を書いた",
+  test: "の確認を足した",
+  chore: "を整えた",
+  build: "を整えた",
+  ci: "を整えた",
+};
+
+/** conventional commit（`type(scope): desc`）と `[Type] desc` の両方を読む */
+function parseConventionalCommit(summary: string): {
+  type: string | null;
+  scope: string | null;
+  description: string;
+} {
+  const s = summary.trim();
+  const paren = s.match(
+    new RegExp(`^(${CONVENTIONAL_TYPES})(?:\\(([^)]+)\\))?:\\s*(.+)$`, "i"),
+  );
+  if (paren) {
+    return {
+      type: paren[1]!.toLowerCase(),
+      scope: paren[2]?.trim() || null,
+      description: paren[3]!.trim(),
+    };
+  }
+  const bracket = s.match(
+    new RegExp(`^\\[(${CONVENTIONAL_TYPES})\\]\\s*(.+)$`, "i"),
+  );
+  if (bracket) {
+    return {
+      type: bracket[1]!.toLowerCase(),
+      scope: null,
+      description: bracket[2]!.trim(),
+    };
+  }
+  return { type: null, scope: null, description: s };
+}
+
+/** feat/fix 等の「実質的な仕事」を、choreやbuildより核として優先するための重み */
+function commitSignificance(summary: string): number {
+  const { type } = parseConventionalCommit(summary);
+  if (type == null) return 3; // 型が読めない = 自由記述の実質的な報告として扱う
+  if (type === "feat" || type === "fix" || type === "refactor" || type === "perf") {
+    return 3;
+  }
+  if (type === "test" || type === "docs") return 2;
+  return 1; // chore/build/ci
+}
+
+/**
+ * 章の「核」に選ぶ1件を、一覧の先頭（直近）ではなく重要度で選ぶ
+ * （直近1件が chore/typo 直しだと日記の主役がそれになってしまうため。同点は
+ * 直近＝先頭を残す）。
+ */
+export function pickHeadlineSummary(summaries: string[]): string | undefined {
+  if (summaries.length === 0) return undefined;
+  let best = summaries[0]!;
+  let bestScore = commitSignificance(best);
+  for (let i = 1; i < summaries.length; i++) {
+    const score = commitSignificance(summaries[i]!);
+    if (score > bestScore) {
+      best = summaries[i]!;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+/**
+ * 生のコミット要約を「日記の地の文＋原文引用」に組み立てる。
+ * 説明文は言語を問わず常に「」でそのまま引用する — 述語で終わる日本語コミットに
+ * 動詞を接尾すると文法が壊れる／英語コミットは翻訳できない、の両方をこれで避ける
+ * （2026-08、item①・Fableレビュー反映）。
+ */
+export function buildOneLinerSentence(
+  rawSummary: string,
+  repoFallback: string,
+): string {
+  const { type, scope, description } = parseConventionalCommit(rawSummary);
+  const subject = scope || repoFallback;
+  const verb = (type && TYPE_VERB[type]) || "に手を入れた";
+  return `${subject}${verb}。「${description}」`;
+}
+
+/** 旧形式（`核: ...`）を検知したら新形式相当に整形する。新形式はそのまま通す。 */
+export function normalizeOneLinerForDisplay(
+  oneLiner: string,
+  scopeFallback: string,
+): string {
+  const m = oneLiner.match(/^核:\s*([\s\S]+)$/);
+  if (!m) return oneLiner;
+  const raw = m[1]!.replace(/\s*／\s*ついでに[\s\S]*$/, "").trim();
+  return buildOneLinerSentence(raw, scopeFallback);
+}
+
 export function draftChapterFromRepo(
   index: number,
   repo: string,
@@ -600,13 +701,14 @@ export function draftChapterFromRepo(
   const summaries = uniqueSummaries(kept, 5);
   const themes = extractThemes(summaries);
   const theme = themes[0] ?? summaries[0]?.slice(0, 28) ?? name;
-  const title =
-    themes.length > 0
-      ? `${theme}${themes[1] ? ` / ${themes[1]}` : ""}`
-      : `${name} の実装`;
+  // タイトルはrepo名で固定する。テーマ2件を「a / b」で連結すると機械的な
+  // タグの寄せ集めになり、日記のタイトルとして読めないため（2026-08、item①）。
+  // repoはチャプター分割の単位（byRepo）なので、同日の他章と必ず異なる。
+  const title = name;
   const backlogN = kept.filter((m) => m.skipReason === "backlog").length;
-  const oneLiner = summaries[0]
-    ? `核: ${summaries[0].slice(0, 72)}${summaries[1] ? ` ／ ついでに ${summaries[1].slice(0, 40)}` : ""}`
+  const headline = pickHeadlineSummary(summaries);
+  const oneLiner = headline
+    ? buildOneLinerSentence(headline, name)
     : `${name} に ${kept.length} 件の足跡。`;
 
   const kind = diagramFor(kept, themes);
@@ -840,11 +942,9 @@ export function bodyForDisplay(body: string): string {
 export function chapterDidSummary(input: {
   oneLiner: string;
   action?: string | null;
+  title: string;
 }): string {
-  const core = input.oneLiner
-    .replace(/^核:\s*/, "")
-    .replace(/\s*／\s*ついでに\s*/, "。ついでに ")
-    .trim();
+  const core = normalizeOneLinerForDisplay(input.oneLiner, input.title).trim();
   const did = (input.action ?? "")
     .replace(/^対応:\s*/, "")
     // action 末尾の「（核: …）」は oneLiner と同じ材料。要約で二度言わない
@@ -869,19 +969,17 @@ export function dayDigest(
   chapters: Array<{ title: string; oneLiner: string }>,
 ): string {
   if (chapters.length === 0) return "";
-  const core = (oneLiner: string) =>
-    oneLiner
-      .replace(/^核:\s*/, "")
-      .replace(/\s*／\s*ついでに\s*.*$/, "")
-      .trim();
-
   const top = chapters[0]!;
+  const headline = normalizeOneLinerForDisplay(top.oneLiner, top.title);
+
   if (chapters.length === 1) {
-    return `この日は「${top.title}」ひとすじの一日じゃった。${core(top.oneLiner)}`;
+    return `この日は「${top.title}」ひとすじの一日じゃった。${headline}`;
   }
 
   const trail = chapters.map((c) => `「${c.title}」`).join("・");
-  return `この日は ${trail} と、${chapters.length}つの現場を渡り歩いた。いちばんの一手は「${top.title}」——${core(top.oneLiner)}`;
+  // headline自体が「${title}の…」で始まる文なので、trailの直後で
+  // 「「title」——」と二重に名指ししない（2026-08、item①）。
+  return `この日は ${trail} と、${chapters.length}つの現場を渡り歩いた。いちばんの動きは——${headline}`;
 }
 
 /**

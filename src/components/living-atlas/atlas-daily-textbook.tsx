@@ -283,6 +283,7 @@ export function AtlasDailyTextbook({
                     {chapterDidSummary({
                       oneLiner: ch.oneLiner,
                       action: ch.action,
+                      title: ch.title,
                     })}
                   </p>
                   <div className="atlas-journal__facts">
