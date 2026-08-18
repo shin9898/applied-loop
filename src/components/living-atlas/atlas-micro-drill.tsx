@@ -9,6 +9,7 @@ import {
   saveMicroProgress,
   type MicroClearedItem,
 } from "@/lib/micro-progress";
+import { useModalA11y } from "./atlas-modal-a11y";
 
 export type MicroDrillProps = {
   gateId: string;
@@ -59,6 +60,9 @@ export function AtlasMicroDrill({
 
   const current = aspects[index];
   const total = aspects.length;
+  const skipDialogRef = useModalA11y(confirmSkip, () =>
+    setConfirmSkip(false),
+  );
 
   useEffect(() => {
     if (!busy) return;
@@ -237,6 +241,7 @@ export function AtlasMicroDrill({
 
       {confirmSkip ? (
         <div
+          ref={skipDialogRef}
           className="fixed inset-0 z-[80] flex items-center justify-center bg-[#000814cc] p-4"
           role="dialog"
           aria-modal="true"

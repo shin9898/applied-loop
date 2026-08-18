@@ -31,6 +31,7 @@ import type { GradingProbeResult } from "@/lib/grading-probe";
 import { AtlasSurfaceIcon } from "./atlas-surface-icons";
 import { AtlasVoicePlain } from "./atlas-voice-plain";
 import { AtlasWatchedReposPanel } from "./atlas-watched-repos";
+import { useModalA11y } from "./atlas-modal-a11y";
 
 const INTRO_KEY = "atlas-world-intro-seen";
 
@@ -105,10 +106,13 @@ export function AtlasWorldIntroModal() {
     setOpen(false);
   };
 
+  const dialogRef = useModalA11y(open, finish);
+
   if (!open) return null;
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[80] flex items-center justify-center bg-[#000814cc] p-4"
       role="dialog"
       aria-modal="true"
