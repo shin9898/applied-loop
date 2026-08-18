@@ -24,6 +24,7 @@ import {
   pickHeadlineSummary,
   stripSlotPrefix,
   TEXTBOOK_MAX_CHAPTERS,
+  TEXTBOOK_MAX_MATERIALS_PER_CHAPTER,
   type ChapterDraft,
   type MaterialRow,
 } from "./daily-textbook-shared";
@@ -519,7 +520,7 @@ describe("dayDigest", () => {
     );
   });
 
-  it("names every chapter once without repeating the headline chapter's title before the dash", () => {
+  it("weaves every chapter's headline into the digest instead of naming only the top one", () => {
     const out = dayDigest([
       {
         title: "hermes",
@@ -527,12 +528,178 @@ describe("dayDigest", () => {
       },
       { title: "infra", oneLiner: "infraの説明を書いた。「台帳を整備」" },
     ]);
-    assert.match(out, /「hermes」・「infra」/);
     assert.equal(
-      out.split("「hermes」").length - 1,
-      1,
-      "the headline chapter's title should not be repeated before the dash",
+      out,
+      "この日は、ふたつの現場を行き来した。" +
+        "いちばんの動きは——hermesのほころびを直した。「cronのリトライを追加」。" +
+        "あわせて、infraの説明を書いた。「台帳を整備」。",
     );
+  });
+
+  it("names each chapter exactly once even across many chapters", () => {
+    const out = dayDigest([
+      { title: "a", oneLiner: "aのほころびを直した。" },
+      { title: "b", oneLiner: "bのほころびを直した。" },
+      { title: "c", oneLiner: "cのほころびを直した。" },
+    ]);
+    for (const title of ["a", "b", "c"]) {
+      assert.equal(
+        out.split(`「${title}」`).length - 1,
+        0,
+        `"${title}" headline has its own subject, so it should not be named in brackets`,
+      );
+    }
+  });
+
+  it("prefixes the chapter name when a non-top headline has no subject of its own", () => {
+    const out = dayDigest([
+      { title: "hermes", oneLiner: "hermesのほころびを直した。" },
+      { title: "infra", oneLiner: "台帳を整備した。" },
+    ]);
+    assert.match(out, /あわせて「infra」では、台帳を整備した。/);
+  });
+
+  it("names the top chapter before the dash when its headline's subject differs from the title", () => {
+    const out = dayDigest([
+      {
+        title: "cron-discord-notify",
+        oneLiner: "my-copyのほころびを直した。「thread-followupの対話証跡を記録」",
+      },
+    ]);
+    assert.match(out, /^この日は「cron-discord-notify」ひとすじの一日じゃった。/);
+  });
+
+  it("does not false-positive a headline subject that merely shares a title prefix", () => {
+    // headline の主語 "my-copy" は title "my" の前方一致だが別語なので、
+    // 二重名指し扱い（selfNamed）してはいけない
+    const out = dayDigest([
+      { title: "hermes", oneLiner: "hermesのほころびを直した。" },
+      { title: "my", oneLiner: "my-copyのほころびを直した。" },
+    ]);
+    assert.match(out, /あわせて「my」では、my-copyのほころびを直した。/);
+  });
+
+  describe("time-of-day and weight enrichment (optional, multi-chapter days only)", () => {
+    it("falls back to the plain opening when no hours are given", () => {
+      const out = dayDigest([
+        { title: "hermes", oneLiner: "hermesのほころびを直した。" },
+        { title: "infra", oneLiner: "infraの説明を書いた。" },
+      ]);
+      assert.match(out, /^この日は、ふたつの現場を行き来した。/);
+    });
+
+    it("opens with a single time band when the day's activity clusters within it", () => {
+      const out = dayDigest(
+        [
+          {
+            title: "hermes",
+            oneLiner: "hermesのほころびを直した。",
+            hours: [13, 13],
+          },
+          { title: "infra", oneLiner: "infraの説明を書いた。", hours: [13] },
+        ],
+        { hours: [13, 13, 13] },
+      );
+      assert.match(out, /^ひるどきのひととき、ふたつの現場を行き来した。/);
+    });
+
+    it("spans the day's first and last band when hours are spread but under 14h", () => {
+      const out = dayDigest(
+        [
+          { title: "hermes", oneLiner: "hermesのほころびを直した。", hours: [9] },
+          { title: "infra", oneLiner: "infraの説明を書いた。", hours: [22] },
+        ],
+        { hours: [9, 22] },
+      );
+      assert.match(out, /^あさから夜ふけまで、ふたつの現場を行き来した。/);
+    });
+
+    it("rounds an extreme span (>=14h) to 日がな一日 instead of implying continuous activity", () => {
+      const out = dayDigest(
+        [
+          { title: "hermes", oneLiner: "hermesのほころびを直した。", hours: [1] },
+          { title: "infra", oneLiner: "infraの説明を書いた。", hours: [22] },
+        ],
+        { hours: [1, 22] },
+      );
+      assert.match(out, /^日がな一日、/);
+    });
+
+    it("adds a count-weight sentence to the top chapter at 5+ materials", () => {
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "対応した。",
+          materialCount: 6,
+        },
+        { title: "infra", oneLiner: "infraの説明を書いた。" },
+      ]);
+      assert.match(
+        out,
+        /いちばんの動きは「hermes」——対応した。ここだけで6件の手が入った。/,
+      );
+    });
+
+    it("does not add a count-weight sentence below the threshold", () => {
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "対応した。",
+          materialCount: 2,
+        },
+        { title: "infra", oneLiner: "infraの説明を書いた。" },
+      ]);
+      assert.ok(!out.includes("件の手が入った"));
+    });
+
+    it("does not add a count-weight sentence at the per-chapter material cap (saturates to a near-constant)", () => {
+      // materialIds は TEXTBOOK_MAX_MATERIALS_PER_CHAPTER(8) で切り詰められる
+      // ため、「N件」が実データでほぼ常に8になり定型文と化していた
+      // （opusレビュー実データ検証: 複数章の日の9/10日が一字一句同じ文）
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "対応した。",
+          materialCount: TEXTBOOK_MAX_MATERIALS_PER_CHAPTER,
+        },
+        { title: "infra", oneLiner: "infraの説明を書いた。" },
+      ]);
+      assert.ok(!out.includes("件の手が入った"), out);
+    });
+
+    it("orders non-top chapters by their median hour rather than declaration order", () => {
+      const out = dayDigest([
+        { title: "hermes", oneLiner: "対応した。" },
+        { title: "late", oneLiner: "対応した。", hours: [20] },
+        { title: "early", oneLiner: "対応した。", hours: [9] },
+      ]);
+      const earlyIdx = out.indexOf("「early」");
+      const lateIdx = out.indexOf("「late」");
+      assert.ok(earlyIdx > 0 && lateIdx > earlyIdx, out);
+    });
+
+    it("still orders the chapters that do have hours when one chapter lacks them (no all-or-nothing bail-out)", () => {
+      // 全章に時刻が無いと並び替えを丸ごと諦める実装だと、時刻が引ける
+      // 章同士の順序まで巻き戻って読める組み合わせが起こりうる（opusレビュー指摘）
+      const out = dayDigest([
+        { title: "hermes", oneLiner: "対応した。" },
+        { title: "late", oneLiner: "対応した。", hours: [20] },
+        { title: "no-hours", oneLiner: "対応した。" },
+        { title: "early", oneLiner: "対応した。", hours: [9] },
+      ]);
+      const earlyIdx = out.indexOf("「early」");
+      const lateIdx = out.indexOf("「late」");
+      assert.ok(earlyIdx > 0 && lateIdx > earlyIdx, out);
+    });
+
+    it("punctuates the time-band opener the same way as the connective opener (では、)", () => {
+      const out = dayDigest([
+        { title: "hermes", oneLiner: "対応した。" },
+        { title: "late", oneLiner: "対応した。", hours: [20] },
+      ]);
+      assert.match(out, /「late」では、対応した。/);
+      assert.ok(!out.includes("「late」では対応した。"));
+    });
   });
 });
 

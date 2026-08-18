@@ -107,39 +107,14 @@ export function AtlasNikkiShelf({
 }
 
 /**
- * めくった先の日ページ本文。まず「この日のぼうけん」で大枠（全章に触れる）を見せ、
- * そのあと章カードで個別の詳細に触れる。ページは固定寸法なので、
- * 章カードは 2 つまで・要約は clamp して紙面から溢れさせない
- * （大枠は overview 側ですでに全章を拾っているので、カード側を削っても取りこぼしにならない）。
+ * めくった先の日ページ本文。overview は全章に触れる大枠の1文なので、
+ * それだけで「その日何をしたか」が伝わる。個別章のタイトル＋要約まで
+ * 重ねると情報が重複しページが間延びするため出さない
+ * （章ごとの詳細は「くわしくひらく」の先の詳細ページに譲る。koki実機FB、2026-08-18）。
  */
-const DAY_PAGE_MAX_CHAPTERS = 2;
-
 function DayPageChapters({ entry }: { entry: NikkiDay }) {
-  const chapters = entry.chapters ?? [];
-  if (chapters.length > 0) {
-    const shown = chapters.slice(0, DAY_PAGE_MAX_CHAPTERS);
-    const rest = entry.chapterCount - shown.length;
-    return (
-      <>
-        {entry.overview ? (
-          <p className="atlas-nikki-day-page__overview">{entry.overview}</p>
-        ) : null}
-        <div className="atlas-nikki-day-page__chapters">
-          {shown.map((c) => (
-            <section key={c.index} className="atlas-nikki-day-chapter">
-              <p className="atlas-nikki-day-chapter__head">
-                <span className="atlas-nikki-day-chapter__no">第{c.index}章</span>
-                <span className="atlas-nikki-day-chapter__title">{c.title}</span>
-              </p>
-              <p className="atlas-nikki-day-chapter__did">{c.summary}</p>
-            </section>
-          ))}
-          {rest > 0 ? (
-            <p className="atlas-nikki-day-chapter__rest">ほか {rest} 章</p>
-          ) : null}
-        </div>
-      </>
-    );
+  if (entry.overview) {
+    return <p className="atlas-nikki-day-page__overview">{entry.overview}</p>;
   }
 
   if (entry.lines && entry.lines.length > 0) {

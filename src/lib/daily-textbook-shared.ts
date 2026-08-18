@@ -179,7 +179,7 @@ function repoShort(repo: string): string {
   return parts[parts.length - 1] || repo;
 }
 
-function hourJST(d: Date): number {
+export function hourJST(d: Date): number {
   return new Date(d.getTime() + 9 * 60 * 60 * 1000).getUTCHours();
 }
 
@@ -1009,26 +1009,188 @@ export function chapterDidSummary(input: {
     .join("");
 }
 
+/** 冒険者日記の文末を保証する（chapterDidSummaryと同じ規則） */
+function ensureSentenceEnd(s: string): string {
+  return /[。.!?！？]$/.test(s) ? s : `${s}。`;
+}
+
 /**
- * その日の「大枠」を1つの日記文にする（全章に必ず触れる。3章までに切らない）。
- * 章の先頭カードだけでは全体像が見えない、という指摘を受けて追加。
- * 新しい生成は足さず、既存の oneLiner だけを冒険者日記の文体でつなぐ。
+ * 章2つめ以降をつなぐ接続詞。章順は材料数降順（clusterMaterialsIntoChapters）
+ * であって時刻順ではないため、「まず/続いて」等の時系列語は使わず、
+ * 足し算の語だけで固定順に振る（最大 TEXTBOOK_MAX_CHAPTERS=5 章なので
+ * 3語で足りるが、防御的に循環させる）
+ */
+const DIGEST_CONNECTIVES = ["あわせて", "さらに", "くわえて", "おまけに"] as const;
+
+/** dayDigest への enrichment。全て optional（無ければ簡素な日記に退化する） */
+export type DigestChapterInput = {
+  title: string;
+  oneLiner: string;
+  /**
+   * 章に載った材料数。5件以上かつ上限(TEXTBOOK_MAX_MATERIALS_PER_CHAPTER)
+   * 未満で「ここだけでN件の手が入った」を足す
+   */
+  materialCount?: number;
+  /** 章材料の JST hour (0-23)。時間帯オープナー・言及順の並び替えに使う */
+  hours?: number[];
+};
+
+export type DigestDayInput = {
+  /** その日の全材料の JST hour。書き出しの時間帯スパンに使う */
+  hours?: number[];
+};
+
+const JA_COUNT = ["", "ひとつ", "ふたつ", "みっつ", "よっつ", "いつつ"] as const;
+
+function jaCount(n: number): string {
+  return JA_COUNT[n] ?? `${n}つ`;
+}
+
+/** JST hour → 日記の時間帯語 */
+function hourBandLabel(h: number): string {
+  if (h < 5) return "未明";
+  if (h < 10) return "あさ";
+  if (h < 12) return "ひる前";
+  if (h < 14) return "ひるどき";
+  if (h < 17) return "ひるさがり";
+  if (h < 19) return "夕ぐれ";
+  if (h < 22) return "よる";
+  return "夜ふけ";
+}
+
+function median(sorted: number[]): number {
+  return sorted[Math.floor(sorted.length / 2)]!;
+}
+
+type ChapterTimeStats = {
+  count: number | null;
+  medianHour: number | null;
+  /** 材料が時間帯として固まっているか（最大-最小 ≤ 4h）。時間帯語を名指す正直ゲート */
+  localized: boolean;
+};
+
+function chapterTimeStats(ch: DigestChapterInput): ChapterTimeStats {
+  const hours = (ch.hours ?? []).slice().sort((a, b) => a - b);
+  return {
+    count: ch.materialCount ?? null,
+    medianHour: hours.length ? median(hours) : null,
+    localized: hours.length > 0 && hours[hours.length - 1]! - hours[0]! <= 4,
+  };
+}
+
+/**
+ * 主役章にだけ足す「厚み」の一言。データが薄ければ空文字（水増ししない）。
+ * materialCount は章あたり TEXTBOOK_MAX_MATERIALS_PER_CHAPTER で切り詰め
+ * 済みのため、上限ちょうどは「実際に何件あったか」を語れない飽和値。
+ * 実データの大半がこの上限に張り付き「ここだけで8件」が一字一句同じ
+ * 定型文になっていた（opusレビュー指摘、2026-08-18）ため、上限では出さない
+ */
+function mainWeightSentence(count: number | null): string {
+  if (count == null || count < 5 || count >= TEXTBOOK_MAX_MATERIALS_PER_CHAPTER)
+    return "";
+  return `ここだけで${count}件の手が入った。`;
+}
+
+/**
+ * その日の「大枠」を1つの日記文にする（全章の内容に必ず触れる。作業が
+ * 多い日は日記がパンパンになってよい。koki実機FB、2026-08-18）。
+ * 以前は先頭章の headline だけに触れ、残章は title 列挙のみだった
+ * （trail）が、全章の本文が出る今は重複なので trail は廃止する。
+ * 新しい生成は足さず、既存の oneLiner を「前置のみ」でつなぐ:
+ * 接続詞・章名は行頭に足し、文末には句点保証以外は何も接尾しない
+ * （述語終止文への接尾は文法破綻する — buildOneLinerSentenceの既知教訓）。
+ *
+ * 「やったことの羅列」感を減らす段階1（koki実機FB、2026-08-18）:
+ * 全章が同じ重み・同じ接続詞ローテだけで並ぶと単調なので、既存データ
+ * （材料の受信時刻・章の材料数）から書き出しの時間帯スパンと主役章の
+ * 厚みだけを足す。畳み込み・結び・コミット種別からの推測は次の段階へ
+ * 送る（Fable設計相談、実データで検証済み）。
  */
 export function dayDigest(
-  chapters: Array<{ title: string; oneLiner: string }>,
+  chapters: DigestChapterInput[],
+  day?: DigestDayInput,
 ): string {
   if (chapters.length === 0) return "";
   const top = chapters[0]!;
-  const headline = normalizeOneLinerForDisplay(top.oneLiner);
 
   if (chapters.length === 1) {
+    const headline = ensureSentenceEnd(normalizeOneLinerForDisplay(top.oneLiner));
     return `この日は「${top.title}」ひとすじの一日じゃった。${headline}`;
   }
 
-  const trail = chapters.map((c) => `「${c.title}」`).join("・");
-  // headline自体が「${title}の…」で始まる文なので、trailの直後で
-  // 「「title」——」と二重に名指ししない（2026-08、item①）。
-  return `この日は ${trail} と、${chapters.length}つの現場を渡り歩いた。いちばんの動きは——${headline}`;
+  const stats = chapters.map(chapterTimeStats);
+  const dayHours = (day?.hours ?? chapters.flatMap((c) => c.hours ?? []))
+    .slice()
+    .sort((a, b) => a - b);
+
+  let opening: string;
+  if (dayHours.length === 0) {
+    opening = `この日は、${jaCount(chapters.length)}の現場を行き来した。`;
+  } else {
+    const first = hourBandLabel(dayHours[0]!);
+    const last = hourBandLabel(dayHours[dayHours.length - 1]!);
+    const span = dayHours[dayHours.length - 1]! - dayHours[0]!;
+    // 未明から夜ふけまでのような極端なスパンは連続稼働を過剰に示唆する
+    // ため（cron由来の深夜コミット等）「日がな一日」に丸める
+    const timeOpen =
+      span >= 14 ? "日がな一日、" : first === last ? `${first}のひととき、` : `${first}から${last}まで、`;
+    opening = `${timeOpen}${jaCount(chapters.length)}の現場を行き来した。`;
+  }
+
+  const topLine = ensureSentenceEnd(normalizeOneLinerForDisplay(top.oneLiner));
+  const topSelfNamed =
+    topLine.startsWith(top.title) &&
+    !/[\w.-]/.test(topLine.charAt(top.title.length));
+  const mainSentence = topSelfNamed
+    ? `いちばんの動きは——${topLine}`
+    : `いちばんの動きは「${top.title}」——${topLine}`;
+  const mainWeight = mainWeightSentence(stats[0]!.count);
+
+  // 言及順: 全ての非主役章に時刻中央値があれば時系列に並び替える
+  // （章そのものの構造・番号は clusterMaterialsIntoChapters の材料数降順の
+  // ままで、dayDigest 内の言及順だけを変える）
+  const rest = chapters
+    .slice(1)
+    .map((c, i) => ({ c, st: stats[i + 1]! }));
+  // 時刻が引ける章同士だけを時系列に並べる。全章そろわないと諦める
+  // all-or-nothing だと、時刻がある章同士の順序まで巻き戻って読める
+  // 組み合わせが起こりうる（opusレビュー指摘）ため、時刻なしは元の
+  // 宣言順を保ったまま末尾へ安定的に寄せる
+  rest.sort((a, b) => {
+    if (a.st.medianHour == null && b.st.medianHour == null) return 0;
+    if (a.st.medianHour == null) return 1;
+    if (b.st.medianHour == null) return -1;
+    return a.st.medianHour - b.st.medianHour;
+  });
+
+  const midParts: string[] = [];
+  let connIdx = 0;
+  let lastBand: string | null =
+    stats[0]!.localized && stats[0]!.medianHour != null
+      ? hourBandLabel(stats[0]!.medianHour!)
+      : null;
+  for (const { c, st } of rest) {
+    const line = ensureSentenceEnd(normalizeOneLinerForDisplay(c.oneLiner));
+    const selfNamed =
+      line.startsWith(c.title) && !/[\w.-]/.test(line.charAt(c.title.length));
+    const band =
+      st.localized && st.medianHour != null ? hourBandLabel(st.medianHour) : null;
+    if (band && band !== lastBand) {
+      // 材料が時間帯として固まっている章だけ、時刻を名指しする（正直ゲート）
+      midParts.push(selfNamed ? `${band}、${line}` : `${band}、「${c.title}」では、${line}`);
+      lastBand = band;
+      continue;
+    }
+    const conn = DIGEST_CONNECTIVES[connIdx % DIGEST_CONNECTIVES.length]!;
+    connIdx += 1;
+    midParts.push(
+      selfNamed ? `${conn}、${line}` : `${conn}「${c.title}」では、${line}`,
+    );
+  }
+
+  return [opening, mainSentence, mainWeight, ...midParts]
+    .filter(Boolean)
+    .join("");
 }
 
 /**

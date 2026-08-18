@@ -7,7 +7,6 @@ import "server-only";
 import { prisma } from "@/lib/db";
 import { dateKeyJST } from "@/lib/date";
 import {
-  chapterDidSummary,
   chapterHasLessonSlots,
   chaptersHaveLessonSlots,
   clusterMaterialsIntoChapters,
@@ -17,6 +16,7 @@ import {
   distillSingleCheck,
   draftChapterFromRepo,
   groupMaterialsIntoBandDrafts,
+  hourJST,
   isMasteryState,
   nextCompiledIndex,
   parseLessonSlots,
@@ -539,7 +539,6 @@ export async function listTextbookDates(limit = 14): Promise<
     lead: string | null;
     overview: string;
     lines: string[];
-    chapters: Array<{ index: number; title: string; summary: string }>;
   }>
 > {
   const rows = await prisma.dailyTextbook.findMany({
@@ -554,10 +553,51 @@ export async function listTextbookDates(limit = 14): Promise<
       chapters: {
         orderBy: { index: "asc" },
         take: 5,
-        select: { index: true, title: true, oneLiner: true, bodyDeep: true },
+        select: {
+          title: true,
+          oneLiner: true,
+          materialIds: true,
+        },
       },
     },
   });
+  if (rows.length === 0) return [];
+
+  // overview（日記文）の時間帯・厚み enrichment 用に、表示対象期間の
+  // DevEvent を一括で引く。章行は receivedAt を持たないが materialIds
+  // で join でき、DevEvent は消えない設計（捨てない＝証跡）なので、過去日
+  // にも遡及して日記が濃くなる（koki実機FB、2026-08-18・Fable設計相談）。
+  // 唯一の呼び出し元は retro/page.tsx の listTextbookDates(120)（毎リクエスト
+  // force-dynamic）で、DevEvent.receivedAt に index が無いためフルスキャン
+  // になる（opusレビュー指摘）。現状のDB規模では実害なし。増えたら
+  // @@index([receivedAt]) を検討する
+  const sortedKeys = [...rows.map((r) => r.dateKey)].sort();
+  const { start } = dayRangeFromDateKey(sortedKeys[0]!);
+  const { end } = dayRangeFromDateKey(sortedKeys[sortedKeys.length - 1]!);
+  const events = await prisma.devEvent.findMany({
+    where: { receivedAt: { gte: start, lt: end } },
+    select: { id: true, receivedAt: true },
+  });
+  const hoursById = new Map(events.map((e) => [e.id, hourJST(e.receivedAt)]));
+  const hoursByDateKey = new Map<string, number[]>();
+  for (const e of events) {
+    const key = dateKeyJST(e.receivedAt);
+    const bucket = hoursByDateKey.get(key) ?? [];
+    bucket.push(hourJST(e.receivedAt));
+    hoursByDateKey.set(key, bucket);
+  }
+  // textbook-chapter-polish.ts の materialIds パースと同じ作法（要素型を検査する）
+  const parseMaterialIds = (s: string): string[] => {
+    try {
+      const v = JSON.parse(s) as unknown;
+      return Array.isArray(v)
+        ? v.filter((x): x is string => typeof x === "string")
+        : [];
+    } catch {
+      return [];
+    }
+  };
+
   return rows.map((r) => ({
     dateKey: r.dateKey,
     chapterCount: r.chapterCount,
@@ -566,22 +606,21 @@ export async function listTextbookDates(limit = 14): Promise<
     lead: r.lead,
     // その日の大枠（全章に触れる冒険者日記文）。日ページの先頭に出す
     overview: dayDigest(
-      r.chapters.map((c) => ({
-        title: c.title,
-        oneLiner: c.oneLiner?.trim() || c.title,
-      })),
+      r.chapters.map((c) => {
+        const ids = parseMaterialIds(c.materialIds);
+        const hours = ids
+          .map((id) => hoursById.get(id))
+          .filter((h): h is number => h != null);
+        return {
+          title: c.title,
+          oneLiner: c.oneLiner?.trim() || c.title,
+          materialCount: ids.length,
+          hours,
+        };
+      }),
+      { hours: hoursByDateKey.get(r.dateKey) },
     ),
     lines: r.chapters.map((c) => c.oneLiner?.trim() || c.title).filter(Boolean),
-    // めくった先の日ページに「章タイトル＋やったこと要約」を出すための組
-    chapters: r.chapters.map((c) => ({
-      index: c.index,
-      title: c.title,
-      summary:
-        chapterDidSummary({
-          oneLiner: c.oneLiner ?? "",
-          action: parseLessonSlots(c.bodyDeep).action,
-        }) || c.title,
-    })),
   }));
 }
 

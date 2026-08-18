@@ -2865,77 +2865,21 @@ a.atlas-gq-cmd__item:hover {
   color: #3a6a4e;
 }
 
-/* この日のぼうけん（大枠）。全章に触れる冒険者日記文を、章カードより先に読ませる */
+/* この日のぼうけん（大枠）。全章に触れる冒険者日記文がこの日ページの唯一の本文 */
 .atlas-nikki-day-page__overview {
   margin: 0;
-  padding-bottom: 10px;
-  border-bottom: 1px dashed rgba(58, 106, 78, 0.4);
+  overflow-wrap: anywhere;
   font-family: var(--font-handwriting);
   font-size: clamp(14px, 1.7vw, 17px);
   line-height: 1.75;
   color: #1a3024;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
+  /* 全章の内容に触れる分、旧仕様(4行)より長くなる。紙面640px内で収まる
+     行数まで引き上げる（koki実機FB、2026-08-18） */
+  -webkit-line-clamp: 14;
+  line-clamp: 14;
   overflow: hidden;
-}
-
-/* めくった先の日ページ: 章の先頭に「タイトル＋やったこと要約」。
-   紙面は固定寸法なので、はみ出しは clamp と overflow で紙の中に閉じる。 */
-.atlas-nikki-day-page__chapters {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  overflow: hidden;
-}
-
-.atlas-nikki-day-chapter {
-  border-left: 3px solid #3a6a4e;
-  padding-left: 10px;
-}
-
-/* 見出しは block。flex 行にすると長い章タイトルが折り返せずに紙面から切れる */
-.atlas-nikki-day-chapter__head {
-  margin: 0;
-}
-
-.atlas-nikki-day-chapter__no {
-  margin-right: 6px;
-  font-family: var(--font-pixel);
-  font-size: 8px;
-  color: #245a40;
-}
-
-.atlas-nikki-day-chapter__title {
-  overflow-wrap: anywhere;
-  font-family: var(--font-handwriting);
-  font-size: clamp(15px, 1.8vw, 18px);
-  line-height: 1.4;
-  color: #1a3024;
-}
-
-.atlas-nikki-day-chapter__did {
-  margin: 4px 0 0;
-  overflow-wrap: anywhere;
-  font-family: var(--font-handwriting);
-  font-size: clamp(13px, 1.5vw, 15px);
-  line-height: 1.65;
-  color: #2a4034;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-}
-
-.atlas-nikki-day-chapter__rest {
-  margin: 0;
-  font-family: var(--font-pixel);
-  font-size: 8px;
-  color: #3a6a4e;
 }
 
 .atlas-nikki-day-page__meta {
