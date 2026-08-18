@@ -6,7 +6,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   adventurerLevelFromResolved,
   formatStars,
@@ -490,13 +490,18 @@ export function AtlasDashboard({
     .filter(Boolean)
     .join("\n");
 
+  // AtlasWorldIntroModalは起動元を持たないため、閉じた時のフォーカス
+  // 復帰先としてこの見出しを渡す（opus2周目レビュー指摘、2026-08-18）
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
   return (
     <AtlasShell>
-      <AtlasWorldIntroModal />
+      <AtlasWorldIntroModal fallbackFocus={() => titleRef.current} />
 
       <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-[1.6fr_0.9fr]">
         <AtlasReveal as="section" className="dq-win flex h-full flex-col gap-3 p-3.5">
           <AtlasPageTitle
+            ref={titleRef}
             title="ちず"
             sub={
               pendingGate

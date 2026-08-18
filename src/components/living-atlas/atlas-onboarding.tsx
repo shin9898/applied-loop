@@ -82,7 +82,17 @@ export function AtlasSetupBanner({ diagnosis }: { diagnosis: SetupDiagnosis }) {
 }
 
 /** 初回のみ: 1枚＋じゅんびへ */
-export function AtlasWorldIntroModal() {
+export function AtlasWorldIntroModal({
+  fallbackFocus,
+}: {
+  /**
+   * 自動オープンのため起動元が無い。閉じた時のフォーカス復帰先を
+   * 呼び出し元から渡してもらう（opus2周目レビュー指摘: 固定idだと
+   * AtlasPageTitleが複数描画されるページ (AtlasHarness等) でid重複
+   * するため、呼び出し元スコープのrefにした、2026-08-18）
+   */
+  fallbackFocus?: () => HTMLElement | null;
+}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -106,7 +116,7 @@ export function AtlasWorldIntroModal() {
     setOpen(false);
   };
 
-  const dialogRef = useModalA11y(open, finish);
+  const dialogRef = useModalA11y(open, finish, { fallbackFocus });
 
   if (!open) return null;
 

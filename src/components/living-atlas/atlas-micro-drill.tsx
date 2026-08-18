@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GateDebrief } from "@/lib/grade-payload";
 import type { MicroCheckResult } from "@/lib/micro-check";
 import {
@@ -21,6 +21,13 @@ export type MicroDrillProps = {
   /** 通した文を束ねた下書きつきで完了 */
   onComplete: (seedDraft: string) => void;
   onSkipToAnswer: (seedDraft: string) => void;
+  /**
+   * confirmSkipモーダルを「飛ばして進む」で閉じた時のフォーカス復帰先。
+   * このコンポーネント自体がonSkipToAnswerと同じコミットでunmountされる
+   * ため起動元ボタンはDOMから消えており、親（本回答フォームを知って
+   * いる）から渡してもらう必要がある（opus2周目レビュー指摘、2026-08-18）
+   */
+  fallbackFocus?: () => HTMLElement | null;
 };
 
 /**
@@ -33,6 +40,7 @@ export function AtlasMicroDrill({
   onCheck,
   onComplete,
   onSkipToAnswer,
+  fallbackFocus,
 }: MicroDrillProps) {
   const aspects = useMemo(
     () => debrief.weakAspects ?? [],
@@ -60,8 +68,20 @@ export function AtlasMicroDrill({
 
   const current = aspects[index];
   const total = aspects.length;
-  const skipDialogRef = useModalA11y(confirmSkip, () =>
-    setConfirmSkip(false),
+  // 「もどる」/Escapeで閉じた時、documentActiveElementでの起動元capture
+  // が失敗するケース（例: macOS Safari/Firefoxはbuttonクリックで
+  // フォーカスしない）の保険。判別は「自分がまだ画面に居るか」（skipBtnRef
+  // がReactにより null化されたか）で行う——親のphaseゲート（drill表示中は
+  // 本回答フォーム未マウントのはず、という暗黙の相互排他）には依存しない。
+  // 「飛ばして進む」でunmountされる時だけskipBtnRefがnullになり、その時
+  // だけfallbackFocus（親から渡された本回答フォーム）へ委譲する（opus3周目
+  // レビュー指摘: 順序が逆だとこの前提が崩れた時に「もどる」が本回答へ
+  // 飛ぶ退行になりうる、2026-08-18）
+  const skipBtnRef = useRef<HTMLButtonElement>(null);
+  const skipDialogRef = useModalA11y(
+    confirmSkip,
+    () => setConfirmSkip(false),
+    { fallbackFocus: () => skipBtnRef.current ?? fallbackFocus?.() ?? null },
   );
 
   useEffect(() => {
@@ -230,6 +250,7 @@ export function AtlasMicroDrill({
           答え合わせを見る
         </button>
         <button
+          ref={skipBtnRef}
           type="button"
           className="dq-btn dq-btn-ghost"
           disabled={busy}

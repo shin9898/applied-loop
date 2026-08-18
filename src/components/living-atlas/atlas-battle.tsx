@@ -492,6 +492,11 @@ export function AtlasBattle({
         ? "result"
         : "idle",
   );
+  // AtlasMicroDrillのconfirmSkip「飛ばして進む」はこのコンポーネントと
+  // 同じコミットでunmountされるため起動元ボタンがDOMから消える。フォーカス
+  // 復帰先として本回答フォームのtextareaを渡す（opus2周目レビュー指摘、
+  // 2026-08-18）
+  const answerTextareaRef = useRef<HTMLTextAreaElement>(null);
   /** ポーリングが40回（約2分）試みても採点が終わらず諦めたかどうか。
    * true の間は "あなた" カードのアニメーション（AtlasSpellWait / AtlasWaitCompanion）を止める。 */
   const [pollExhausted, setPollExhausted] = useState(false);
@@ -992,6 +997,7 @@ export function AtlasBattle({
                   setMicroSeed(seedDraft);
                   goToAnswer(undefined, seedDraft);
                 }}
+                fallbackFocus={() => answerTextareaRef.current}
               />
             ) : null}
 
@@ -1235,6 +1241,7 @@ export function AtlasBattle({
                   下に書いた文を、そのまま提出する。対話で練るならページ下の『じゅもんをとなえる』。
                 </p>
                 <textarea
+                  ref={answerTextareaRef}
                   className="min-h-[96px] w-full resize-y border-[3px] border-white bg-[#000c4a] p-2.5 font-[family-name:var(--font-jp)] text-[15px] text-[#f7f3d9]"
                   placeholder="まものの問いに対する答えを、自分の言葉で書く…"
                   value={answer}
