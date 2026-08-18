@@ -42,6 +42,9 @@ model Capture {
   dedupeKey       String?
   importanceScore Int? // 0-100。LLM トリアージ用 (ADR-0012)
   triageReason    String? // LLM のスコア根拠 (ADR-0012)
+  overlapCheckJson String? // しれん重複ガードの判定ログ (ADR-0021)。OverlapCheckLog の JSON
+  misconceptionId  String? // 人間が選んだ最終的な Misconception id (紐付け先 or 新規作成id。ADR-0021)
+  misconception    Misconception? @relation(fields: [misconceptionId], references: [id], onDelete: SetNull)
 }
 
 // 当日タスク → 関連学び/誤解/ゲートのマッピング (ADR-0013 §1)
@@ -159,6 +162,7 @@ model Misconception {
   nextReviewAt DateTime?
   createdAt    DateTime  @default(now())
   gates        Gate[]
+  captures     Capture[] // しれん重複ガードで紐付いた Capture (ADR-0021)
 }
 
 // 弱点パターン集計の週次キャッシュ (ADR-0011)

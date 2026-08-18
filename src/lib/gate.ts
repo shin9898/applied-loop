@@ -978,11 +978,11 @@ export async function confirmMisconception(
   concept: string,
   gateId: string | null,
   rootCause?: RootCause | null
-): Promise<void> {
+): Promise<{ id: string }> {
   const firstGate = gateId
     ? await prisma.gate.findUnique({ where: { id: gateId } })
     : null;
-  await prisma.misconception.create({
+  const created = await prisma.misconception.create({
     data: {
       concept,
       rootCause: rootCause ?? null,
@@ -991,6 +991,7 @@ export async function confirmMisconception(
       gates: firstGate ? { connect: { id: firstGate.id } } : undefined,
     },
   });
+  return { id: created.id };
 }
 
 /**

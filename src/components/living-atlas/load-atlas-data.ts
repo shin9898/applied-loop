@@ -17,6 +17,10 @@ import {
 } from "@/lib/harness-repo-match";
 import { listWatchedRepos } from "@/lib/watched-repos";
 import {
+  decodeOverlapCheckLog,
+  selectInterruptCandidates,
+} from "@/lib/misconception-overlap";
+import {
   nextRequirementCandidates,
   recentlyUnderstoodRequirements,
 } from "@/lib/requirement";
@@ -43,7 +47,7 @@ import type { GateListItem } from "./atlas-gates-list";
 import type { HarnessRepo } from "./atlas-harness";
 import type { GoalItem } from "./atlas-goals";
 import type { EntryItem } from "./atlas-entries";
-import type { UkebakoBoard } from "./ukebako-view";
+import type { InboxOverlapCandidate, UkebakoBoard } from "./ukebako-view";
 import type { RequirementItem } from "./atlas-requirements";
 
 const GOAL_EVIDENCE_TARGET = 3;
@@ -870,6 +874,13 @@ function entryDayLabel(d: Date, now: Date): string {
   return key; // YYYY-MM-DD
 }
 
+/** しれん重複ガード (ADR-0021) の判定待ちかどうか。pending な Capture にのみ意味を持つ */
+function captureNeedsOverlapDecision(overlapCheckJson: string | null): boolean {
+  const log = decodeOverlapCheckLog(overlapCheckJson);
+  if (!log) return false;
+  return selectInterruptCandidates(log.matches).length > 0;
+}
+
 export async function loadEntries(): Promise<EntryItem[]> {
   const now = new Date();
   const [entries, pendingCaptures] = await Promise.all([
@@ -893,6 +904,7 @@ export async function loadEntries(): Promise<EntryItem[]> {
         capturedAt: true,
         importanceScore: true,
         triageReason: true,
+        overlapCheckJson: true,
       },
     }),
   ]);
@@ -912,6 +924,7 @@ export async function loadEntries(): Promise<EntryItem[]> {
     context: c.sourceContext,
     importance: c.importanceScore,
     triageReason: c.triageReason,
+    needsDecision: captureNeedsOverlapDecision(c.overlapCheckJson),
   }));
 
   const entryItems: EntryItem[] = entries.map((e) => {
@@ -1068,8 +1081,10 @@ export async function loadCaptureDetail(id: string): Promise<{
   capturedAt: Date;
   importanceScore: number | null;
   triageReason: string | null;
+  /** しれん重複ガード (ADR-0021) の判定待ちの候補。pending でなければ常に空 */
+  overlapCandidates: InboxOverlapCandidate[];
 } | null> {
-  return prisma.capture.findUnique({
+  const capture = await prisma.capture.findUnique({
     where: { id },
     select: {
       id: true,
@@ -1081,8 +1096,16 @@ export async function loadCaptureDetail(id: string): Promise<{
       capturedAt: true,
       importanceScore: true,
       triageReason: true,
+      overlapCheckJson: true,
     },
   });
+  if (!capture) return null;
+  const { overlapCheckJson, ...rest } = capture;
+  const overlapCandidates =
+    rest.status === "pending"
+      ? selectInterruptCandidates(decodeOverlapCheckLog(overlapCheckJson)?.matches ?? [])
+      : [];
+  return { ...rest, overlapCandidates };
 }
 
 export async function loadRequirements(): Promise<RequirementItem[]> {

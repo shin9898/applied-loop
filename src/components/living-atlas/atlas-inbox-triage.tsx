@@ -7,6 +7,7 @@ import {
   buildInboxTriageContext,
   COMMANDS,
   type FumiAction,
+  type InboxOverlapCandidate,
 } from "./ukebako-view";
 
 /**
@@ -17,15 +18,18 @@ export function AtlasInboxTriage({
   wsToken,
   captureId,
   captureTitle,
+  overlapCandidates = [],
 }: {
   wsToken: string | null;
   captureId: string;
   captureTitle: string;
+  /** しれん重複ガード (ADR-0021) が判定待ちのまま残している候補 */
+  overlapCandidates?: InboxOverlapCandidate[];
 }) {
   const [pick, setPick] = useState<FumiAction | null>(null);
   const context = useMemo(
-    () => buildInboxTriageContext(captureId, captureTitle, pick),
-    [captureId, captureTitle, pick],
+    () => buildInboxTriageContext(captureId, captureTitle, pick, overlapCandidates),
+    [captureId, captureTitle, pick, overlapCandidates],
   );
 
   return (

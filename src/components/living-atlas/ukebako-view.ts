@@ -149,6 +149,8 @@ export type FumiView = {
   days: number;
   tier: FumiTier;
   pips: number;
+  /** しれん重複ガード (ADR-0021) が既存の誤解との重複候補を見つけ、判断待ちのまま */
+  needsDecision: boolean;
 };
 
 export function toFumiView(
@@ -161,6 +163,7 @@ export function toFumiView(
     triageReason?: string | null;
     importance?: number | null;
     at?: Date;
+    needsDecision?: boolean;
   },
   now: Date,
 ): FumiView {
@@ -177,6 +180,7 @@ export function toFumiView(
     days,
     tier: fumiTier(days),
     pips: importancePips(item.importance),
+    needsDecision: item.needsDecision ?? false,
   };
 }
 
@@ -214,16 +218,40 @@ export const ACTION_LABEL: Record<FumiAction, string> = {
   skip: "みおくり",
 };
 
+/** しれん重複ガード (ADR-0021) が見つけた重複候補。/inbox/[id] の表示・じゅもん context 共用 */
+export type InboxOverlapCandidate = {
+  id: string;
+  concept: string;
+  relation: string;
+  reason: string;
+};
+
 /**
  * ふみ 1 通ぶんの、じゅもんへ渡す context 文字列（/inbox/[id] の単独完結じゅもん用）。
  * 一覧（AtlasUkebakoFumi）の assistContext と同じ「選んだ結果を復唱して確認を取れ」語彙に揃える。
+ *
+ * overlapCandidates が渡されると（前回の accept が needs_decision で止まっている場合）、
+ * まず resolution 付きの2回目呼び出しを案内する（ADR-0021）。
  */
 export function buildInboxTriageContext(
   captureId: string,
   captureTitle: string,
   pick: FumiAction | null,
+  overlapCandidates: InboxOverlapCandidate[] = [],
 ): string {
   const lines = [`captureId: ${captureId}`, `title: 「${captureTitle}」`, ""];
+  if (overlapCandidates.length > 0) {
+    lines.push(
+      "にた ごかいが すでに みつかっておる（判定済み・まだ確定しておらぬ）。" +
+        "ユーザーに次のどちらか選ばせてから triage_inbox を呼べ:",
+      ...overlapCandidates.map(
+        (c) => `- misconceptionId: ${c.id} (${c.relation}) 「${c.concept}」— ${c.reason}`,
+      ),
+      `- 新規作成: triage_inbox(captureId: "${captureId}", action: "accept", resolution: "create_new")`,
+      `- 既存に紐付け: triage_inbox(captureId: "${captureId}", action: "accept", resolution: "link_existing", misconceptionId: "<上から選ぶ>")`,
+      "",
+    );
+  }
   if (pick) {
     lines.push(
       "ユーザーが画面で えらんだ しわけ（この通りに triage_inbox を呼べ。実行前に確認を取れ）:",

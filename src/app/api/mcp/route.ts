@@ -491,15 +491,48 @@ const handler = createMcpHandler(
       "triage_inbox",
       {
         description:
-          "受信箱の候補を仕分けする。action=accept で学び/誤解として登録、skip で無視。",
+          "受信箱の候補を仕分けする。action=accept で学び/誤解として登録、skip で無視。" +
+          "gate 由来は重複ガードあり: needs_decision が返ったら resolution を付けて再度呼ぶこと。",
         inputSchema: {
           captureId: z.string().describe("Capture ID"),
           action: z.enum(["accept", "skip"]).describe("accept=登録 / skip=無視"),
+          resolution: z
+            .enum(["create_new", "link_existing"])
+            .optional()
+            .describe(
+              "2回目の呼び出し専用。1回目で needs_decision が返った後にのみ有効"
+            ),
+          misconceptionId: z
+            .string()
+            .optional()
+            .describe("resolution=link_existing のときの紐付け先"),
         },
       },
-      async ({ captureId, action }) => {
+      async ({ captureId, action, resolution, misconceptionId }) => {
         await requireAuth();
-        const result = await triageCapture(captureId, action);
+        const result = await triageCapture(
+          captureId,
+          action,
+          resolution,
+          misconceptionId
+        );
+        if (result.ok === "needs_decision") {
+          // エージェントが失敗扱いして無闇にリトライしないよう isError:false で返す (ADR-0021)
+          return text(
+            [
+              result.message,
+              "",
+              ...result.candidates.map(
+                (c) =>
+                  `- misconceptionId: ${c.id} (${c.relation}) 「${c.concept}」— ${c.reason}`
+              ),
+              "",
+              "再度 triage_inbox を呼ぶ際は resolution を指定せよ:",
+              `- 新規作成: triage_inbox(captureId: "${captureId}", action: "accept", resolution: "create_new")`,
+              `- 既存に紐付け: triage_inbox(captureId: "${captureId}", action: "accept", resolution: "link_existing", misconceptionId: "<上の一覧から選ぶ>")`,
+            ].join("\n")
+          );
+        }
         return result.ok
           ? text(result.message)
           : { ...text(result.message), isError: true };

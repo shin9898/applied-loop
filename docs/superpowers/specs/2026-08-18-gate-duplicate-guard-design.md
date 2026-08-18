@@ -106,7 +106,9 @@ triage_inbox(captureId, action: "accept")
 ```prisma
 model Capture {
   // ...既存フィールドは変更なし...
-  overlapCheckJson String?  // 判定ログ: {comparedIds, matches:[{id,relation,reason}], checkedAt, provider, error?}
+  overlapCheckJson String?  // 判定ログ: {comparedIds, matches:[{id,concept,status,relation,reason}], checkedAt, error?}
+  // 実装時にprovider列は落とした（runHeadlessLLMがどのCLIで応答したか返さず、書き込み専用の
+  // フィールドになるため。全callerへの影響が大きい返り値変更を伴うため見送り）
   misconceptionId  String?  // 人間が選んだ最終的な Misconception id (紐付け先 or 新規作成id)
   misconception    Misconception? @relation(fields: [misconceptionId], references: [id], onDelete: SetNull)
 }

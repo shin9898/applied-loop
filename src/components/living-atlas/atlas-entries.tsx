@@ -39,6 +39,8 @@ export type EntryItem = {
   triageReason?: string | null;
   /** entry を最後に使った日（つかった きろくの最新） */
   lastUsedAt?: Date;
+  /** capture がしれん重複ガード (ADR-0021) の判定待ちのまま */
+  needsDecision?: boolean;
 };
 
 const TRIAL_STATUS_LABEL: Record<string, string> = {

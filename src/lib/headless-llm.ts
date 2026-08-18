@@ -137,7 +137,7 @@ function isFallbackable(e: HeadlessLLMError): boolean {
   return e.kind === "auth" || e.kind === "spawn" || e.kind === "quota";
 }
 
-function runClaude(prompt: string): Promise<string> {
+function runClaude(prompt: string, timeoutMs: number = TIMEOUT_MS): Promise<string> {
   const bin = claudeBin();
   if (!bin) {
     return Promise.reject(
@@ -152,7 +152,7 @@ function runClaude(prompt: string): Promise<string> {
     const child = execFile(
       bin,
       ["-p", prompt, "--output-format", "json"],
-      { timeout: TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024, env: execEnv() },
+      { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024, env: execEnv() },
       (error, stdout, stderr) => {
         // exit code より先に stdout の result を見る (exit 1 でも JSON が出る)
         const extracted = extractClaudeResult(stdout);
@@ -207,7 +207,11 @@ class CodexModelCompatError extends HeadlessLLMError {
  * prompt は argv ではなく stdin (`-`) 経由。採点プロンプトが長く ARG_MAX /
  * 「Reading additional input from stdin」の空パイプ問題を避ける。
  */
-function runCodexOnce(prompt: string, model: string): Promise<string> {
+function runCodexOnce(
+  prompt: string,
+  model: string,
+  timeoutMs: number = TIMEOUT_MS,
+): Promise<string> {
   const bin = codexBin();
   if (!bin) {
     return Promise.reject(
@@ -233,7 +237,7 @@ function runCodexOnce(prompt: string, model: string): Promise<string> {
     const child = execFile(
       bin,
       args,
-      { timeout: TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024, env: execEnv() },
+      { timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024, env: execEnv() },
       (error, stdout, stderr) => {
         const combined = `${stdout}\n${stderr}\n${error?.message ?? ""}`;
         // exit 0 でも usage limit を stdout に出して終わることがある
@@ -272,18 +276,18 @@ function runCodexOnce(prompt: string, model: string): Promise<string> {
  * （config の gpt-5.6-sol は CLI v0.142 系で拒否されるため）。
  * それでもモデル非互換なら gpt-5.4 で1回リトライ。
  */
-async function runCodex(prompt: string): Promise<string> {
+async function runCodex(prompt: string, timeoutMs: number = TIMEOUT_MS): Promise<string> {
   const fallbackModel = "gpt-5.4";
   const preferred =
     process.env.HEADLESS_CODEX_MODEL?.trim() || fallbackModel;
   try {
-    return await runCodexOnce(prompt, preferred);
+    return await runCodexOnce(prompt, preferred, timeoutMs);
   } catch (e) {
     if (e instanceof CodexModelCompatError && preferred !== fallbackModel) {
       console.warn(
         `[headless-llm] codex モデル ${preferred} が CLI と非互換のため ${fallbackModel} で再試行`,
       );
-      return runCodexOnce(prompt, fallbackModel);
+      return runCodexOnce(prompt, fallbackModel, timeoutMs);
     }
     throw e;
   }
@@ -357,20 +361,23 @@ export function probeGradingCli(): {
 }
 
 /** プロバイダ選択つきのヘッドレス LLM 呼び出し */
-export async function runHeadlessLLM(prompt: string): Promise<string> {
+export async function runHeadlessLLM(
+  prompt: string,
+  timeoutMs: number = TIMEOUT_MS,
+): Promise<string> {
   const provider = (process.env.HEADLESS_LLM_PROVIDER ?? "auto").toLowerCase();
-  if (provider === "codex") return runCodex(prompt);
-  if (provider === "claude") return runClaude(prompt);
+  if (provider === "codex") return runCodex(prompt, timeoutMs);
+  if (provider === "claude") return runClaude(prompt, timeoutMs);
 
   try {
-    return await runClaude(prompt);
+    return await runClaude(prompt, timeoutMs);
   } catch (e) {
     if (e instanceof HeadlessLLMError && isFallbackable(e)) {
       console.warn(
         `[headless-llm] claude が使えないため codex にフォールバック: ${e.message}`
       );
       try {
-        return await runCodex(prompt);
+        return await runCodex(prompt, timeoutMs);
       } catch (e2) {
         if (e2 instanceof HeadlessLLMError) {
           throw new HeadlessLLMError(

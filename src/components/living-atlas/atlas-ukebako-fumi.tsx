@@ -220,6 +220,11 @@ export function AtlasUkebakoFumi({
                                 {f.place ? ` ・ ${f.place}` : ""}
                               </span>
                               <Pips value={f.pips} />
+                              {f.needsDecision ? (
+                                <span className="text-[#f0d25a]" title="ひらいて resolution を選べ">
+                                  にた ごかい あり
+                                </span>
+                              ) : null}
                               {pick ? (
                                 <span className="text-[#3ecf5a]">
                                   えらんだ: {ACTION_LABEL[pick]}

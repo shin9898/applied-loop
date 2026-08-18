@@ -3,6 +3,7 @@ import { AtlasPageTitle } from "./atlas-chrome";
 import { AtlasInboxTriage } from "./atlas-inbox-triage";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasShell } from "./atlas-shell";
+import type { InboxOverlapCandidate } from "./ukebako-view";
 
 export type AtlasInboxDetailProps = {
   capture: {
@@ -15,8 +16,15 @@ export type AtlasInboxDetailProps = {
     capturedAt: Date;
     importanceScore: number | null;
     triageReason: string | null;
+    overlapCandidates: InboxOverlapCandidate[];
   };
   wsToken: string | null;
+};
+
+const OVERLAP_RELATION_LABEL: Record<string, string> = {
+  duplicate: "おなじ ごかい",
+  refinement: "せいちみつか",
+  unrelated: "むかんけい",
 };
 
 /** /inbox/[id] — 受信箱の学び候補（読み取り＋単独完結じゅもんでの仕分け） */
@@ -65,6 +73,31 @@ export function AtlasInboxDetail({ capture, wsToken }: AtlasInboxDetailProps) {
             文脈: {capture.sourceContext}
           </p>
         ) : null}
+        {capture.overlapCandidates.length > 0 ? (
+          <div className="mt-4 border-4 border-white bg-[#001a8c] px-3 py-3 shadow-[4px_4px_0_#000]">
+            <p className="m-0 font-[family-name:var(--font-pixel)] text-[11px] text-[#f0d25a]">
+              にた ごかいが みつかった
+            </p>
+            <ul className="m-0 mt-2 list-none p-0">
+              {capture.overlapCandidates.map((c) => (
+                <li key={c.id} className="mt-2 first:mt-0">
+                  <p className="m-0 font-[family-name:var(--font-jp)] text-[14px] leading-relaxed text-[#f7f3d9]">
+                    「{c.concept}」
+                    <span className="ml-1 text-[11px] text-[#9ec0ff]">
+                      ({OVERLAP_RELATION_LABEL[c.relation] ?? c.relation})
+                    </span>
+                  </p>
+                  <p className="mt-1 mb-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+                    わけ: {c.reason}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 mb-0 text-[12px] leading-relaxed text-[#c9c3a0]">
+              じゅもんで「既存に紐付ける」か「新規作成する」かを選べ。ここは読み取り専用。
+            </p>
+          </div>
+        ) : null}
       </AtlasReveal>
 
       <AtlasReveal as="section" delayIndex={1} className="dq-win p-3.5">
@@ -77,6 +110,7 @@ export function AtlasInboxDetail({ capture, wsToken }: AtlasInboxDetailProps) {
             wsToken={wsToken}
             captureId={capture.id}
             captureTitle={capture.title}
+            overlapCandidates={capture.overlapCandidates}
           />
         </div>
         <p className="mt-3 mb-0 font-[family-name:var(--font-pixel)] text-[10px] text-[#c9c3a0]">
