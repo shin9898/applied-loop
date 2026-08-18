@@ -55,6 +55,7 @@ export function AtlasMicroDrill({
   const [allowSelf, setAllowSelf] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [gapNote, setGapNote] = useState("");
+  const [confirmSkip, setConfirmSkip] = useState(false);
 
   const current = aspects[index];
   const total = aspects.length;
@@ -228,20 +229,51 @@ export function AtlasMicroDrill({
           type="button"
           className="dq-btn dq-btn-ghost"
           disabled={busy}
-          onClick={() => {
-            if (
-              !window.confirm(
-                "ミニチェックを飛ばして本回答へ進む？ 通した文だけ下書きに残るぞ。",
-              )
-            ) {
-              return;
-            }
-            persistAndFinish(clearedItems, false);
-          }}
+          onClick={() => setConfirmSkip(true)}
         >
           飛ばして本回答へ
         </button>
       </div>
+
+      {confirmSkip ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#000814cc] p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="atlas-skip-confirm-title"
+        >
+          <div className="dq-win w-full max-w-md p-4 shadow-[8px_8px_0_#000]">
+            <p
+              id="atlas-skip-confirm-title"
+              className="m-0 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]"
+            >
+              ◆ たしかにござるか
+            </p>
+            <p className="mt-3 mb-0 text-[14px] leading-relaxed text-[#f7f3d9]">
+              ミニチェックを飛ばして本回答へ進む？ 通した文だけ下書きに残るぞ。
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                className="dq-btn dq-btn-ghost"
+                onClick={() => setConfirmSkip(false)}
+              >
+                もどる
+              </button>
+              <button
+                type="button"
+                className="dq-btn"
+                onClick={() => {
+                  setConfirmSkip(false);
+                  persistAndFinish(clearedItems, false);
+                }}
+              >
+                飛ばして進む
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {feedback ? (
         <div
