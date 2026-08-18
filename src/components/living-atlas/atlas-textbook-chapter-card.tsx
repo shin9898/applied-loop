@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { lessonsForDisplay } from "@/lib/daily-textbook-shared";
 
 /**
  * 日次(EvidenceLink: kind が commit|doc|file|other のリテラル union)と
@@ -58,6 +59,7 @@ export function AtlasTextbookChapterCard({
   active?: boolean;
   footer?: ReactNode;
 }) {
+  const displayLessons = lessonsForDisplay(lessons);
   return (
     <article
       id={`chapter-${index}`}
@@ -92,19 +94,28 @@ export function AtlasTextbookChapterCard({
           <div className="atlas-journal__deep-body">
             <pre className="atlas-journal__body">{body}</pre>
             <div className="mt-3 space-y-2">
-              <LessonBlock label="いま進めていた改修" text={lessons.work} />
+              <LessonBlock
+                label="いま進めていた改修"
+                text={displayLessons.work}
+              />
               <LessonBlock
                 label="ナレッジが溜まったタイミング"
-                text={lessons.timing}
+                text={displayLessons.timing}
               />
-              <LessonBlock label="とった対応" text={lessons.action} />
-              <LessonBlock label="その理由" text={lessons.why} />
-              <LessonBlock label="ベストプラクティス" text={lessons.practice} />
+              <LessonBlock label="とった対応" text={displayLessons.action} />
+              <LessonBlock label="その理由" text={displayLessons.why} />
+              <LessonBlock
+                label="ベストプラクティス"
+                text={displayLessons.practice}
+              />
               <LessonBlock
                 label="従うとどうなる"
-                text={lessons.consequence}
+                text={displayLessons.consequence}
               />
-              <LessonBlock label="やりがちな別案" text={lessons.alternative} />
+              <LessonBlock
+                label="やりがちな別案"
+                text={displayLessons.alternative}
+              />
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               <div className="atlas-journal__callout atlas-journal__callout--bad">

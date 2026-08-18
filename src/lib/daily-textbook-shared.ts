@@ -1105,8 +1105,25 @@ export function distillSingleCheck(
  */
 const SLOT_PREFIX_RE =
   /^(?:理由|対応|ベストプラクティス|従うと|やりがちな別案)[:：]\s*/;
-function stripSlotPrefix(text: string): string {
+export function stripSlotPrefix(text: string): string {
   return text.replace(SLOT_PREFIX_RE, "");
+}
+
+/**
+ * atlas-textbook-chapter-card.tsx の LessonBlock 表示用。work/timing は
+ * 見出しを自前で持たないため対象外、action/why/practice/consequence/
+ * alternative の5スロットのみ stripSlotPrefix を適用する。
+ */
+export function lessonsForDisplay(lessons: LessonSlots): LessonSlots {
+  return {
+    work: lessons.work,
+    timing: lessons.timing,
+    action: stripSlotPrefix(lessons.action),
+    why: stripSlotPrefix(lessons.why),
+    practice: stripSlotPrefix(lessons.practice),
+    consequence: stripSlotPrefix(lessons.consequence),
+    alternative: stripSlotPrefix(lessons.alternative),
+  };
 }
 
 /** 章あたりスロット連動問い＋横断。合計は 3〜7。 */

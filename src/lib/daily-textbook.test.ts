@@ -17,10 +17,12 @@ import {
   groupMaterialsIntoBandDrafts,
   JUMON_CONTEXT_MAX_CHARS,
   COMPILED_INDEX_BASE,
+  lessonsForDisplay,
   nextCompiledIndex,
   normalizeOneLinerForDisplay,
   parseLessonSlots,
   pickHeadlineSummary,
+  stripSlotPrefix,
   TEXTBOOK_MAX_CHAPTERS,
   type ChapterDraft,
   type MaterialRow,
@@ -641,6 +643,76 @@ describe("buildJumonContext", () => {
     assert.ok(!/対応:\s*対応:/.test(ctx), ctx);
     assert.ok(!/理由:\s*理由:/.test(ctx), ctx);
     assert.ok(!/型:\s*ベストプラクティス:/.test(ctx), ctx);
+  });
+});
+
+describe("stripSlotPrefix", () => {
+  it("removes known slot-label prefixes", () => {
+    assert.equal(stripSlotPrefix("対応: テスト対応"), "テスト対応");
+    assert.equal(stripSlotPrefix("理由: なぜなら"), "なぜなら");
+    assert.equal(stripSlotPrefix("ベストプラクティス: 型"), "型");
+    assert.equal(stripSlotPrefix("従うと: 結果"), "結果");
+    assert.equal(stripSlotPrefix("やりがちな別案: 案"), "案");
+  });
+
+  it("returns text unchanged when no known prefix is present", () => {
+    assert.equal(
+      stripSlotPrefix("接頭辞なしのテキスト"),
+      "接頭辞なしのテキスト",
+    );
+  });
+});
+
+describe("lessonsForDisplay", () => {
+  it("strips slot-label prefixes from action/why/practice/consequence/alternative only", () => {
+    const result = lessonsForDisplay({
+      work: "改修の説明",
+      timing: "タイミング",
+      action: "対応: とった対応",
+      why: "理由: 理由文",
+      practice: "ベストプラクティス: 型",
+      consequence: "従うと: 結果",
+      alternative: "やりがちな別案: 別案",
+    });
+    assert.equal(result.work, "改修の説明");
+    assert.equal(result.timing, "タイミング");
+    assert.equal(result.action, "とった対応");
+    assert.equal(result.why, "理由文");
+    assert.equal(result.practice, "型");
+    assert.equal(result.consequence, "結果");
+    assert.equal(result.alternative, "別案");
+  });
+
+  // atlas-textbook-chapter-card.tsx の LessonBlock はラベルを JSX 側
+  // (<LessonBlock label="とった対応">) に持つため、文字列内で二重化する
+  // buildJumonContext とは違い「理由: 理由:」のような文字列は生じない。
+  // ここで見るべきは「接頭辞が残っていないこと」そのもの。生成側が接頭辞を
+  // 出し続けていることも合わせて固定し、SLOT_PREFIX_RE とのズレを検知する
+  // (opusレビュー指摘: 旧アサーションは lessonsForDisplay が no-op でも
+  // 通ってしまう空振りテストだった)
+  it("does not leave slot-label prefixes when built from real generated chapters", () => {
+    const { chapters } = clusterMaterialsIntoChapters([
+      mat({ id: "1", repo: "a/a", summary: "fix(filter): announce counts" }),
+    ]);
+    const ch = chapters[0]!;
+    assert.ok(ch.action.startsWith("対応:"), ch.action);
+    assert.ok(ch.why.startsWith("理由:"), ch.why);
+    assert.ok(ch.practice.startsWith("ベストプラクティス:"), ch.practice);
+    assert.ok(ch.consequence.startsWith("従うと:"), ch.consequence);
+    assert.ok(ch.alternative.startsWith("やりがちな別案:"), ch.alternative);
+
+    const result = lessonsForDisplay(ch);
+    assert.ok(!result.action.startsWith("対応:"), result.action);
+    assert.ok(!result.why.startsWith("理由:"), result.why);
+    assert.ok(!result.practice.startsWith("ベストプラクティス:"), result.practice);
+    assert.ok(
+      !result.consequence.startsWith("従うと:"),
+      result.consequence,
+    );
+    assert.ok(
+      !result.alternative.startsWith("やりがちな別案:"),
+      result.alternative,
+    );
   });
 });
 
