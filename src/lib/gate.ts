@@ -937,8 +937,11 @@ async function onGateFailed(
   // ユーザーが accept して初めて Misconception として確定する (プライバシー条件)
   for (const concept of misconceptions.map((c) => c.trim()).filter(Boolean).slice(0, 3)) {
     const dedupeKey = concept.toLowerCase().replace(/\s+/g, " ");
+    // pending だけでなく accepted も見る（harness-patterns.ts:285 と同じ判定）。
+    // pending のみだと、一度 accept 済み（Misconception 確定済み）の概念が
+    // 再度失敗検出されたときに重複 Capture を作ってしまう
     const existing = await prisma.capture.findFirst({
-      where: { dedupeKey, status: "pending" },
+      where: { dedupeKey, status: { in: ["pending", "accepted"] } },
     });
     if (existing) continue;
     await prisma.capture.create({
