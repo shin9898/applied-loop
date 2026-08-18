@@ -108,8 +108,12 @@ const handler = createMcpHandler(
           return { ...text("title が空です。"), isError: true };
         }
         const dedupeKey = trimmed.toLowerCase().replace(/\s+/g, " ");
+        // pending だけでなく accepted も見る（gate.ts の onGateFailed・
+        // harness-patterns.ts:285 と同じ判定）。pending のみだと、一度
+        // accept 済み（Misconception 確定済み）の概念が再度学びとして
+        // 検出されたときに重複 Capture を作ってしまう
         const existing = await prisma.capture.findFirst({
-          where: { dedupeKey, status: "pending" },
+          where: { dedupeKey, status: { in: ["pending", "accepted"] } },
         });
         if (existing) {
           return text(
