@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { AtlasPageTitle } from "./atlas-chrome";
+import { AtlasTextbookChapterCard } from "./atlas-textbook-chapter-card";
 import {
+  bodyForDisplay,
+  chapterDidSummary,
   MASTERY_STATES,
-  normalizeOneLinerForDisplay,
 } from "@/lib/daily-textbook-shared";
 import { setWeeklyCheckMasteryAction } from "@/lib/actions";
 import type { WeeklyTextbookView } from "@/lib/weekly-textbook";
+import { weeklyChapterLessons } from "@/lib/weekly-textbook-shared";
 
 export function AtlasWeeklyTextbook({
   textbook,
@@ -21,11 +24,6 @@ export function AtlasWeeklyTextbook({
 }) {
   const [pending, startTransition] = useTransition();
   const [localMastery, setLocalMastery] = useState<Record<string, string>>({});
-  const [activeChapterId, setActiveChapterId] = useState<string | null>(
-    textbook.chapters[0]?.id ?? null,
-  );
-  const activeChapter =
-    textbook.chapters.find((c) => c.id === activeChapterId) ?? null;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6 pb-28">
@@ -66,38 +64,29 @@ export function AtlasWeeklyTextbook({
             </p>
           ) : (
             <>
-              <div className="flex flex-wrap gap-1.5">
-                {textbook.chapters.map((ch) => (
-                  <button
-                    key={ch.id}
-                    type="button"
-                    className={`dq-btn !px-2 !py-1.5 text-[7px] ${
-                      ch.id === activeChapterId ? "" : "dq-btn-ghost"
-                    }`}
-                    aria-pressed={ch.id === activeChapterId}
-                    onClick={() => setActiveChapterId(ch.id)}
-                  >
-                    第{ch.index}章
-                  </button>
-                ))}
+              <div className="space-y-4">
+                {textbook.chapters.map((ch) => {
+                  const lessons = weeklyChapterLessons(ch.bodyDeep);
+                  return (
+                    <AtlasTextbookChapterCard
+                      key={ch.id}
+                      index={ch.index}
+                      title={ch.title}
+                      didSummary={chapterDidSummary({
+                        oneLiner: ch.oneLiner,
+                        action: lessons.action,
+                      })}
+                      materialCount={ch.materialIds.length}
+                      evidenceCount={ch.evidence.length}
+                      body={bodyForDisplay(ch.bodyPlain)}
+                      lessons={lessons}
+                      diagramBad={lessons.diagramBad}
+                      diagramOk={lessons.diagramOk}
+                      evidence={ch.evidence}
+                    />
+                  );
+                })}
               </div>
-
-              {activeChapter ? (
-                <div className="border-t-2 border-[#245a40]/40 pt-3 space-y-2">
-                  <p className="atlas-journal__chapter-no">
-                    第{activeChapter.index}章
-                  </p>
-                  <h3 className="atlas-journal__heading">
-                    {activeChapter.title}
-                  </h3>
-                  <p className="atlas-journal__lead">
-                    {normalizeOneLinerForDisplay(activeChapter.oneLiner)}
-                  </p>
-                  <p className="atlas-journal__note whitespace-pre-wrap">
-                    {activeChapter.bodyPlain}
-                  </p>
-                </div>
-              ) : null}
 
               {textbook.checks.length > 0 ? (
                 <div className="space-y-3">

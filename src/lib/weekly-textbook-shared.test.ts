@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { encodeLessonMarkers } from "./daily-textbook-shared";
 import {
   buildWeeklyLead,
   buildWeeklyTitle,
   lastCompletedWeekRangeJST,
   recentCompletedWeekRanges,
+  weeklyChapterLessons,
 } from "./weekly-textbook-shared";
 
 describe("lastCompletedWeekRangeJST", () => {
@@ -53,5 +55,44 @@ describe("buildWeeklyTitle / buildWeeklyLead", () => {
       buildWeeklyLead(0, 0, 0),
       "その週、まだ拾えていない材料はなかった。",
     );
+  });
+});
+
+describe("weeklyChapterLessons", () => {
+  it("bodyDeepのマーカーからLessonSlotsとBAD/OKを取り出す", () => {
+    const bodyDeep = [
+      "本文",
+      "",
+      encodeLessonMarkers({
+        work: "改修A",
+        timing: "夜9時台",
+        action: "対応A",
+        why: "理由A",
+        practice: "型A",
+        consequence: "結果A",
+        alternative: "別案A",
+        diagramBad: "BADな例",
+        diagramOk: "OKな例",
+      }),
+    ].join("\n");
+
+    const lessons = weeklyChapterLessons(bodyDeep);
+
+    assert.equal(lessons.work, "改修A");
+    assert.equal(lessons.timing, "夜9時台");
+    assert.equal(lessons.action, "対応A");
+    assert.equal(lessons.why, "理由A");
+    assert.equal(lessons.practice, "型A");
+    assert.equal(lessons.consequence, "結果A");
+    assert.equal(lessons.alternative, "別案A");
+    assert.equal(lessons.diagramBad, "BADな例");
+    assert.equal(lessons.diagramOk, "OKな例");
+  });
+
+  it("bodyDeepがnullなら全スロットが空文字になる（nullではなく表示安全な文字列）", () => {
+    const lessons = weeklyChapterLessons(null);
+    assert.equal(lessons.work, "");
+    assert.equal(lessons.diagramBad, "");
+    assert.equal(lessons.diagramOk, "");
   });
 });

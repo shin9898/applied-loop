@@ -3,6 +3,7 @@
  */
 
 import { weekRangeJST, weekStartJST } from "@/lib/date";
+import { parseLessonSlots, type LessonSlots } from "@/lib/daily-textbook-shared";
 
 const DAY_MS = 86400000;
 
@@ -46,4 +47,23 @@ export function buildWeeklyLead(
     return "その週、まだ拾えていない材料はなかった。";
   }
   return `その週にまだ拾えていなかった材料 ${materialCount} 件のうち、${keptCount} 件を ${chapterCount} 章にまとめた。`;
+}
+
+/**
+ * 週のしょチャプターは work/timing/... を列に持たず、bodyDeep に
+ * [[WORK]]... マーカーで埋め込まれている（weekly-textbook.ts の
+ * generateWeeklyTextbook は daily-textbook-shared の ChapterDraft をそのまま
+ * bodyPlain/bodyDeep だけ永続化するため）。表示用に安全な文字列へ展開する
+ * （parseLessonSlots の diagramBad/diagramOk は null を返しうるが、表示側で
+ * null 分岐を持たせたくないので空文字に倒す）。
+ */
+export function weeklyChapterLessons(
+  bodyDeep: string | null,
+): LessonSlots & { diagramBad: string; diagramOk: string } {
+  const slots = parseLessonSlots(bodyDeep);
+  return {
+    ...slots,
+    diagramBad: slots.diagramBad ?? "",
+    diagramOk: slots.diagramOk ?? "",
+  };
 }

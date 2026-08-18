@@ -9,6 +9,7 @@ import {
 } from "@/components/living-atlas/atlas-assist";
 import { AtlasPageTitle } from "@/components/living-atlas/atlas-chrome";
 import { AtlasSessionDigestDoor } from "@/components/living-atlas/atlas-session-digest";
+import { AtlasTextbookChapterCard } from "@/components/living-atlas/atlas-textbook-chapter-card";
 import {
   bodyForDisplay,
   buildJumonContext,
@@ -263,107 +264,31 @@ export function AtlasDailyTextbook({
               depth === "deep" && ch.bodyDeep ? ch.bodyDeep : ch.bodyPlain,
             );
             return (
-              <article
+              <AtlasTextbookChapterCard
                 key={ch.id}
-                id={`chapter-${ch.index}`}
-                className={`atlas-journal atlas-journal--chapter ${
-                  active ? "is-active" : ""
-                }`}
-              >
-                <div className="atlas-journal__page">
-                <p className="atlas-journal__chapter-no">
-                  第{ch.index}章
-                </p>
-                {/* 章の先頭 = タイトル＋やったこと要約。ここだけで何の話か分かる */}
-                <div className="atlas-journal__summary">
-                  <h3 className="atlas-journal__chapter-title">
-                    {ch.title}
-                  </h3>
-                  <p className="atlas-journal__summary-did">
-                    {chapterDidSummary({
-                      oneLiner: ch.oneLiner,
-                      action: ch.action,
-                    })}
-                  </p>
-                  <div className="atlas-journal__facts">
-                    <span className="atlas-journal__fact">
-                      材料{" "}
-                      <span className="atlas-journal__fact-v">
-                        {ch.materialIds.length}
-                      </span>
-                    </span>
-                    <span className="atlas-journal__fact">
-                      一次情報{" "}
-                      <span className="atlas-journal__fact-v">
-                        {ch.evidence.length}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* 構造化スロットは折りたたみ。読むのは要約 → 必要なら開く */}
-                <details className="atlas-journal__deep">
-                  <summary className="atlas-journal__deep-summary">
-                    くわしく読む（なぜ・型・別案）
-                    <span className="atlas-journal__deep-hint">
-                      7スロット + BAD/OK
-                    </span>
-                  </summary>
-                  <div className="atlas-journal__deep-body">
-                <pre className="atlas-journal__body">
-                  {body}
-                </pre>
-                <div className="mt-3 space-y-2">
-                  <LessonBlock label="いま進めていた改修" text={ch.work} />
-                  <LessonBlock
-                    label="ナレッジが溜まったタイミング"
-                    text={ch.timing}
-                  />
-                  <LessonBlock label="とった対応" text={ch.action} />
-                  <LessonBlock label="その理由" text={ch.why} />
-                  <LessonBlock label="ベストプラクティス" text={ch.practice} />
-                  <LessonBlock label="従うとどうなる" text={ch.consequence} />
-                  <LessonBlock label="やりがちな別案" text={ch.alternative} />
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <div className="atlas-journal__callout atlas-journal__callout--bad">
-                    <p className="atlas-journal__callout-label">BAD</p>
-                    <p className="atlas-journal__callout-body">
-                      {ch.diagramBad}
-                    </p>
-                  </div>
-                  <div className="atlas-journal__callout atlas-journal__callout--ok">
-                    <p className="atlas-journal__callout-label">OK</p>
-                    <p className="atlas-journal__callout-body">
-                      {ch.diagramOk}
-                    </p>
-                  </div>
-                </div>
-                {ch.evidence.length > 0 ? (
-                  <ul className="mt-3 mb-0 flex list-none flex-wrap gap-2 p-0">
-                    {ch.evidence.map((e, i) => (
-                      <li key={`${e.label}-${i}`}>
-                        {e.url ? (
-                          <a
-                            href={e.url}
-                            className="atlas-journal__chip"
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {e.kind.toUpperCase()} · {e.label}
-                          </a>
-                        ) : (
-                          <span className="atlas-journal__chip is-muted">
-                            {e.kind.toUpperCase()} · {e.label}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                  </div>
-                </details>
-                <div className="atlas-journal__footer-actions">
+                index={ch.index}
+                title={ch.title}
+                didSummary={chapterDidSummary({
+                  oneLiner: ch.oneLiner,
+                  action: ch.action,
+                })}
+                materialCount={ch.materialIds.length}
+                evidenceCount={ch.evidence.length}
+                body={body}
+                lessons={{
+                  work: ch.work,
+                  timing: ch.timing,
+                  action: ch.action,
+                  why: ch.why,
+                  practice: ch.practice,
+                  consequence: ch.consequence,
+                  alternative: ch.alternative,
+                }}
+                diagramBad={ch.diagramBad}
+                diagramOk={ch.diagramOk}
+                evidence={ch.evidence}
+                active={active}
+                footer={
                   <div className="flex flex-wrap gap-2">
                     {wsToken ? (
                       <button
@@ -411,9 +336,8 @@ export function AtlasDailyTextbook({
                         : "この章をLLMで磨く"}
                     </button>
                   </div>
-                </div>
-                </div>
-              </article>
+                }
+              />
             );
           })}
           {polishError ? (
@@ -526,15 +450,6 @@ export function AtlasDailyTextbook({
         </section>
       )}
     </main>
-  );
-}
-
-function LessonBlock({ label, text }: { label: string; text: string }) {
-  return (
-    <div className="atlas-journal__lesson">
-      <p className="atlas-journal__lesson-label">{label}</p>
-      <p className="atlas-journal__lesson-body">{text}</p>
-    </div>
   );
 }
 
