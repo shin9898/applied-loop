@@ -67,3 +67,6 @@ docs/digest/weekly/*.mp3
 
 # superpowers scratch (brainstorm visual companion, SDD workspace)
 /.superpowers/
+
+# session handoff scratch (not version-controlled, pathspec-limited commits only)
+/.claude/progress/
