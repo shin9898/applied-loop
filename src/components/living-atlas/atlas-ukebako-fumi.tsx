@@ -4,25 +4,13 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { UkeSprite } from "./atlas-ukebako-sprites";
-import { groupFumi, type FumiView } from "./ukebako-view";
-
-/** triage_inbox が受けるのは accept / skip の 2 つだけ（MCP の実装に合わせる） */
-export type FumiAction = "accept" | "skip";
-
-const COMMANDS: {
-  action: FumiAction;
-  key: string;
-  desc: string;
-  drop?: boolean;
-}[] = [
-  { action: "accept", key: "さいよう", desc: "くらに おさめる（まなびになる）" },
-  { action: "skip", key: "みおくり", desc: "この たねは そだてない", drop: true },
-];
-
-const ACTION_LABEL: Record<FumiAction, string> = {
-  accept: "さいよう",
-  skip: "みおくり",
-};
+import {
+  ACTION_LABEL,
+  COMMANDS,
+  groupFumi,
+  type FumiAction,
+  type FumiView,
+} from "./ukebako-view";
 
 const TIER_CLASS: Record<FumiView["tier"], string> = {
   stale: "uke-fumi--urgent",

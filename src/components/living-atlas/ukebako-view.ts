@@ -195,3 +195,42 @@ export function groupFumi(
     }))
     .filter((g) => g.items.length > 0);
 }
+
+/** triage_inbox が受けるのは accept / skip の 2 つだけ（MCP の実装に合わせる） */
+export type FumiAction = "accept" | "skip";
+
+export const COMMANDS: {
+  action: FumiAction;
+  key: string;
+  desc: string;
+  drop?: boolean;
+}[] = [
+  { action: "accept", key: "さいよう", desc: "くらに おさめる（まなびになる）" },
+  { action: "skip", key: "みおくり", desc: "この たねは そだてない", drop: true },
+];
+
+export const ACTION_LABEL: Record<FumiAction, string> = {
+  accept: "さいよう",
+  skip: "みおくり",
+};
+
+/**
+ * ふみ 1 通ぶんの、じゅもんへ渡す context 文字列（/inbox/[id] の単独完結じゅもん用）。
+ * 一覧（AtlasUkebakoFumi）の assistContext と同じ「選んだ結果を復唱して確認を取れ」語彙に揃える。
+ */
+export function buildInboxTriageContext(
+  captureId: string,
+  captureTitle: string,
+  pick: FumiAction | null,
+): string {
+  const lines = [`captureId: ${captureId}`, `title: 「${captureTitle}」`, ""];
+  if (pick) {
+    lines.push(
+      "ユーザーが画面で えらんだ しわけ（この通りに triage_inbox を呼べ。実行前に確認を取れ）:",
+      `- triage_inbox(captureId: "${captureId}", action: "${pick}") … ${ACTION_LABEL[pick]}`,
+    );
+  } else {
+    lines.push("まだ えらばれておらぬ。中身を確認し、accept / skip を提案せよ。");
+  }
+  return lines.join("\n");
+}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AtlasPageTitle } from "./atlas-chrome";
+import { AtlasInboxTriage } from "./atlas-inbox-triage";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasShell } from "./atlas-shell";
 
@@ -15,10 +16,11 @@ export type AtlasInboxDetailProps = {
     importanceScore: number | null;
     triageReason: string | null;
   };
+  wsToken: string | null;
 };
 
-/** /inbox/[id] — 受信箱の学び候補（読み取り。仕分けは MCP triage_inbox） */
-export function AtlasInboxDetail({ capture }: AtlasInboxDetailProps) {
+/** /inbox/[id] — 受信箱の学び候補（読み取り＋単独完結じゅもんでの仕分け） */
+export function AtlasInboxDetail({ capture, wsToken }: AtlasInboxDetailProps) {
   const date = capture.capturedAt.toISOString().slice(0, 10);
   return (
     <AtlasShell>
@@ -68,10 +70,15 @@ export function AtlasInboxDetail({ capture }: AtlasInboxDetailProps) {
       <AtlasReveal as="section" delayIndex={1} className="dq-win p-3.5">
         <h2 className="dq-win-title">どうする</h2>
         <p className="m-0 text-[14px] leading-relaxed text-[#c9c3a0]">
-          受け入れる／見送るはアプリ内ボタンではなく、MCP の{" "}
-          <span className="text-[#f0d25a]">triage_inbox</span>（accept / skip）で行うのじゃ。
-          確定すると うけばこの「くら」へ移る。
+          受け入れる／見送るを えらび、じゅもんで確定させよ。確定すると うけばこの「くら」へ移る。
         </p>
+        <div className="mt-3">
+          <AtlasInboxTriage
+            wsToken={wsToken}
+            captureId={capture.id}
+            captureTitle={capture.title}
+          />
+        </div>
         <p className="mt-3 mb-0 font-[family-name:var(--font-pixel)] text-[10px] text-[#c9c3a0]">
           id: {capture.id}
         </p>
