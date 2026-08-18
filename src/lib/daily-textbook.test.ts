@@ -701,6 +701,369 @@ describe("dayDigest", () => {
       assert.ok(!out.includes("「late」では対応した。"));
     });
   });
+
+  describe("chapter texture — revisit vs. plain mend (Fable stage-2 design, 2026-08-18)", () => {
+    it("does not claim a revisit for distinct same-scope fixes (real false-positive avoided this session)", () => {
+      // 実例: 4件とも別々の問題点への対応であり、同じ箇所への立ち返りではない
+      // （Fable設計相談で実データ検証済み: bigram類似クラスタ=2、閾値3未満）
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner:
+            "hermesのほころびを直した。「jira_dedup関連の不要な許可パターンを削除する」",
+          summaries: [
+            "fix(hermes): cron-thread-followupのtype:task節に--complete実行の必須化を明記する",
+            "fix(hermes): cron-thread-followupのtype:task節にkanban混同への注意を追加する",
+            "fix(hermes): cronスレッドのメンションゲート抜けをpatchに反映する",
+            "fix(hermes): jira_dedup関連の不要な許可パターンを削除する",
+          ],
+        },
+        { title: "infra", oneLiner: "infraの説明を書いた。" },
+      ]);
+      assert.ok(!out.includes("立ち返った"), out);
+      assert.ok(!out.includes("苦戦"), out);
+      assert.ok(out.includes("こまかな繕いの積み重ねである。"), out);
+    });
+
+    it("claims a revisit when the description repeats near-identically 3+ times", () => {
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "対応した。",
+          summaries: [
+            "fix(hermes): 認証トークンの検証ロジックを直す",
+            "fix(hermes): 認証トークンの検証ロジックをさらに直す",
+            "fix(hermes): 認証トークンの検証ロジックを再び直す",
+          ],
+        },
+        { title: "infra", oneLiner: "infraの説明を書いた。" },
+      ]);
+      assert.match(
+        out,
+        /それも一度きりではない。同じところへ、みたび立ち返った形跡がある。/,
+      );
+    });
+
+    it("dedupes identical (redelivered) commit summaries before counting a revisit", () => {
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "対応した。",
+          summaries: [
+            "fix(hermes): 認証トークンの検証ロジックを直す",
+            "fix(hermes): 認証トークンの検証ロジックを直す",
+            "fix(hermes): 認証トークンの検証ロジックを直す",
+          ],
+        },
+        { title: "infra", oneLiner: "infraの説明を書いた。" },
+      ]);
+      assert.ok(!out.includes("立ち返った"), out);
+    });
+
+    it("does not claim a revisit for distinct post-merge cleanups sharing a PR number and merge boilerplate (opus real-data class, 2026-08-18)", () => {
+      // #521・after main mergeという定型的な文脈共有だけでraw Diceが閾値を
+      // 超えていた（opusレビュー実データ検証）。正規化で文脈マーカーを
+      // 削ってから測ることで、残る作業内容の差が閾値を割る
+      const out = dayDigest([
+        {
+          title: "frontend",
+          oneLiner: "対応した。",
+          summaries: [
+            "fix(frontend): align #521 tests with designer UI after main merge",
+            "fix(frontend): clear lint blockers after #521 main merge",
+            "fix(frontend): update snapshots after #521 main merge",
+          ],
+        },
+        { title: "infra", oneLiner: "infraの説明を書いた。" },
+      ]);
+      assert.ok(!out.includes("立ち返った"), out);
+      assert.ok(out.includes("こまかな繕いの積み重ねである。"), out);
+    });
+
+    it("does not claim a revisit for a similarity chain whose endpoints are far apart (clique requirement, 2026-08-18)", () => {
+      // A~B と B~C は閾値超えだが A~C は届かない — 鎖なら3連結、クリークなら2止まり
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "対応した。",
+          summaries: [
+            "fix(hermes): 認証トークンの検証を直す",
+            "fix(hermes): 認証トークンの検証ロジックの分岐を直す",
+            "fix(hermes): 検証ロジックの分岐の順序を直す",
+          ],
+        },
+        { title: "infra", oneLiner: "infraの説明を書いた。" },
+      ]);
+      assert.ok(!out.includes("立ち返った"), out);
+    });
+
+    it("does not inflate a revisit cluster with a reword/amend re-delivery close in time (opus round-2 real-data finding, 2026-08-19)", () => {
+      // 実DBに実在: 同一repo・14秒差・別SHAのreword再配信（f2ed27d/4fe1ea0）が
+      // 完全一致dedupeをすり抜けてクリークを水増ししていた。真の立ち返りは
+      // close→harden の2回のみだが、hardenの言い換え再配信が3件目に見えて
+      // しまう。訪れ（時間的に近い＋類似）を1ノードへ畳むことで正しく2に戻る
+      const t0 = 1755500000000;
+      const out = dayDigest([
+        {
+          title: "infra",
+          oneLiner: "対応した。",
+          summaries: [
+            "fix(infra): close renewal cutover activation gates",
+            "fix(infra): harden renewal cutover activation gates",
+            "fix(infra): harden the renewal cutover activation gates",
+          ],
+          summaryTimes: [t0, t0 + 15 * 60_000, t0 + 15 * 60_000 + 14_000],
+        },
+        { title: "other", oneLiner: "対応した。" },
+      ]);
+      assert.ok(!out.includes("立ち返った"), out);
+      assert.ok(out.includes("こまかな繕いの積み重ねである。"), out);
+    });
+
+    it("does not claim a revisit for a Japanese review-response split sharing only a review boilerplate stem (opus round-2 probe, 2026-08-19)", () => {
+      const out = dayDigest([
+        {
+          title: "app",
+          oneLiner: "対応した。",
+          summaries: [
+            "fix(app): レビュー指摘を反映する(ログ欠落)",
+            "fix(app): レビュー指摘を反映する(型注釈)",
+            "fix(app): レビュー指摘を反映する(命名)",
+          ],
+        },
+        { title: "other", oneLiner: "対応した。" },
+      ]);
+      assert.ok(!out.includes("立ち返った"), out);
+    });
+
+    it("does not claim a revisit for a split commit whose only difference is inside parentheses (paren rule, 2026-08-19)", () => {
+      const out = dayDigest([
+        {
+          title: "notify",
+          oneLiner: "対応した。",
+          summaries: [
+            "fix(notify): 通知バッチの再送処理を安定化させる(A側)",
+            "fix(notify): 通知バッチの再送処理を安定化させる(B側)",
+            "fix(notify): 通知バッチの再送処理を安定化させる(C側)",
+          ],
+        },
+        { title: "other", oneLiner: "対応した。" },
+      ]);
+      assert.ok(!out.includes("立ち返った"), out);
+    });
+  });
+
+  describe("chapter/day folding — minor chapters (Fable stage-2 design, 2026-08-18)", () => {
+    it("folds 2+ minor chapters (<=2 materials) into one sentence, quoting their oneLiner", () => {
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "hermesのほころびを直した。「cronのリトライを追加」",
+          materialCount: 6,
+        },
+        {
+          title: "docs-a",
+          oneLiner: "docs-aの説明を書いた。「READMEを更新」",
+          materialCount: 1,
+        },
+        {
+          title: "docs-b",
+          oneLiner: "docs-bの説明を書いた。「CHANGELOGを追記」",
+          materialCount: 2,
+        },
+      ]);
+      assert.match(
+        out,
+        /ほかに「docs-a」の「READMEを更新」、「docs-b」の「CHANGELOGを追記」も、それぞれ進めておいた。/,
+      );
+      assert.ok(!out.includes("「docs-a」では"), out);
+    });
+
+    it("does not fold when fewer than 3 chapters", () => {
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "hermesのほころびを直した。「cronのリトライを追加」",
+          materialCount: 6,
+        },
+        {
+          title: "docs-a",
+          oneLiner: "READMEを更新した。「起動手順を追記」",
+          materialCount: 1,
+        },
+      ]);
+      assert.ok(!out.includes("ほかに"), out);
+      assert.match(out, /「docs-a」では、READMEを更新した。/);
+    });
+
+    it("excludes a chapter with an ambiguous (2+) quoted spans from folding; other minor chapters still fold together", () => {
+      // polish後のoneLinerはLLM出力に丸ごと差し替わるため「」が2組ある行が
+      // 生成されうる（opusレビュー実機確認: 貪欲マッチが地の文まで飲み込み
+      // 括弧の対応が壊れた文になっていた、2026-08-18）
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "hermesのほころびを直した。「cronのリトライを追加」",
+          materialCount: 6,
+        },
+        {
+          title: "docs-a",
+          oneLiner: "「READMEを更新」を書き、「起動手順」も足した。",
+          materialCount: 1,
+        },
+        {
+          title: "docs-b",
+          oneLiner: "docs-bの説明を書いた。「CHANGELOGを追記」",
+          materialCount: 2,
+        },
+        {
+          title: "docs-c",
+          oneLiner: "docs-cの説明を書いた。「LICENSEを追加」",
+          materialCount: 1,
+        },
+      ]);
+      assert.match(
+        out,
+        /「docs-a」では、「READMEを更新」を書き、「起動手順」も足した。/,
+      );
+      assert.match(
+        out,
+        /ほかに「docs-b」の「CHANGELOGを追記」、「docs-c」の「LICENSEを追加」も、それぞれ進めておいた。/,
+      );
+    });
+
+    it("names only the repo part when a legacy 'repo / theme' fold title stutters with the quote (opus review, 2026-08-18)", () => {
+      // 旧形式title（repo / テーマ切り詰め）はテーマ部と引用が同じコミット
+      // 文言に由来し「『my-copy / restore strict preflight for』の
+      // 『restore strict preflight for goal OS』」のような吃音になっていた
+      // （opus実データ確認）。テーマ部と引用の先頭が十分重なる時はrepo部に
+      // 落とす（startsWithでなく共通接頭辞なのは、末尾の付加マーカーで
+      // 尾が食い違っても由来の同一性は変わらないため）
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "hermesのほころびを直した。「cronのリトライを追加」",
+          materialCount: 6,
+        },
+        {
+          title: "my-copy / restore strict preflight for",
+          oneLiner: "「restore strict preflight for goal OS」に取り組んだ。",
+          materialCount: 1,
+        },
+        {
+          title: "docs-b",
+          oneLiner: "docs-bの説明を書いた。「CHANGELOGを追記」",
+          materialCount: 2,
+        },
+      ]);
+      assert.match(out, /「my-copy」の「restore strict preflight for goal OS」/);
+      assert.ok(!out.includes("「my-copy / restore strict preflight for」"), out);
+    });
+
+    it("consolidates consecutive folded entries that share the same shortened label (opus round-2 real-data finding, 2026-08-19)", () => {
+      // foldTitleForがrepo部へ落とすと、同じrepoの章が2つ畳まれた日に
+      // 「「my-copy」の「A」、「my-copy」の「B」」とラベルが連呼される
+      // （opus実データ確認: 2026-08-11）。連続する同一ラベルは1回にまとめる
+      const out = dayDigest([
+        {
+          title: "hermes",
+          oneLiner: "hermesのほころびを直した。「cronのリトライを追加」",
+          materialCount: 6,
+        },
+        {
+          title: "my-copy / pm-learn 読書セッションにレビューを追加",
+          oneLiner: "「pm-learn 読書セッションにレビューを追加する」に取り組んだ。",
+          materialCount: 1,
+        },
+        {
+          title: "my-copy / pm-learn 読書セッションにレビューを追加2",
+          oneLiner:
+            "「pm-learn 読書セッションにレビューを追加する（章2）」に取り組んだ。",
+          materialCount: 2,
+        },
+      ]);
+      assert.match(
+        out,
+        /ほかに「my-copy」の「pm-learn 読書セッションにレビューを追加する」と「pm-learn 読書セッションにレビューを追加する（章2）」も、それぞれ進めておいた。/,
+      );
+      assert.ok(
+        !out.includes(
+          "「my-copy」の「pm-learn 読書セッションにレビューを追加する」、「my-copy」の",
+        ),
+        out,
+      );
+    });
+  });
+
+  describe("closings — priority order (Fable stage-2 design, 2026-08-18)", () => {
+    it("prefers the 'too much to write' closing over the night closing when both apply", () => {
+      const out = dayDigest(
+        [{ title: "hermes", oneLiner: "対応した。", materialCount: 8 }],
+        { hours: [10, 23], totalMaterialCount: 60 },
+      );
+      assert.match(out, /足あとは全部で60件。とてもぜんぶは書ききれぬ。/);
+      assert.ok(!out.includes("夜ふけまで手を動かした"), out);
+    });
+
+    it("fires at exactly two-thirds dropped (inclusive boundary by design, 2026-08-18)", () => {
+      // kept=25, total=75 → dropped=50 = ちょうど2/3
+      const out = dayDigest(
+        [{ title: "hermes", oneLiner: "対応した。", materialCount: 25 }],
+        { hours: [10, 15], totalMaterialCount: 75 },
+      );
+      assert.match(out, /足あとは全部で75件/);
+    });
+
+    it("stays silent just under two-thirds dropped", () => {
+      const out = dayDigest(
+        [{ title: "hermes", oneLiner: "対応した。", materialCount: 26 }],
+        { hours: [10, 15], totalMaterialCount: 75 },
+      );
+      assert.ok(!out.includes("書ききれぬ"), out);
+    });
+
+    it("stays silent below the dropped floor even when a majority overflowed (recalibration, opus real-data finding, 2026-08-18)", () => {
+      // 旧しきい値（dropped>=10かつ過半）では発火していた形。実データで
+      // 12日中6日発火し定型文化していたため、頻度を締めた（2/12に収束）
+      const out = dayDigest(
+        [{ title: "hermes", oneLiner: "対応した。", materialCount: 8 }],
+        { hours: [10, 15], totalMaterialCount: 20 },
+      );
+      assert.ok(!out.includes("書ききれぬ"), out);
+    });
+
+    it("falls back to the night closing when nothing was dropped", () => {
+      const out = dayDigest(
+        [{ title: "hermes", oneLiner: "対応した。", materialCount: 3 }],
+        { hours: [10, 23], totalMaterialCount: 3 },
+      );
+      assert.match(out, /夜ふけまで手を動かした一日じゃった。/);
+      assert.ok(!out.includes("書ききれぬ"), out);
+    });
+
+    it("falls back to the day-texture closing when neither the unwritten-count nor night closing applies", () => {
+      const out = dayDigest(
+        [
+          {
+            title: "hermes",
+            oneLiner: "対応した。",
+            materialCount: 3,
+            summaries: [
+              "feat(hermes): Aを追加する",
+              "feat(hermes): Bを追加する",
+              "feat(hermes): Cを追加する",
+              "feat(hermes): Dを追加する",
+              "feat(hermes): Eを追加する",
+            ],
+          },
+        ],
+        { hours: [10, 15], totalMaterialCount: 3 },
+      );
+      assert.match(out, /あらたに築くものの多い一日じゃった。/);
+      assert.ok(!out.includes("書ききれぬ"), out);
+      assert.ok(!out.includes("夜ふけ"), out);
+    });
+  });
 });
 
 describe("chapterDidSummary", () => {

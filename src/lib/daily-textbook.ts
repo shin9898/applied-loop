@@ -576,15 +576,23 @@ export async function listTextbookDates(limit = 14): Promise<
   const { end } = dayRangeFromDateKey(sortedKeys[sortedKeys.length - 1]!);
   const events = await prisma.devEvent.findMany({
     where: { receivedAt: { gte: start, lt: end } },
-    select: { id: true, receivedAt: true },
+    select: { id: true, receivedAt: true, summary: true },
   });
   const hoursById = new Map(events.map((e) => [e.id, hourJST(e.receivedAt)]));
+  const summaryById = new Map(events.map((e) => [e.id, e.summary]));
+  const atById = new Map(events.map((e) => [e.id, e.receivedAt.getTime()]));
   const hoursByDateKey = new Map<string, number[]>();
+  const summariesByDateKey = new Map<string, string[]>();
   for (const e of events) {
     const key = dateKeyJST(e.receivedAt);
     const bucket = hoursByDateKey.get(key) ?? [];
     bucket.push(hourJST(e.receivedAt));
     hoursByDateKey.set(key, bucket);
+    if (e.summary) {
+      const sBucket = summariesByDateKey.get(key) ?? [];
+      sBucket.push(e.summary);
+      summariesByDateKey.set(key, sBucket);
+    }
   }
   // textbook-chapter-polish.ts の materialIds パースと同じ作法（要素型を検査する）
   const parseMaterialIds = (s: string): string[] => {
@@ -608,17 +616,31 @@ export async function listTextbookDates(limit = 14): Promise<
     overview: dayDigest(
       r.chapters.map((c) => {
         const ids = parseMaterialIds(c.materialIds);
-        const hours = ids
-          .map((id) => hoursById.get(id))
-          .filter((h): h is number => h != null);
+        // summaries / summaryTimes は同じ mats から map するため整列が
+        // 構造的に保たれる（DigestChapterInput.summaryTimes の並行配列前提）
+        const mats = ids.flatMap((id) => {
+          const s = summaryById.get(id);
+          return s ? [{ summary: s, atMs: atById.get(id) ?? null }] : [];
+        });
         return {
           title: c.title,
           oneLiner: c.oneLiner?.trim() || c.title,
           materialCount: ids.length,
-          hours,
+          hours: ids
+            .map((id) => hoursById.get(id))
+            .filter((h): h is number => h != null),
+          summaries: mats.map((m) => m.summary),
+          summaryTimes: mats.map((m) => m.atMs),
         };
       }),
-      { hours: hoursByDateKey.get(r.dateKey) },
+      {
+        hours: hoursByDateKey.get(r.dateKey),
+        summaries: summariesByDateKey.get(r.dateKey),
+        // 生成時スナップショット(r.materialCount)ではなく現在の DevEvent 数。
+        // DevEvent は消えない設計（捨てない＝証跡）なので、生成後に届いた
+        // 足あとも「書ききれぬ」の分母に遡及して数えられる
+        totalMaterialCount: hoursByDateKey.get(r.dateKey)?.length,
+      },
     ),
     lines: r.chapters.map((c) => c.oneLiner?.trim() || c.title).filter(Boolean),
   }));
