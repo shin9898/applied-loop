@@ -97,6 +97,23 @@ describe("pickHeadlineSummary", () => {
   it("returns undefined for an empty list", () => {
     assert.equal(pickHeadlineSummary([]), undefined);
   });
+
+  // 実データ（2026-08-07・harness-knowledge-20260807）で発生確認済み: chore しか
+  // 無い日に merge コミットを核へ昇格させてしまうバグ（opusレビュー指摘）。
+  // 注: mergeが0点でも候補が全部mergeの日はmergeしか選びようが無い
+  // （pickHeadlineSummaryはsummaries[0]起点のため）。ここで保証するのは
+  // 「非mergeが1件でもあればmergeに負けない」こと。
+  it("never lets a merge commit outrank a real (non-merge) candidate", () => {
+    const headline = pickHeadlineSummary([
+      "chore: accumulate knowledge from PR #515 (source=post-merge)",
+      "chore: accumulate knowledge from PR #513 (source=post-merge)",
+      "Merge branch 'main' into harness/knowledge-20260807",
+    ]);
+    assert.equal(
+      headline,
+      "chore: accumulate knowledge from PR #515 (source=post-merge)",
+    );
+  });
 });
 
 describe("buildOneLinerSentence", () => {
@@ -105,24 +122,15 @@ describe("buildOneLinerSentence", () => {
       "fix(my-copy): cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加",
       "cron-discord-notify",
     );
-    assert.match(s, /^my-copy/);
-    assert.match(s, /直した/);
-    assert.ok(
-      s.includes(
-        "「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」",
-      ),
+    assert.equal(
       s,
-    );
-    assert.ok(
-      !s.includes("fix(my-copy):"),
-      "conventional prefix should not leak into the quote",
+      "my-copyのほころびを直した。「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」",
     );
   });
 
   it("quotes an English commit verbatim without attempting translation", () => {
     const s = buildOneLinerSentence("add explicit returns to cic", "infra");
-    assert.ok(s.includes("「add explicit returns to cic」"), s);
-    assert.match(s, /^infra/);
+    assert.equal(s, "infraに手を入れた。「add explicit returns to cic」");
   });
 
   it("falls back to the repo name when the commit has no conventional scope", () => {
@@ -130,7 +138,7 @@ describe("buildOneLinerSentence", () => {
       "docs: write the migration notes",
       "workbench",
     );
-    assert.match(s, /^workbench/);
+    assert.equal(s, "workbenchの説明を書いた。「write the migration notes」");
   });
 
   it("strips a bracket-style type tag from the quoted text", () => {
@@ -138,38 +146,62 @@ describe("buildOneLinerSentence", () => {
       "[Docs] Wave1 台帳: rehearsal DB bootstrap 完走 + PR #573 merge を反映",
       "infra",
     );
-    assert.ok(
-      s.includes("「Wave1 台帳: rehearsal DB bootstrap 完走 + PR #573 merge を反映」"),
+    assert.equal(
       s,
+      "infraの説明を書いた。「Wave1 台帳: rehearsal DB bootstrap 完走 + PR #573 merge を反映」",
     );
-    assert.ok(!s.includes("[Docs]"));
+  });
+
+  // repoFallbackが無く、コミット自身にもscopeが無いケース。旧データのtitleは
+  // テーマ連結の切り詰め文字列で主語として信頼できない（opusレビュー指摘、
+  // 実データで37/38章が該当）ため、呼び出し側はここにtitleを渡さない。
+  // 主語を持たない文型で安全側に倒す。
+  it("drops the subject entirely when there is no scope, no repo fallback, and no readable type", () => {
+    const s = buildOneLinerSentence("Add policy v2 track registry loading", null);
+    assert.equal(s, "「Add policy v2 track registry loading」に取り組んだ。");
+  });
+
+  // 主語が無くてもtypeが読めていれば動詞は引用に直接掛けて残す
+  // （opusレビュー指摘: 主語なし＝一律で汎用文にすると型由来の情報が消える）。
+  it("keeps the type-based verb even without a subject, applying it directly to the quote", () => {
+    const s = buildOneLinerSentence("ci: avoid smoke setup-node cache stalls", null);
+    assert.equal(s, "「avoid smoke setup-node cache stalls」を整えた。");
   });
 });
 
 describe("normalizeOneLinerForDisplay", () => {
   it("passes the new frame+quote format through unchanged", () => {
     const s = "my-copyのほころびを直した。「cron週次・月次リトライ機構を追加」";
-    assert.equal(normalizeOneLinerForDisplay(s, "my-copy"), s);
+    assert.equal(normalizeOneLinerForDisplay(s), s);
   });
 
-  it("reformats a legacy 核: oneLiner on the fly", () => {
+  it("reformats a legacy 核: oneLiner using the scope embedded in the commit text", () => {
     const legacy =
       "核: fix(my-copy): cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加";
-    const out = normalizeOneLinerForDisplay(legacy, "hermes / my-copy");
-    assert.ok(!out.startsWith("核:"));
-    assert.ok(
-      out.includes(
-        "「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」",
-      ),
-      out,
+    assert.equal(
+      normalizeOneLinerForDisplay(legacy),
+      "my-copyのほころびを直した。「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」",
     );
   });
 
   it("drops the trailing ／ついでに clause from legacy oneLiners before quoting", () => {
-    const legacy = "核: fix: main thing ／ ついでに docs: side note";
-    const out = normalizeOneLinerForDisplay(legacy, "repo");
-    assert.ok(out.includes("「main thing」"), out);
-    assert.ok(!out.includes("side note"));
+    const legacy = "核: fix(tasks): main thing ／ ついでに docs: side note";
+    assert.equal(
+      normalizeOneLinerForDisplay(legacy),
+      "tasksのほころびを直した。「main thing」",
+    );
+  });
+
+  // 実データで確認済みの破綻パターン: 旧titleは「テーマ2件連結・28〜40字で
+  // 切り詰め」なので、これを主語に使うと語中で切れた文になる
+  // （例: 「Add policy v2 track registry loaに手を入れた。」）。
+  // シムはtitleを一切受け取らず、常に主語なし文型で安全側に倒す。
+  it("never fabricates a subject from an unreliable legacy title when the commit has no scope", () => {
+    const legacy = "核: Add policy v2 track registry loading";
+    assert.equal(
+      normalizeOneLinerForDisplay(legacy),
+      "「Add policy v2 track registry loading」に取り組んだ。",
+    );
   });
 });
 
@@ -435,6 +467,23 @@ describe("dayDigest", () => {
     );
   });
 
+  // 実データで確認済みの破綻パターン（opusレビュー指摘）: 旧titleは
+  // テーマ連結の切り詰め文字列なので、これを主語に流用すると
+  // 「Add policy v2 track registry loaに手を入れた。」のように語中で切れる。
+  it("does not borrow the (possibly mangled) legacy title as a sentence subject", () => {
+    const out = dayDigest([
+      {
+        title: "Add policy v2 track registry loa",
+        oneLiner: "核: Add policy v2 track registry loading",
+      },
+    ]);
+    assert.equal(
+      out,
+      "この日は「Add policy v2 track registry loa」ひとすじの一日じゃった。" +
+        "「Add policy v2 track registry loading」に取り組んだ。",
+    );
+  });
+
   it("names every chapter once without repeating the headline chapter's title before the dash", () => {
     const out = dayDigest([
       {
@@ -453,20 +502,24 @@ describe("dayDigest", () => {
 });
 
 describe("chapterDidSummary", () => {
-  it("reformats a legacy oneLiner using the chapter title as the scope fallback", () => {
+  it("reformats a legacy oneLiner using the scope embedded in the commit text", () => {
     const out = chapterDidSummary({
       oneLiner:
         "核: fix(my-copy): cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加",
       action: null,
-      title: "hermes / my-copy",
     });
-    assert.ok(!out.includes("核:"));
-    assert.ok(
-      out.includes(
-        "「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」",
-      ),
+    assert.equal(
       out,
+      "my-copyのほころびを直した。「cron週次・月次リトライ機構を有効化し予算/タイムアウト上限を追加」。",
     );
+  });
+
+  it("does not fabricate a subject from an unreliable legacy title", () => {
+    const out = chapterDidSummary({
+      oneLiner: "核: Add policy v2 track registry loading",
+      action: null,
+    });
+    assert.equal(out, "「Add policy v2 track registry loading」に取り組んだ。");
   });
 });
 
@@ -588,7 +641,13 @@ describe("buildPolishPrompt", () => {
       evidence: [{ label: "c1", ref: "abc1234" }],
       materialSummaries: ["fix(tasks): harden sort"],
     });
-    assert.match(prompt, /\boneLiner\b/);
+    // oneLiner: ${input.oneLiner} という入力行は変更前から存在するため、
+    // 単に /oneLiner/ にマッチするだけでは出力キー一覧に追加されたことを
+    // 検証できない（opusレビュー指摘）。出力キー一覧の行そのものを見る。
+    assert.match(
+      prompt,
+      /^work, timing, action, why, practice, consequence, alternative, diagramBad, diagramOk, bodyFacts, oneLiner$/m,
+    );
     assert.match(prompt, /そのまま(繰り返さない|引き写さない)/);
   });
 });

@@ -304,11 +304,34 @@ export async function compileMaterialBand(
     throw new Error("compileMaterialBand: lesson slots missing");
   }
 
+  // titleがrepo名固定になったため、あふれ元と同じrepoの自動章が既にある日は
+  // 確実に衝突する。ensureChapterCopyDiversityを通らない経路なので個別に防ぐ
+  // （2026-08、opusレビュー指摘）。帯は compiledChapterId が null に戻れば
+  // 再オープンする設計（generateDailyTextbook参照）上、同じ帯を複数回に分けて
+  // 編纂することがあり得る（1帯8件ずつしか取り込まないため、9件超の帯は
+  // 必然的に複数回になる）。単純に「（つづき）」1回だけ付けると2回目以降が
+  // 衝突するため、空いている名前まで探す。
+  const taken = new Set(
+    (
+      await prisma.dailyTextbookChapter.findMany({
+        where: {
+          textbookId: textbook.id,
+          title: { startsWith: draft.title },
+        },
+        select: { title: true },
+      })
+    ).map((c) => c.title),
+  );
+  let title = draft.title;
+  for (let n = 2; taken.has(title); n++) {
+    title = n === 2 ? `${draft.title}（つづき）` : `${draft.title}（つづき${n - 1}）`;
+  }
+
   const chapter = await prisma.dailyTextbookChapter.create({
     data: {
       textbookId: textbook.id,
       index: draft.index,
-      title: draft.title,
+      title,
       oneLiner: draft.oneLiner,
       bodyPlain: draft.bodyPlain,
       bodyDeep: draft.bodyDeep,
@@ -557,7 +580,6 @@ export async function listTextbookDates(limit = 14): Promise<
         chapterDidSummary({
           oneLiner: c.oneLiner ?? "",
           action: parseLessonSlots(c.bodyDeep).action,
-          title: c.title,
         }) || c.title,
     })),
   }));

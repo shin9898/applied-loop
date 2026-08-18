@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { AtlasPageTitle } from "./atlas-chrome";
-import { MASTERY_STATES } from "@/lib/daily-textbook-shared";
+import {
+  MASTERY_STATES,
+  normalizeOneLinerForDisplay,
+} from "@/lib/daily-textbook-shared";
 import { setWeeklyCheckMasteryAction } from "@/lib/actions";
 import type { WeeklyTextbookView } from "@/lib/weekly-textbook";
 
@@ -87,7 +90,9 @@ export function AtlasWeeklyTextbook({
                   <h3 className="atlas-journal__heading">
                     {activeChapter.title}
                   </h3>
-                  <p className="atlas-journal__lead">{activeChapter.oneLiner}</p>
+                  <p className="atlas-journal__lead">
+                    {normalizeOneLinerForDisplay(activeChapter.oneLiner)}
+                  </p>
                   <p className="atlas-journal__note whitespace-pre-wrap">
                     {activeChapter.bodyPlain}
                   </p>

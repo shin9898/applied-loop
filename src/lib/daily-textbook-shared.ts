@@ -196,6 +196,48 @@ function isMergeSummary(summary: string): boolean {
   return /^merge\b/i.test(summary.trim());
 }
 
+const CONVENTIONAL_TYPES = "feat|fix|chore|test|refactor|docs|ci|perf|build";
+const CONVENTIONAL_COMMIT_RE = new RegExp(
+  `^(${CONVENTIONAL_TYPES})(?:\\(([^)]+)\\))?:\\s*(.+)$`,
+  "i",
+);
+const CONVENTIONAL_BRACKET_RE = new RegExp(
+  `^\\[(${CONVENTIONAL_TYPES})\\]\\s*(.+)$`,
+  "i",
+);
+// extractThemes専用: 説明文の有無を問わずprefixだけ見る（CONVENTIONAL_COMMIT_REは
+// \s*(.+)$ で説明文必須のため、`fix:` 単体の扱いが変わってしまい流用できない）。
+const CONVENTIONAL_PREFIX_RE = new RegExp(
+  `^(${CONVENTIONAL_TYPES})(?:\\(([^)]+)\\))?:`,
+  "i",
+);
+
+/** conventional commit（`type(scope): desc`）と `[Type] desc` の両方を読む */
+function parseConventionalCommit(summary: string): {
+  type: string | null;
+  scope: string | null;
+  description: string;
+} {
+  const s = summary.trim();
+  const paren = s.match(CONVENTIONAL_COMMIT_RE);
+  if (paren) {
+    return {
+      type: paren[1]!.toLowerCase(),
+      scope: paren[2]?.trim() || null,
+      description: paren[3]!.trim(),
+    };
+  }
+  const bracket = s.match(CONVENTIONAL_BRACKET_RE);
+  if (bracket) {
+    return {
+      type: bracket[1]!.toLowerCase(),
+      scope: null,
+      description: bracket[2]!.trim(),
+    };
+  }
+  return { type: null, scope: null, description: s };
+}
+
 /** conventional commit や件名から、章の主題語を拾う */
 export function extractThemes(summaries: string[]): string[] {
   const scores = new Map<string, number>();
@@ -208,9 +250,7 @@ export function extractThemes(summaries: string[]): string[] {
   for (const raw of summaries) {
     const s = raw.trim();
     if (!s || isMergeSummary(s)) continue;
-    const conv = s.match(
-      /^(feat|fix|chore|test|refactor|docs|ci|perf|build)(?:\(([^)]+)\))?:/i,
-    );
+    const conv = s.match(CONVENTIONAL_PREFIX_RE);
     if (conv) {
       const type = conv[1].toLowerCase();
       const scope = conv[2]?.trim();
@@ -590,8 +630,6 @@ function buildBodyPlain(input: {
     .join("\n");
 }
 
-const CONVENTIONAL_TYPES = "feat|fix|chore|test|refactor|docs|ci|perf|build";
-
 const TYPE_VERB: Record<string, string> = {
   feat: "に機能を足した",
   fix: "のほころびを直した",
@@ -604,38 +642,14 @@ const TYPE_VERB: Record<string, string> = {
   ci: "を整えた",
 };
 
-/** conventional commit（`type(scope): desc`）と `[Type] desc` の両方を読む */
-function parseConventionalCommit(summary: string): {
-  type: string | null;
-  scope: string | null;
-  description: string;
-} {
-  const s = summary.trim();
-  const paren = s.match(
-    new RegExp(`^(${CONVENTIONAL_TYPES})(?:\\(([^)]+)\\))?:\\s*(.+)$`, "i"),
-  );
-  if (paren) {
-    return {
-      type: paren[1]!.toLowerCase(),
-      scope: paren[2]?.trim() || null,
-      description: paren[3]!.trim(),
-    };
-  }
-  const bracket = s.match(
-    new RegExp(`^\\[(${CONVENTIONAL_TYPES})\\]\\s*(.+)$`, "i"),
-  );
-  if (bracket) {
-    return {
-      type: bracket[1]!.toLowerCase(),
-      scope: null,
-      description: bracket[2]!.trim(),
-    };
-  }
-  return { type: null, scope: null, description: s };
-}
-
-/** feat/fix 等の「実質的な仕事」を、choreやbuildより核として優先するための重み */
+/**
+ * feat/fix 等の「実質的な仕事」を、choreやbuildより核として優先するための重み。
+ * mergeコミットは他の集計（uniqueSummaries・evidenceFrom・extractThemes）と同じく
+ * 最低点として除外する — 除外しないと choreしか無い日に merge コミットが核に
+ * 昇格してしまう（実データで発生確認済み、opusレビュー指摘）。
+ */
 function commitSignificance(summary: string): number {
+  if (isMergeSummary(summary)) return 0;
   const { type } = parseConventionalCommit(summary);
   if (type == null) return 3; // 型が読めない = 自由記述の実質的な報告として扱う
   if (type === "feat" || type === "fix" || type === "refactor" || type === "perf") {
@@ -669,26 +683,38 @@ export function pickHeadlineSummary(summaries: string[]): string | undefined {
  * 説明文は言語を問わず常に「」でそのまま引用する — 述語で終わる日本語コミットに
  * 動詞を接尾すると文法が壊れる／英語コミットは翻訳できない、の両方をこれで避ける
  * （2026-08、item①・Fableレビュー反映）。
+ * repoFallbackは「コミット自身にscopeが無いときの主語」— コミットの主体が
+ * 確実に分かっている場面（新規生成時のrepo名）だけで渡す。信頼できない文字列
+ * （旧titleなど）を渡すくらいなら null にして主語なし文型に倒すこと
+ * （opusレビュー指摘、実データで37/38章が該当する破綻を確認済み）。
  */
 export function buildOneLinerSentence(
   rawSummary: string,
-  repoFallback: string,
+  repoFallback: string | null,
 ): string {
   const { type, scope, description } = parseConventionalCommit(rawSummary);
   const subject = scope || repoFallback;
-  const verb = (type && TYPE_VERB[type]) || "に手を入れた";
-  return `${subject}${verb}。「${description}」`;
+  const typeVerb = type && TYPE_VERB[type];
+  if (!subject) {
+    // 主語は捨てても、typeが読めていれば動詞は引用に直接掛けて残す
+    // （「「desc」を整えた。」等）。type も読めない自由記述だけ完全に汎用文にする
+    // （opusレビュー指摘: 主語なし＝type動詞も一律で捨てると情報量が減っていた）。
+    return typeVerb ? `「${description}」${typeVerb}。` : `「${description}」に取り組んだ。`;
+  }
+  return `${subject}${typeVerb || "に手を入れた"}。「${description}」`;
 }
 
-/** 旧形式（`核: ...`）を検知したら新形式相当に整形する。新形式はそのまま通す。 */
-export function normalizeOneLinerForDisplay(
-  oneLiner: string,
-  scopeFallback: string,
-): string {
+/**
+ * 旧形式（`核: ...`）を検知したら新形式相当に整形する。新形式はそのまま通す。
+ * 主語はコミット自身のscopeにのみ由来させ、外部からの主語フォールバックは
+ * 受け取らない — 旧titleはテーマ2件連結の切り詰め文字列で主語として
+ * 信頼できないため（opusレビュー指摘）。
+ */
+export function normalizeOneLinerForDisplay(oneLiner: string): string {
   const m = oneLiner.match(/^核:\s*([\s\S]+)$/);
   if (!m) return oneLiner;
   const raw = m[1]!.replace(/\s*／\s*ついでに[\s\S]*$/, "").trim();
-  return buildOneLinerSentence(raw, scopeFallback);
+  return buildOneLinerSentence(raw, null);
 }
 
 export function draftChapterFromRepo(
@@ -703,7 +729,9 @@ export function draftChapterFromRepo(
   const theme = themes[0] ?? summaries[0]?.slice(0, 28) ?? name;
   // タイトルはrepo名で固定する。テーマ2件を「a / b」で連結すると機械的な
   // タグの寄せ集めになり、日記のタイトルとして読めないため（2026-08、item①）。
-  // repoはチャプター分割の単位（byRepo）なので、同日の他章と必ず異なる。
+  // 自動生成（byRepo）内では同日の他章と必ず異なるが、編纂（compileMaterialBand）
+  // はあふれ元と同じrepoの自動章と衝突しうるため、呼び出し側で個別に防いでいる
+  // （opusレビュー指摘、daily-textbook.ts:compileMaterialBand参照）。
   const title = name;
   const backlogN = kept.filter((m) => m.skipReason === "backlog").length;
   const headline = pickHeadlineSummary(summaries);
@@ -937,14 +965,14 @@ export function bodyForDisplay(body: string): string {
 /**
  * 章の「やったこと」要約（1〜2文、日記文体）。
  * 章の先頭に置いて、スロットを開かなくても何の話か分かるようにするためのもの。
- * 新しい生成は足さず、既存の oneLiner（核: …）と action（対応: …）だけを整形する。
+ * oneLinerは新形式ならそのまま、旧形式（`核: …`）ならnormalizeOneLinerForDisplayで
+ * その場で整形し、action（対応: …）は短い日で補足として添える。
  */
 export function chapterDidSummary(input: {
   oneLiner: string;
   action?: string | null;
-  title: string;
 }): string {
-  const core = normalizeOneLinerForDisplay(input.oneLiner, input.title).trim();
+  const core = normalizeOneLinerForDisplay(input.oneLiner).trim();
   const did = (input.action ?? "")
     .replace(/^対応:\s*/, "")
     // action 末尾の「（核: …）」は oneLiner と同じ材料。要約で二度言わない
@@ -970,7 +998,7 @@ export function dayDigest(
 ): string {
   if (chapters.length === 0) return "";
   const top = chapters[0]!;
-  const headline = normalizeOneLinerForDisplay(top.oneLiner, top.title);
+  const headline = normalizeOneLinerForDisplay(top.oneLiner);
 
   if (chapters.length === 1) {
     return `この日は「${top.title}」ひとすじの一日じゃった。${headline}`;
