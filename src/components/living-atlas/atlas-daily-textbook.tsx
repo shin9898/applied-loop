@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -68,10 +68,18 @@ export function AtlasDailyTextbook({
   }>;
 }) {
   const [mode, setMode] = useState<Mode>("read");
-  const [depth, setDepth] = useState<Depth>(() => {
-    if (typeof window === "undefined") return "plain";
-    return localStorage.getItem(DEPTH_KEY) === "deep" ? "deep" : "plain";
-  });
+  // SSRは常にplainを描く。localStorageの復元はmount後に回し、hydration不一致を避ける
+  const [depth, setDepth] = useState<Depth>("plain");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(DEPTH_KEY) === "deep") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setDepth("deep");
+      }
+    } catch {
+      /* private mode 等でstorageが塞がれている場合は plain のまま */
+    }
+  }, []);
   const [activeChapterId, setActiveChapterId] = useState<string | null>(
     textbook?.chapters[0]?.id ?? null,
   );
