@@ -167,6 +167,29 @@ describe("buildOneLinerSentence", () => {
     const s = buildOneLinerSentence("ci: avoid smoke setup-node cache stalls", null);
     assert.equal(s, "「avoid smoke setup-node cache stalls」を整えた。");
   });
+
+  // 主語なしの場合、TYPE_VERBの「に」「の」をそのまま引用に掛けると、
+  // 引用（=足した機能の説明）があたかも動作対象であるかのように読めて主客が
+  // 逆転する（例: 「〇〇に機能を足した」は「〇〇という対象に機能を足した」と
+  // 読めてしまう）。主語なし専用の「を」統一動詞で自然な文にする（opus指摘）。
+  it("uses subject-less を-verbs for feat/fix/docs/test so the quote reads as the object, not the target", () => {
+    assert.equal(
+      buildOneLinerSentence("feat: add dark mode", null),
+      "「add dark mode」という機能を足した。",
+    );
+    assert.equal(
+      buildOneLinerSentence("fix: null pointer on empty cart", null),
+      "「null pointer on empty cart」を直した。",
+    );
+    assert.equal(
+      buildOneLinerSentence("docs: migration notes", null),
+      "「migration notes」を書いた。",
+    );
+    assert.equal(
+      buildOneLinerSentence("test: cover empty state", null),
+      "「cover empty state」を確認した。",
+    );
+  });
 });
 
 describe("normalizeOneLinerForDisplay", () => {
@@ -393,6 +416,16 @@ describe("distillChecks", () => {
       "checks should reference lesson slots",
     );
   });
+
+  it("does not double the 理由: prefix when why already carries it", () => {
+    const { chapters } = clusterMaterialsIntoChapters([
+      mat({ id: "1", repo: "a/a", summary: "fix(filter): announce counts" }),
+    ]);
+    const checks = distillChecks(chapters);
+    for (const c of checks) {
+      assert.ok(!/理由:\s*理由:/.test(c.question), c.question);
+    }
+  });
 });
 
 describe("distillSingleCheck", () => {
@@ -591,6 +624,23 @@ describe("buildJumonContext", () => {
     assert.match(ctx, /deadbeef|example\.com/);
     assert.ok(!ctx.includes("章1"));
     assert.ok(ctx.length <= JUMON_CONTEXT_MAX_CHARS);
+  });
+
+  // lessonSlotsFor 由来の実データは action/why/practice が既に「対応: 」
+  // 「理由: 」「ベストプラクティス: 」を自前で持つ。手書きfixtureでは
+  // 再現できないため、実生成パスを通して確認する（opusレビュー指摘）
+  it("does not double slot-label prefixes when built from real generated chapters", () => {
+    const { chapters } = clusterMaterialsIntoChapters([
+      mat({ id: "1", repo: "a/a", summary: "fix(filter): announce counts" }),
+    ]);
+    const ctx = buildJumonContext({
+      dateKey: "2026-08-18",
+      depth: "plain",
+      chapter: chapters[0]!,
+    });
+    assert.ok(!/対応:\s*対応:/.test(ctx), ctx);
+    assert.ok(!/理由:\s*理由:/.test(ctx), ctx);
+    assert.ok(!/型:\s*ベストプラクティス:/.test(ctx), ctx);
   });
 });
 

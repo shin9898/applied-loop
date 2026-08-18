@@ -643,6 +643,24 @@ const TYPE_VERB: Record<string, string> = {
 };
 
 /**
+ * 主語なし専用の動詞表。TYPE_VERBの「に」「の」は主語（scope/repo）が
+ * 前提の助詞のため、主語が無く引用へ直接掛けると引用（=説明文）が動作対象
+ * であるかのように主客が逆転して読める（例:「〇〇に機能を足した」）。
+ * 「を」に統一し、引用を素直に動作の対象として読ませる（opus指摘）。
+ */
+const TYPE_VERB_NO_SUBJECT: Record<string, string> = {
+  feat: "という機能を足した",
+  fix: "を直した",
+  refactor: "を整理した",
+  perf: "を速くした",
+  docs: "を書いた",
+  test: "を確認した",
+  chore: "を整えた",
+  build: "を整えた",
+  ci: "を整えた",
+};
+
+/**
  * feat/fix 等の「実質的な仕事」を、choreやbuildより核として優先するための重み。
  * mergeコミットは他の集計（uniqueSummaries・evidenceFrom・extractThemes）と同じく
  * 最低点として除外する — 除外しないと choreしか無い日に merge コミットが核に
@@ -694,13 +712,16 @@ export function buildOneLinerSentence(
 ): string {
   const { type, scope, description } = parseConventionalCommit(rawSummary);
   const subject = scope || repoFallback;
-  const typeVerb = type && TYPE_VERB[type];
   if (!subject) {
     // 主語は捨てても、typeが読めていれば動詞は引用に直接掛けて残す
     // （「「desc」を整えた。」等）。type も読めない自由記述だけ完全に汎用文にする
     // （opusレビュー指摘: 主語なし＝type動詞も一律で捨てると情報量が減っていた）。
-    return typeVerb ? `「${description}」${typeVerb}。` : `「${description}」に取り組んだ。`;
+    const typeVerbNoSubject = type && TYPE_VERB_NO_SUBJECT[type];
+    return typeVerbNoSubject
+      ? `「${description}」${typeVerbNoSubject}。`
+      : `「${description}」に取り組んだ。`;
   }
+  const typeVerb = type && TYPE_VERB[type];
   return `${subject}${typeVerb || "に手を入れた"}。「${description}」`;
 }
 
@@ -1075,6 +1096,19 @@ export function distillSingleCheck(
   };
 }
 
+/**
+ * lessonSlotsFor 由来のスロット値は見出しを自前で持つ（action="対応: …"、
+ * why="理由: …"、practice="ベストプラクティス: …" 等）が、LLM研磨後は持たない
+ * 場合がある。表示側で同じ見出しを重ねる箇所（distillChecks・buildJumonContext）
+ * で二重にならないよう、あれば剥がす（opusレビュー指摘: buildJumonContext側の
+ * 対応:/理由:/型: も同じ二重化バグを持っていた）。
+ */
+const SLOT_PREFIX_RE =
+  /^(?:理由|対応|ベストプラクティス|従うと|やりがちな別案)[:：]\s*/;
+function stripSlotPrefix(text: string): string {
+  return text.replace(SLOT_PREFIX_RE, "");
+}
+
 /** 章あたりスロット連動問い＋横断。合計は 3〜7。 */
 export function distillChecks(chapters: ChapterDraft[]): CheckDraft[] {
   if (chapters.length === 0) return [];
@@ -1083,7 +1117,7 @@ export function distillChecks(chapters: ChapterDraft[]): CheckDraft[] {
     (ch: ChapterDraft) =>
       `「${ch.title}」で進めていた改修と、ナレッジが溜まったタイミングを1文で。とった対応も添えること。（改修: ${ch.work.slice(0, 36)}）`,
     (ch: ChapterDraft) =>
-      `「${ch.title}」でとった対応とその理由を述べよ。別案を1つ否定せよ。（理由: ${ch.why.slice(0, 36)}）`,
+      `「${ch.title}」でとった対応とその理由を述べよ。別案を1つ否定せよ。（理由: ${stripSlotPrefix(ch.why).slice(0, 36)}）`,
     (ch: ChapterDraft) =>
       `「${ch.title}」のベストプラクティスを1文で言い、従った結果どうなるかを添えよ。`,
   ];
@@ -1144,12 +1178,16 @@ export function buildJumonContext(input: {
     ? parseLessonSlots(input.chapter.bodyDeep)
     : null;
   const work = (input.chapter.work || fromDeep?.work || "").slice(0, 90);
-  const action = (input.chapter.action || fromDeep?.action || "").slice(0, 90);
-  const why = (input.chapter.why || fromDeep?.why || "").slice(0, 90);
-  const practice = (input.chapter.practice || fromDeep?.practice || "").slice(
+  const action = stripSlotPrefix(
+    input.chapter.action || fromDeep?.action || "",
+  ).slice(0, 90);
+  const why = stripSlotPrefix(input.chapter.why || fromDeep?.why || "").slice(
     0,
     90,
   );
+  const practice = stripSlotPrefix(
+    input.chapter.practice || fromDeep?.practice || "",
+  ).slice(0, 90);
   const urls = input.chapter.evidence
     .map((e) => e.url || e.ref || e.label)
     .filter(Boolean)
