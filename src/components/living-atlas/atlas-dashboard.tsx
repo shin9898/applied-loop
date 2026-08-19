@@ -72,6 +72,12 @@ export type AtlasDashboardProps = {
   /** ADR-0020 C3-3: 昨日 Mastery / きょうのしょ 導線 */
   textbookGuidance?: TextbookGuidance | null;
   sessionDigest?: SessionDigest | null;
+  /** ちず6領土の駆動データ（Task 4で本格配線） */
+  nikkiBookCount: number;
+  nikkiUngeneratedCount: number;
+  ukebakoSortedTotal: number;
+  douguWatchedRepoCount: number;
+  mokuhyouFlags: 0 | 1 | 2 | 3;
 };
 
 type StatusTab = "status" | "weak";

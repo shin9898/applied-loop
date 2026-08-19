@@ -5,7 +5,7 @@
 import { prisma } from "@/lib/db";
 import { resolvedGrowthStats } from "@/lib/heatmap";
 import { recordStreak } from "@/lib/stats";
-import { weeklyEvidenceCounts } from "@/lib/goal";
+import { listActiveGoals, weeklyEvidenceCounts } from "@/lib/goal";
 import { repoCacheReadRates } from "@/lib/harness-stats";
 import { listMaterialCaptureHealth } from "@/lib/daily-textbook";
 import {
@@ -41,6 +41,7 @@ import {
 import { enrichMissingGateDomains } from "@/lib/place-enrich";
 import { buildSessionDigestForDate } from "@/lib/session-digest";
 import { dayStartJST, dateKeyJST } from "@/lib/date";
+import { flagsRaisedFromEvidence } from "@/lib/atlas-territory";
 import type { AtlasDashboardProps } from "./atlas-dashboard";
 import type { ZukanItem } from "./atlas-zukan";
 import type { GateListItem } from "./atlas-gates-list";
@@ -142,7 +143,14 @@ async function loadSystemStars(): Promise<SystemStar[]> {
       count,
       stars: starsFromCount(count),
     };
-  }).filter((s) => s.count > 0 || ["cache", "harness", "design", "knowledge"].includes(s.key));
+  });
+}
+
+async function listUngeneratedDaysExcludingToday(now: Date): Promise<number> {
+  const { listUngeneratedDays } = await import("@/lib/daily-textbook");
+  const today = dateKeyJST(now);
+  const days = await listUngeneratedDays(14);
+  return days.filter((d) => d.dateKey !== today).length;
 }
 
 export async function loadHomeProps(): Promise<AtlasDashboardProps> {
@@ -171,6 +179,11 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     weaknesses,
     textbookGuide,
     sessionDigest,
+    dailyTextbookCount,
+    weeklyTextbookCount,
+    nikkiUngeneratedCount,
+    ukebakoSortedTotal,
+    goalEvidenceCounts,
   ] = await Promise.all([
     resolvedGrowthStats(now),
     recordStreak(now),
@@ -199,6 +212,15 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     getWeaknessPatternsForDashboard(),
     loadTextbookGuidanceForToday(dateKeyJST(now)),
     buildSessionDigestForDate(dateKeyJST(now)),
+    prisma.dailyTextbook.count(),
+    prisma.weeklyTextbook.count(),
+    listUngeneratedDaysExcludingToday(now),
+    prisma.capture.count({ where: { status: { not: "pending" } } }),
+    (async () => {
+      const goals = await listActiveGoals();
+      if (!goals[0]) return { entries: 0, applications: 0, resolvedMisconceptions: 0 };
+      return weeklyEvidenceCounts(goals[0].id, now);
+    })(),
   ]);
 
   const todos: { title: string; meta: string; href?: string; cta?: string }[] =
@@ -297,6 +319,11 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     todos,
     textbookGuidance: textbookGuide.guidance,
     sessionDigest,
+    nikkiBookCount: dailyTextbookCount + weeklyTextbookCount,
+    nikkiUngeneratedCount,
+    ukebakoSortedTotal,
+    douguWatchedRepoCount: listWatchedRepos().length,
+    mokuhyouFlags: flagsRaisedFromEvidence(goalEvidenceCounts),
   };
 }
 
