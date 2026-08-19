@@ -38,7 +38,7 @@ export function stageForUkebako(sortedTotal: number): TerritoryStage {
 
 export function stageForDougu(watchedRepoCount: number): TerritoryStage {
   if (watchedRepoCount <= 0) return 0;
-  if (watchedRepoCount === 1) return 1;
+  if (watchedRepoCount < 2) return 1;
   if (watchedRepoCount <= 3) return 2;
   return 3;
 }
