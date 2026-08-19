@@ -16,12 +16,7 @@ import {
 import { AtlasShell } from "./atlas-shell";
 import { AtlasReveal } from "./atlas-reveal";
 import { AtlasPageTitle } from "./atlas-page-title";
-import {
-  AtlasWorldMap,
-  FOG_REGION_POS,
-  SYSTEM_REGION_POS,
-  type MapMarker,
-} from "./atlas-world-map";
+import { AtlasWorldMap, type TerritoryState, type Boat } from "./atlas-world-map";
 import { AtlasAssist, AtlasAssistUnavailable } from "./atlas-assist";
 import { AtlasWorldIntroModal } from "./atlas-onboarding";
 import { AtlasSurfaceIcon, surfaceIdFromHref } from "./atlas-surface-icons";
@@ -33,6 +28,16 @@ import type { SetupDiagnosis } from "@/lib/setup-diagnosis";
 import { resolveHomeCta } from "@/lib/home-cta";
 import type { TextbookGuidance } from "@/lib/textbook-guidance-shared";
 import type { SessionDigest } from "@/lib/session-digest-shared";
+import {
+  stageForShiren,
+  stageForNikki,
+  stageForUkebako,
+  stageForDougu,
+  stageForJunbi,
+  doguIsBad,
+  CTA_KIND_TO_TERRITORY,
+  type TerritoryKey,
+} from "@/lib/atlas-territory";
 
 /** デイリークエスト1件。href があれば行全体がクリッカブルになる */
 export type DashboardTodo = {
@@ -78,6 +83,9 @@ export type AtlasDashboardProps = {
   ukebakoSortedTotal: number;
   douguWatchedRepoCount: number;
   mokuhyouFlags: 0 | 1 | 2 | 3;
+  douguWorstCacheRate: { thisWeekRate: number; insufficientThisWeek: boolean } | null;
+  /** うけばこの木箱キュー（未仕分けcapture数） */
+  pendingCaptureCount: number;
 };
 
 type StatusTab = "status" | "weak";
@@ -219,7 +227,7 @@ function StatusCommandPanel({
         >
             <div className="border-t-2 border-[#002070] pt-3">
               <h3 className="m-0 mb-2 font-[family-name:var(--font-pixel)] text-[10px] text-[#f0d25a]">
-                ◆ ステータス（領）
+                ◆ ステータス（系統）
               </h3>
               <ul className="m-0 list-none space-y-1.5 p-0">
                 {(systemStars.length > 0
@@ -377,97 +385,16 @@ export function AtlasDashboard({
   setupDiagnosis = null,
   textbookGuidance = null,
   sessionDigest = null,
+  nikkiBookCount,
+  nikkiUngeneratedCount,
+  ukebakoSortedTotal,
+  douguWatchedRepoCount,
+  mokuhyouFlags,
+  douguWorstCacheRate,
+  pendingCaptureCount,
 }: AtlasDashboardProps) {
-  const [activeId, setActiveId] = useState(pendingGate ? "quest-1" : "you");
-  const [activeStripRepos, setActiveStripRepos] = useState<string[]>([]);
   const adventurer =
     adventurerProp ?? adventurerLevelFromResolved(resolvedTotal);
-
-  const questPos = pendingGate
-    ? (SYSTEM_REGION_POS[pendingGate.systemKey ?? ""] ?? FOG_REGION_POS)
-    : null;
-  const mapMarkers: MapMarker[] = [
-    { id: "you", kind: "you", label: "あなた", left: "22%", top: "64%" },
-    ...(pendingGate && questPos
-      ? [
-          {
-            id: "quest-1",
-            kind: "quest" as const,
-            label: "！",
-            left: questPos.left,
-            top: questPos.top,
-            href: `/gates/${pendingGate.id}`,
-          },
-        ]
-      : []),
-  ];
-
-  /*
-    足あとピンは「解決後の座標」でまとめる。SystemKind 単位ではなく座標単位なのは、
-    複数の SystemKind が同じ座標に落ちる（verification / premise / 未対応 kind / null が
-    すべて霧帯）ため。座標が同じピンを重ねると最後の1つしか押せない。
-    さらに、ストリップが描くのは先頭 STRIP_MAX_CARDS 件だけなので、ピンも同じ上限で
-    切った集合から作る（カードの無い repo を指すピン＝死にクリックを作らない）。
-  */
-  const shownRepos = (sessionDigest?.byRepo ?? []).slice(0, STRIP_MAX_CARDS);
-  const footprintGroups = new Map<
-    string,
-    { left: string; top: string; repos: string[]; totalSessions: number }
-  >();
-  for (const r of shownRepos) {
-    const pos = r.region
-      ? (SYSTEM_REGION_POS[r.region] ?? FOG_REGION_POS)
-      : FOG_REGION_POS;
-    const key = `${pos.left}|${pos.top}`;
-    const existing = footprintGroups.get(key);
-    if (existing) {
-      existing.repos.push(r.repo);
-      existing.totalSessions += r.sessionCount;
-    } else {
-      footprintGroups.set(key, {
-        left: pos.left,
-        top: pos.top,
-        repos: [r.repo],
-        totalSessions: r.sessionCount,
-      });
-    }
-  }
-  const footprintMarkers: MapMarker[] = [];
-  /** ピンID → そのピンが代表する repo 名（クリック時のストリップ・ハイライト用） */
-  const footprintRepoIndex = new Map<string, string[]>();
-  for (const [key, g] of footprintGroups) {
-    const id = `footprint-${key}`;
-    footprintMarkers.push({
-      id,
-      kind: "footprint" as const,
-      label:
-        g.repos.length > 1
-          ? `${g.repos[0]} 他${g.repos.length - 1}`
-          : g.repos[0],
-      left: g.left,
-      top: g.top,
-      count: g.totalSessions,
-    });
-    footprintRepoIndex.set(id, g.repos);
-  }
-  const allMapMarkers: MapMarker[] = [...mapMarkers, ...footprintMarkers];
-
-  function handleMapSelect(id: string) {
-    setActiveId(id);
-    const repos = footprintRepoIndex.get(id);
-    if (repos) setActiveStripRepos(repos);
-  }
-
-  const starByKey = new Map(systemStars.map((s) => [s.key, s.stars]));
-  const regionBrightness = {
-    knowledge: (starByKey.get("knowledge") ?? 0) / 5,
-    harness: (starByKey.get("harness") ?? 0) / 5,
-    cache: (starByKey.get("cache") ?? 0) / 5,
-    design: (starByKey.get("design") ?? 0) / 5,
-    fog:
-      Math.max(starByKey.get("verification") ?? 0, starByKey.get("premise") ?? 0) /
-      5,
-  };
 
   const primaryCta = resolveHomeCta({
     essentialsReady: setupDiagnosis?.essentialsReady ?? true,
@@ -479,6 +406,69 @@ export function AtlasDashboard({
     gitHookInstalled: setupDiagnosis?.gitHookInstalled ?? false,
     textbookGuidance,
   });
+  const activeCtaTerritory: TerritoryKey | null =
+    CTA_KIND_TO_TERRITORY[primaryCta.kind] ?? null;
+
+  const junbiChecks = setupDiagnosis?.checks ?? [];
+  const junbiAnyOk = junbiChecks.some((c) => c.ok);
+  const junbiAllOk = junbiChecks.length > 0 && junbiChecks.every((c) => c.ok);
+  const junbiRemaining = junbiChecks.filter((c) => !c.ok).length;
+  const douguDanger = doguIsBad(douguWorstCacheRate ?? undefined);
+
+  const territories: Record<TerritoryKey, TerritoryState> = {
+    shiren: {
+      stage: stageForShiren(resolvedTotal),
+      queue: pendingGateCount || undefined,
+      queueLabel: pendingGateCount ? `のこり ${pendingGateCount}` : undefined,
+    },
+    nikki: {
+      stage: stageForNikki(nikkiBookCount),
+      queue: nikkiUngeneratedCount || undefined,
+      queueLabel: nikkiUngeneratedCount ? `未生成 ${nikkiUngeneratedCount}日` : undefined,
+    },
+    mokuhyou: {
+      stage: mokuhyouFlags,
+      queue: undefined,
+    },
+    junbi: {
+      stage: stageForJunbi({
+        anyOk: junbiAnyOk,
+        essentialsReady: setupDiagnosis?.essentialsReady ?? false,
+        allOk: junbiAllOk,
+      }),
+      queue: junbiAllOk ? undefined : junbiRemaining,
+      queueLabel: junbiAllOk ? undefined : `のこり ${junbiRemaining}`,
+    },
+    ukebako: {
+      stage: stageForUkebako(ukebakoSortedTotal),
+      queue: pendingCaptureCount || undefined,
+      queueLabel: pendingCaptureCount ? `未仕分け ${pendingCaptureCount}` : undefined,
+    },
+    dougu: {
+      stage: stageForDougu(douguWatchedRepoCount),
+      danger: douguDanger,
+      dangerLabel: douguDanger ? "危" : undefined,
+    },
+  };
+
+  const shownRepos = (sessionDigest?.byRepo ?? []).slice(0, STRIP_MAX_CARDS);
+  const boats: Boat[] = shownRepos.map((r, i) => {
+    const positions = [
+      { left: "30%", top: "48%" },
+      { left: "42%", top: "50%" },
+      { left: "54%", top: "48%" },
+      { left: "66%", top: "50%" },
+    ];
+    const pos = positions[i] ?? positions[positions.length - 1];
+    return {
+      id: `boat-${r.repo}`,
+      label: r.sessionCount > 1 ? `${r.repo} ×${r.sessionCount}` : r.repo,
+      href: sessionDigest ? `/retro/${sessionDigest.dateKey}` : "/retro",
+      left: pos.left,
+      top: pos.top,
+    };
+  });
+
   const assistContext = [
     textbookGuidance
       ? `きょうのしょ導線: ${textbookGuidance.briefingLine}`
@@ -518,10 +508,10 @@ export function AtlasDashboard({
           />
           <div className="atlas-worldmap-frame">
             <AtlasWorldMap
-              markers={allMapMarkers}
-              activeId={activeId}
-              onSelect={handleMapSelect}
-              regionBrightness={regionBrightness}
+              markers={[{ id: "you", kind: "you", label: "あなた", left: "22%", top: "64%" }]}
+              territories={territories}
+              activeCtaTerritory={activeCtaTerritory}
+              boats={boats}
             />
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-[#c9c3a0]">
@@ -549,10 +539,7 @@ export function AtlasDashboard({
             </div>
           </div>
           {sessionDigest ? (
-            <AtlasSessionDigestStrip
-              digest={sessionDigest}
-              activeRepos={activeStripRepos}
-            />
+            <AtlasSessionDigestStrip digest={sessionDigest} activeRepos={[]} />
           ) : null}
         </AtlasReveal>
 

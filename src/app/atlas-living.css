@@ -2297,6 +2297,36 @@ a.atlas-gq-cmd__item:hover {
   right: -3px;
 }
 
+/* 領土クリック入場のホバー演出（ダンジョン入口の意匠。koki実機FB、2026-08-19） */
+.atlas-territory-zone {
+  outline: 0 dashed transparent;
+  transition: outline-color 0.15s;
+}
+.atlas-territory-zone:hover,
+.atlas-territory-zone:focus-visible {
+  outline: 2px dashed #f0d25a;
+  outline-offset: -2px;
+}
+.atlas-territory-zone::after {
+  content: "▶ はいる";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: #f0d25a;
+  background: #000c4ae6;
+  border: 1px solid #f0d25a88;
+  padding: 2px 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.atlas-territory-zone:hover::after,
+.atlas-territory-zone:focus-visible::after {
+  opacity: 1;
+}
+
 /* —— ちず「あなた」マーカー（LPC 生成の人型スプライト。呼吸2フレームで待機） —— */
 .atlas-self-avatar {
   position: relative;

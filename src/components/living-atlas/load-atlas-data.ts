@@ -316,6 +316,7 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
         }
       : null,
     pendingGateCount,
+    pendingCaptureCount,
     todos,
     textbookGuidance: textbookGuide.guidance,
     sessionDigest,
@@ -324,6 +325,9 @@ export async function loadHomeProps(): Promise<AtlasDashboardProps> {
     ukebakoSortedTotal,
     douguWatchedRepoCount: listWatchedRepos().length,
     mokuhyouFlags: flagsRaisedFromEvidence(goalEvidenceCounts),
+    douguWorstCacheRate: weakRepos[0]
+      ? { thisWeekRate: weakRepos[0].thisWeekRate, insufficientThisWeek: weakRepos[0].insufficientThisWeek }
+      : null,
   };
 }
 
