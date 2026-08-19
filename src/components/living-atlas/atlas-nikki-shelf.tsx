@@ -114,7 +114,11 @@ export function AtlasNikkiShelf({
  */
 function DayPageChapters({ entry }: { entry: NikkiDay }) {
   if (entry.overview) {
-    return <p className="atlas-nikki-day-page__overview">{entry.overview}</p>;
+    return (
+      <p className="atlas-nikki-day-page__overview" tabIndex={0}>
+        {entry.overview}
+      </p>
+    );
   }
 
   if (entry.lines && entry.lines.length > 0) {

@@ -2865,7 +2865,13 @@ a.atlas-gq-cmd__item:hover {
   color: #3a6a4e;
 }
 
-/* この日のぼうけん（大枠）。全章に触れる冒険者日記文がこの日ページの唯一の本文 */
+/* この日のぼうけん（大枠）。全章に触れる冒険者日記文がこの日ページの唯一の本文。
+   固定14行のline-clampは、モバイル幅（フォントがclamp下限14pxまで縮小）で
+   末尾の章を無言のまま消していた（koki実機確認、2026-08-19）。残り高さを
+   flexで使い切り、収まらない分はスクロールで読める形にする。
+   下端フェード＋控えめなスクロールバーは「続きがある」ことを見せるための
+   手がかり（opusレビュー指摘: スクロール自体は到達できても手がかりが無ければ
+   同じ無言消失になる）。羊皮紙の地は塗らず本文だけをmaskでフェードさせる */
 .atlas-nikki-day-page__overview {
   margin: 0;
   overflow-wrap: anywhere;
@@ -2873,13 +2879,22 @@ a.atlas-gq-cmd__item:hover {
   font-size: clamp(14px, 1.7vw, 17px);
   line-height: 1.75;
   color: #1a3024;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  /* 全章の内容に触れる分、旧仕様(4行)より長くなる。紙面640px内で収まる
-     行数まで引き上げる（koki実機FB、2026-08-18） */
-  -webkit-line-clamp: 14;
-  line-clamp: 14;
-  overflow: hidden;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(58, 106, 78, 0.5) transparent;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+}
+
+/* maskはボックス下端に固定されるため、スペーサーが無いと最後まで
+   スクロールしても本文の最終行がフェード帯の中に入ったまま読めない
+   （opus 2周目レビュー指摘）。フェードは常にこの空白の上で終わる */
+.atlas-nikki-day-page__overview::after {
+  content: "";
+  display: block;
+  height: 28px;
 }
 
 .atlas-nikki-day-page__meta {
