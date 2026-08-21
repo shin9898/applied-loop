@@ -13,7 +13,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## 不変の作業方針
 
-- 安定プレフィックス規約(ADR-0017)の正典は `docs/harness-pack/README.md`（このリポジトリが正典を保有）。
+- 安定プレフィックス規約(ADR-0017)の正典は `~/.claude/docs/harness-pack/README.md`（llm-config。ADR-0022でこのリポジトリから移動済み）。このリポジトリ側は`docs/harness-pack/README.md`にポインタのみ残す。
 - ADR は `docs/adr/`。進捗正本は `docs/phase-progress.md`。
 
 ## ここから後ろ（可変）
