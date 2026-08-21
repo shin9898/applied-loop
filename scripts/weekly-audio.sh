@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# 最新の週次ナレーション原稿を VOICEVOX 互換エンジン (release-video tts.mjs) で
-# 音声化し、OBSIDIAN_DIGEST_DIR/weekly/ に wav / mp3 を配置する (ADR-0014 §1)。
+# 最新の週次ナレーション原稿(OBSIDIAN_DIGEST_DIR/weekly/)を VOICEVOX 互換エンジン
+# (release-video tts.mjs) で音声化し、wav / mp3 は AUDIO_OUTPUT_DIR/weekly/ に配置する
+# (ADR-0014 §1)。音声は Obsidian vault に置かない (file-placement.md 規約、2026-08-21)。
 # デフォルトは AivisSpeech Engine (VOICEVOX 互換 API、まお・おちつき)。
 # 声質検証 (2026-08-14): pitchScale をデフォルト以外に変えるとノイズが乗る
 # ("まお"ノーマルで -0.03/-0.08 とも再現)。声を落ち着かせたい場合は pitchScale
@@ -9,6 +10,7 @@
 # 使い方:
 #   ./scripts/weekly-audio.sh
 #   OBSIDIAN_DIGEST_DIR=~/Knowledge/... ./scripts/weekly-audio.sh
+#   AUDIO_OUTPUT_DIR=~/Movies/work-media/... ./scripts/weekly-audio.sh
 #   VOICEVOX_SPEAKER=29 VOICEVOX_URL=http://127.0.0.1:50021 ./scripts/weekly-audio.sh
 #
 # 依存: node, curl。mp3 化には ffmpeg (任意)。
@@ -50,6 +52,9 @@ resolve_digest_dir() {
 
 DIGEST_DIR="$(resolve_digest_dir)"
 WEEKLY_DIR="$DIGEST_DIR/weekly"
+
+AUDIO_OUTPUT_DIR="${AUDIO_OUTPUT_DIR:-$HOME/Movies/work-media/applied-loop}"
+AUDIO_WEEKLY_DIR="$AUDIO_OUTPUT_DIR/weekly"
 
 if [[ ! -f "$TTS_BIN" ]]; then
   echo "エラー: tts.mjs が見つかりません: $TTS_BIN" >&2
@@ -177,9 +182,9 @@ if [[ -z "${AUDIO_DIR:-}" || ! -d "$AUDIO_DIR" ]]; then
   exit 1
 fi
 
-mkdir -p "$WEEKLY_DIR"
-WAV_OUT="$WEEKLY_DIR/${WEEK_KEY}.wav"
-MP3_OUT="$WEEKLY_DIR/${WEEK_KEY}.mp3"
+mkdir -p "$AUDIO_WEEKLY_DIR"
+WAV_OUT="$AUDIO_WEEKLY_DIR/${WEEK_KEY}.wav"
+MP3_OUT="$AUDIO_WEEKLY_DIR/${WEEK_KEY}.mp3"
 
 # セグメント wav を結合 (空 glob でも set -e で落ちないようにする)
 SEGMENTS=()
@@ -219,4 +224,4 @@ else
   echo "情報: ffmpeg が無いため mp3 はスキップしました (wav のみ)。"
 fi
 
-echo "完了: ${WEEK_KEY} の音声を ${WEEKLY_DIR} に配置しました。"
+echo "完了: ${WEEK_KEY} の音声を ${AUDIO_WEEKLY_DIR} に配置しました。"
