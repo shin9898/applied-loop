@@ -48,11 +48,13 @@ export function buildCachePrefixPrescription(
             ? `「${repo}」は軽度の悪化または境界域です（${ratePct(row.lastWeekRate)} → ${ratePct(row.thisWeekRate)}）。可変メモが先頭に混ざっていないか確認してください。`
             : `「${repo}」の再利用率は悪化していません（今週 ${ratePct(row.thisWeekRate)}）。共有パックの順序規約を維持してください。`;
 
+  // 正典: docs/harness-pack/README.md の「チェックリスト（trim / 安定）」と同一文言で
+  // 同期させる(5項目目の /harness 再確認は上の nextSteps 側に既にあるため含めない)。
   const checklist = [
-    "先頭ブロック（Identity / 不変方針）に日付・一時メモを足していないか",
-    "長い手順を全文で増やさず、skill / docs へのポインタにしているか",
-    "CLAUDE.md / AGENTS.md / .cursor/rules の可変節が安定節より後ろか",
-    "ツール定義・MCP 一覧を毎セッションで膨らませていないか",
+    "先頭ブロックは先週と同じ並び・同じ文言か（日付・一時メモを先頭に足していないか）",
+    "「今日だけ」「今週の Issue」は先頭ではなく、会話または可変節の後ろか",
+    "長い手順書は skill / ドキュメントへのポインタに置き換えたか",
+    "ツール定義や MCP 一覧を毎セッション全文で増やしていないか",
   ];
 
   const candidatePatches = [
