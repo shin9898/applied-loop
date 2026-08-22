@@ -239,7 +239,11 @@ describe("harness cache audit adapter and CLI", () => {
       close(): void;
     };
     type FixtureDatabaseConstructor = new (path: string) => FixtureDatabase;
-    const Database = createRequire(import.meta.url)(
+    const testRequire = createRequire(import.meta.url);
+    const adapterRequire = createRequire(
+      testRequire.resolve("@prisma/adapter-better-sqlite3"),
+    );
+    const Database = adapterRequire(
       "better-sqlite3",
     ) as FixtureDatabaseConstructor;
     const fixtureDir = mkdtempSync(join(tmpdir(), "harness-audit-smoke-"));
