@@ -32,6 +32,7 @@
     "eval:grade-spot": "tsx scripts/eval-grade-spot.ts",
     "eval:overlap-guard": "tsx scripts/eval-overlap-guard.ts",
     "dismiss:report": "tsx scripts/dismiss-reasons-report.ts",
+    "harness:audit-cache": "tsx scripts/audit-harness-cache.ts",
     "rewrite-gates": "node scripts/rewrite-gates.mjs",
     "postinstall": "node scripts/postinstall-node-pty.mjs && prisma generate"
   },
