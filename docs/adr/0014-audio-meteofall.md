@@ -114,3 +114,19 @@ model RequirementLink {
 （`src/lib/narration-persona.ts`）。VOICEVOX 側の声色マッピングは外出しのまま。
 旧原稿の「さやか:」は UI / TTS 抽出で互換表示する。歴史的経緯（さやか転用）は
 上記背景節に残す。
+
+## 追記 (2026-08-22): 音声化オーケストレーションを my-copy へ移管
+
+上記「1. 音声ダイジェスト (C)」決定時点では想定していなかった論点
+(他 repo の実行ファイルを絶対パスで起動する越境実行) が判明したため、
+`scripts/weekly-audio.sh`・`weekly-audio-auto.sh`・
+`com.applied-loop.weekly-audio.plist` を削除し、起動オーケストレーションを
+`~/tools/workbench/my-copy`(`scripts/weekly_audio.py`)へ移管した。
+
+- **変わらないもの**: 「音声化まで Applied Loop に内製しない」という
+  却下案の結論、責務分離の原則そのもの、原稿生成 (`src/lib/audio-digest.ts`、
+  `OBSIDIAN_DIGEST_DIR/weekly/` への出力)
+- **変わるもの**: 音声化の**起動元**。従来は Applied Loop がドライバーだったが、
+  Applied Loop はナレーション原稿を書くところで完結し、my-copy 側が
+  vault の原稿を読みに行く形にした(越境の向きの逆転)
+- 詳細・設計判断: `docs/adr/0024-weekly-audio-orchestration-moves-to-my-copy.md`
