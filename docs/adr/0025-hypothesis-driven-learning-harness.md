@@ -19,7 +19,7 @@ source_refs:
   ]
 ---
 
-# ADR-0024: 仮説駆動・cache-aware な学習ループハーネスと定期自己評価
+# ADR-0025: 仮説駆動・cache-aware な学習ループハーネスと定期自己評価
 
 実装トラッキング: [GitHub Issue #24](https://github.com/shin9898/applied-loop/issues/24)
 （roadmap [#18](https://github.com/shin9898/applied-loop/issues/18) のsub-issue）
