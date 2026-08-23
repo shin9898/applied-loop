@@ -248,6 +248,17 @@ model HarnessRun {
   cacheCreate Int       @default(0)
   thinking    Int       @default(0)
   turns       Int       @default(0)
+  // Raw counters above remain immutable source telemetry. The nullable fields
+  // below are a versioned, server-derived evidence projection (ADR-0025).
+  inputTotalTokens          Int?
+  inputUncachedTokens       Int?
+  cacheReadTokens           Int?
+  cacheWriteTokens          Int? // null = source did not expose cache-write telemetry
+  usageSemanticsVersion     String?
+  usageNormalizationStatus  String?
+  usageNormalizationReason  String?
+  collectorVersion          String?
+  contextFingerprint        String? // sha256:<hex>; never prompt/conversation text
   startedAt   DateTime
   endedAt     DateTime?
 

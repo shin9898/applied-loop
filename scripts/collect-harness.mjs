@@ -34,6 +34,8 @@ const TOKEN = process.env.MCP_TOKEN || loadEnvToken();
 const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
 const CODEX_SESSIONS = join(homedir(), ".codex", "sessions");
 const DRY_RUN = process.argv.includes("--dry-run");
+// Source identity only. It is not derived from or a hash of conversation text.
+const COLLECTOR_VERSION = "harness-collector-v2";
 
 function loadEnvToken() {
   try {
@@ -415,6 +417,7 @@ function toPayload(parsed) {
     turns: agg.turns,
     startedAt: agg.startedAt,
     endedAt: agg.endedAt,
+    collectorVersion: COLLECTOR_VERSION,
   };
 }
 
@@ -440,6 +443,7 @@ function assertNoConversationBody(payload) {
     "turns",
     "startedAt",
     "endedAt",
+    "collectorVersion",
   ]);
   function walk(node, path) {
     if (node == null) return;

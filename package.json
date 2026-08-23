@@ -33,6 +33,7 @@
     "eval:overlap-guard": "tsx scripts/eval-overlap-guard.ts",
     "dismiss:report": "tsx scripts/dismiss-reasons-report.ts",
     "harness:audit-cache": "tsx scripts/audit-harness-cache.ts",
+    "harness:plan-usage-backfill": "tsx scripts/plan-harness-usage-backfill.ts",
     "harness:evaluate-preview": "tsx src/lib/loop-jobs/harness-evaluation/h-eval-preview-main.ts",
     "loop:worker": "node src/lib/loop-jobs/worker.mjs",
     "rewrite-gates": "node scripts/rewrite-gates.mjs",
