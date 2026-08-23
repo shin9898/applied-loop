@@ -392,8 +392,10 @@ function assertExactRewriteGatesComputedImport(
   source: string,
 ): void {
   const file = parsedSourceFile(importer, source);
-  const pathImport = file.statements.find((statement) => ts.isImportDeclaration(statement) &&
-    ts.isStringLiteral(statement.moduleSpecifier) && statement.moduleSpecifier.text === "node:path");
+  const pathImport = file.statements.find(
+    (statement): statement is ts.ImportDeclaration => ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) && statement.moduleSpecifier.text === "node:path",
+  );
   const pathBindings = pathImport?.importClause?.namedBindings;
   assert.equal(pathBindings && ts.isNamedImports(pathBindings), true, "rewrite-gates must use named node:path bindings");
   if (!pathBindings || !ts.isNamedImports(pathBindings)) return;
