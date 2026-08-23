@@ -14,8 +14,18 @@ import { PrismaClient } from "../../generated/prisma/client";
 import { createLoopJobQueue, defineLoopJobRegistry } from "./state-machine";
 
 const BASE_SHA = "659c916dbe88504a0695bffb56e4be06e38f967e";
-// SHA-256 of sorted UTF-8 records `${path}\t${gitBlobSha}\n` for the 259 BASE_SHA src paths.
-const BASE_SRC_AGGREGATE_SHA256 = "2ee24f68603dc46302633f18918df55b6b652a9259479f4dcb82a0574e73f14d";
+// SHA-256 of sorted UTF-8 records `${path}\t${gitBlobSha}\n` for the frozen
+// non-A2/A5 source surface. A5 is an exact, non-activation exception below.
+const BASE_SRC_AGGREGATE_SHA256 = "b86cdd6a6a656144679b897822d467e30aa10c5a4ec49a42a95737ecc3c10def";
+const A5_ALLOWED_SRC_PATHS = [
+  "src/app/api/harness-runs/route.ts",
+  "src/lib/harness-run-ingestion.test.ts",
+  "src/lib/harness-run-ingestion.ts",
+  "src/lib/harness-usage-backfill.test.ts",
+  "src/lib/harness-usage-backfill.ts",
+  "src/lib/harness-usage-evidence.test.ts",
+  "src/lib/harness-usage-evidence.ts",
+] as const;
 const workerEntry = join(process.cwd(), "src/lib/loop-jobs/worker.mjs");
 
 function sha256(bytes: Buffer | string): string {
@@ -349,8 +359,9 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         encoding: "utf8",
       }).trim().split("\n").filter(Boolean)
         .filter((path) => !path.startsWith("src/lib/loop-jobs/"))
+        .filter((path) => !(A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
         .sort();
-      assert.equal(trackedSourcePaths.length, 259);
+      assert.equal(trackedSourcePaths.length, 258);
       const currentBaseAggregate = trackedSourcePaths.map((path) => {
         const blob = execFileSync("git", ["hash-object", path], {
           cwd: process.cwd(),
@@ -368,8 +379,12 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         const tree = execFileSync("git", ["ls-tree", "-r", BASE_SHA, "src"], {
           cwd: process.cwd(),
           encoding: "utf8",
-        }).trim().split("\n").filter(Boolean);
-        assert.equal(tree.length, 259);
+        }).trim().split("\n").filter(Boolean)
+          .filter((line) => {
+            const path = line.split("\t")[1];
+            return path === undefined || !(A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path);
+          });
+        assert.equal(tree.length, 258);
         for (const line of tree) {
           const match = line.match(/^\d+ blob ([0-9a-f]{40})\t(.+)$/);
           assert.ok(match, `unexpected ls-tree line: ${line}`);
@@ -408,7 +423,29 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         cwd: process.cwd(),
         encoding: "utf8",
       }).trim().split("\n").filter(Boolean);
-      assert.equal(untrackedSource.every((path) => path.startsWith("src/lib/loop-jobs/")), true);
+      assert.equal(
+        untrackedSource.every(
+          (path) => path.startsWith("src/lib/loop-jobs/")
+            || (A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
+        ),
+        true,
+      );
+      const discoveredA5Sources = [
+        ...execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" })
+          .trim().split("\n").filter(Boolean),
+        ...untrackedSource,
+      ]
+        .filter((path) => (A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .sort();
+      assert.deepEqual(discoveredA5Sources, [...A5_ALLOWED_SRC_PATHS].sort());
+      for (const path of A5_ALLOWED_SRC_PATHS.filter((path) => !path.endsWith(".test.ts"))) {
+        const source = await readFile(join(process.cwd(), path), "utf8");
+        assert.doesNotMatch(
+          source,
+          /(?:loop:worker|worker-phase[12]|createLoopJobQueue|defineLoopJobRegistry|\bLoopJob\b)/,
+          path,
+        );
+      }
 
       const packageJson = JSON.parse(await readFile(join(process.cwd(), "package.json"), "utf8")) as {
         scripts: Record<string, string>;

@@ -23,8 +23,8 @@ import {
 
 const hash = (character: string) => character.repeat(64);
 const policyVersion = "v1";
-const NON_A4_TRACKED_PATH_COUNT = 548;
-const NON_A4_TRACKED_CONTENT_AGGREGATE_SHA256 = "468693b9a16cb5383829d966b57e99ebfb9708232521daeac76bd0179e3bf3c8";
+const NON_A4_A5_TRACKED_PATH_COUNT = 544;
+const NON_A4_A5_TRACKED_CONTENT_AGGREGATE_SHA256 = "04029cc452fca91924a78a4980e7a8478646416da4e068cb17637d3f6e7581c9";
 const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract-v1.ts",
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
@@ -40,6 +40,29 @@ const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/h-eval-preview-dormancy.test.ts",
 ] as const;
 const H_EVAL_DIRECTORY_PREFIX = "src/lib/loop-jobs/harness-evaluation/";
+const A5_ALLOWED_NON_H_EVAL_PATHS = [
+  "package.json",
+  "prisma/migrations/20260823145705_harness_usage_evidence/migration.sql",
+  "prisma/schema.prisma",
+  "scripts/collect-harness.mjs",
+  "scripts/plan-harness-usage-backfill.ts",
+  "src/app/api/harness-runs/route.ts",
+  "src/lib/harness-run-ingestion.test.ts",
+  "src/lib/harness-run-ingestion.ts",
+  "src/lib/harness-usage-backfill.test.ts",
+  "src/lib/harness-usage-backfill.ts",
+  "src/lib/harness-usage-evidence.test.ts",
+  "src/lib/harness-usage-evidence.ts",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+] as const;
+const A5_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "scripts/collect-harness.mjs",
+  "scripts/plan-harness-usage-backfill.ts",
+  "src/app/api/harness-runs/route.ts",
+  "src/lib/harness-run-ingestion.ts",
+  "src/lib/harness-usage-backfill.ts",
+  "src/lib/harness-usage-evidence.ts",
+] as const;
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
   "h-eval-job-contract-v1.ts": "25a6bbc3bfd0ef30c70ee063c227e0352c6b0b76a2241e6fb206d61e1c6318ba",
@@ -941,6 +964,7 @@ function packageBaselineSha256(packageJson: JsonDataRecord): string {
   const scripts = baseline.scripts;
   if (!isOrdinaryDataObject(scripts)) throw new Error("package JSON scripts must be an object");
   delete scripts["harness:evaluate-preview"];
+  delete scripts["harness:plan-usage-backfill"];
   return createHash("sha256").update(canonicalJson(baseline), "utf8").digest("hex");
 }
 
@@ -965,6 +989,16 @@ function assertExactPreviewPackageException(rawBytes: Uint8Array): void {
     "unexpected preview-script alias",
   );
   assert.equal(
+    scripts["harness:plan-usage-backfill"],
+    "tsx scripts/plan-harness-usage-backfill.ts",
+    "unexpected A5 backfill-plan script value",
+  );
+  assert.equal(
+    Object.keys(scripts).filter((key) => key.includes("usage-backfill")).length,
+    1,
+    "unexpected backfill-plan script alias",
+  );
+  assert.equal(
     packageBaselineSha256(packageJson),
     "20cd7ae015277d2b5a0ee0b01f4bcae1e632a082f4f1f02198dab776aad00ca1",
     "unexpected package baseline after deleting the sole preview script",
@@ -972,29 +1006,54 @@ function assertExactPreviewPackageException(rawBytes: Uint8Array): void {
 }
 
 async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<void> {
-  const nonA4Tracked = gitLines(root, ["ls-files"])
-    .filter((path) => !path.startsWith(H_EVAL_DIRECTORY_PREFIX) && path !== "package.json")
+  const nonA4A5Tracked = gitLines(root, ["ls-files"])
+    .filter(
+      (path) => !path.startsWith(H_EVAL_DIRECTORY_PREFIX)
+        && !(A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+    )
     .sort();
-  assert.equal(nonA4Tracked.length, NON_A4_TRACKED_PATH_COUNT, "unexpected non-A4 tracked path count");
-  const aggregate = nonA4Tracked
+  assert.equal(
+    nonA4A5Tracked.length,
+    NON_A4_A5_TRACKED_PATH_COUNT,
+    "unexpected non-A4/A5 tracked path count",
+  );
+  const aggregate = nonA4A5Tracked
     .map((path) => `${path}\t${contentSha256(join(root, path))}\n`)
     .join("");
   assert.equal(
     createHash("sha256").update(aggregate, "utf8").digest("hex"),
-    NON_A4_TRACKED_CONTENT_AGGREGATE_SHA256,
-    "unexpected non-A4 tracked content aggregate",
+    NON_A4_A5_TRACKED_CONTENT_AGGREGATE_SHA256,
+    "unexpected non-A4/A5 tracked content aggregate",
   );
   const untracked = gitLines(root, ["ls-files", "--others", "--exclude-standard"]);
   assert.equal(
-    untracked.every((path) => (H_EVAL_ALLOWED_PATHS as readonly string[]).includes(path)),
+    untracked.every(
+      (path) => (H_EVAL_ALLOWED_PATHS as readonly string[]).includes(path)
+        || (A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+    ),
     true,
-    "unexpected untracked path outside the A3 allowlist",
+    "unexpected untracked path outside the A3/A4/A5 allowlist",
   );
+  const discoveredA5Paths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA5Paths, [...A5_ALLOWED_NON_H_EVAL_PATHS].sort());
   assert.deepEqual(
     (await sourceFiles(a3Root)).map((path) => relative(root, path)).sort(),
     [...H_EVAL_ALLOWED_PATHS].sort(),
     "unexpected A4 source path",
   );
+  for (const path of A5_NON_ACTIVATION_PRODUCTION_PATHS) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(
+      source,
+      /(?:loop:worker|worker-phase[12]|createLoopJobQueue|defineLoopJobRegistry|\bLoopJob\b)/,
+      path,
+    );
+  }
 }
 
 type A3DirectoryEntry = Readonly<{
