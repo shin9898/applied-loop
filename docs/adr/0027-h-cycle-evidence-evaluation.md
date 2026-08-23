@@ -88,11 +88,16 @@ revision の監査用であり、question 本文ではない。`TextbookCheckMas
 authenticated Mastery 操作を保存したときだけ append する。page visit、briefing、教材生成、
 scheduler、worker、Gate pollingは Mastery event を作らない。
 
-生成側は Check を保存する同一 transaction で evidence を upsert する。Mastery 保存側は
-現在の Check を server で再読して revision identity を再計算し、同じ transaction で
-event を append する。client は revision hash、question、reference、timestampを渡さない。
-source を再読できない、hash が一致しない、mastery が列挙外の場合は event を推測作成せず
-fail-loud にする。
+生成側は Check を保存する同一 transaction で evidence を upsert する。対象は日次 `auto`、
+日次 `compiled`、週次の全 production writer であり、一つでも観測しない経路を作らない。
+Mastery 保存側は現在の Check を server で再読して revision identity を再計算し、同じ
+transaction で evidence を upsert してから event を append する。client は revision hash、
+question、reference、timestampを渡さない。
+
+rollout前に作成された既存 Check に evidence が無い場合、その最初の explicit Mastery save は
+save時刻で初めて観測した evidence を作る。元の生成日時を推測して過去 period へ backfill
+しない。baseline は ledger rollout後の `firstObservedAt` だけから始める。source を再読できない、
+hash が一致しない、mastery が列挙外の場合は event を推測作成せず fail-loud にする。
 
 ### 3. projection は純粋・read-only・コホート明示とする
 
@@ -187,10 +192,12 @@ DB write、worker、scheduler、queue、launchd、LLM、automatic intervention�
 
 1. pure source revision helper は同じ source を同一hash、question/reference変更を別hashにし、
    answer/diff/secretを入力・保存・CLI outputに含めない。
-2. temporary SQLiteで auto Check を削除→同内容再生成しても Evidence は1件、revision変更時は
-   旧行を残して2件目を作ることを検証する。
+2. temporary SQLiteで daily `auto` Check を削除→同内容再生成しても Evidence は1件、revision変更時は
+   旧行を残して2件目を作ることを検証する。daily `compiled` とweekly の各writerも、Checkと同じ
+   transactionで Evidence を一件だけ作ることを検証する。
 3. Mastery event は explicit authenticated save だけで追加され、page visit/briefing/generator/worker相当では
-   追加されないことを検証する。
+   追加されないことを検証する。rollout前相当のEvidence無しCheckを初めて保存したときはsave時刻で
+   観測し、過去periodへ遡及しないことを検証する。
 4. pure projection fixtureで `passed`、`failed + pending Capture`、`failed + ignored Capture`、
    `failed + accepted + scheduled`、hash/linkage mismatch、0 denominator、二週不足を固定する。
 5. promotionとgradedの cohort / as-of が異なることをJSONで明示し、future stateを過去terminal outcomeに
