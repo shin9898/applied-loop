@@ -1176,9 +1176,10 @@ function assertExactPreviewMainAdapter(source: string): void {
   const argument = call.arguments[0];
   assert.equal(ts.isObjectLiteralExpression(argument), true);
   if (!ts.isObjectLiteralExpression(argument)) return;
-  assert.deepEqual(argument.properties.map((property) => property.name?.getText(file)), ["args", "input", "output"]);
-  assert.equal(argument.properties.every(ts.isPropertyAssignment), true);
-  const [args, input, output] = argument.properties as ts.PropertyAssignment[];
+  const properties = argument.properties.filter(ts.isPropertyAssignment);
+  assert.equal(properties.length, argument.properties.length, "preview main argument must contain only property assignments");
+  assert.deepEqual(properties.map((property) => property.name.getText(file)), ["args", "input", "output"]);
+  const [args, input, output] = properties;
   assert.equal(args.initializer.getText(file), "process.argv.slice(2)");
   assert.equal(input.initializer.getText(file), "process.stdin");
   assert.equal(output.initializer.getText(file), "process.stdout");
