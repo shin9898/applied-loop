@@ -1735,6 +1735,11 @@ test("A4-CG7-T1 A3-A4-coexistence-and-dormancy-boundaries", async (t) => {
     )[0];
     assert.equal(literalA4Edge.computed, false);
     if (literalA4Edge.computed || literalA4Edge.specifier === undefined) return;
+    const literalEdge: LiteralRuntimeModuleEdge = {
+      kind: literalA4Edge.kind,
+      specifier: literalA4Edge.specifier,
+      computed: false,
+    };
     assert.throws(
       () => classifyLiteralExternalRuntimeEdge(
         root,
@@ -1742,7 +1747,7 @@ test("A4-CG7-T1 A3-A4-coexistence-and-dormancy-boundaries", async (t) => {
         runtimeCompilerOptions(root),
         fixtureImporter,
         "scripts/a4-negative-edge-fixture.mjs",
-        { kind: literalA4Edge.kind, specifier: literalA4Edge.specifier, computed: false },
+        literalEdge,
       ),
       /resolves into A4/,
     );
