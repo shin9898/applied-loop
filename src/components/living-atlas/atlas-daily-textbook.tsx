@@ -21,6 +21,7 @@ import {
 import {
   compileMaterialBandAction,
   polishTextbookChapterAction,
+  promoteTextbookCheckToGateAction,
   regenerateDailyTextbookAction,
   setTextbookMasteryAction,
 } from "@/lib/actions";
@@ -85,6 +86,8 @@ export function AtlasDailyTextbook({
   );
   const [polishError, setPolishError] = useState<string | null>(null);
   const [polishingId, setPolishingId] = useState<string | null>(null);
+  const [promotionError, setPromotionError] = useState<string | null>(null);
+  const [promotingCheckId, setPromotingCheckId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const [localMastery, setLocalMastery] = useState<Record<string, MasteryState>>(
@@ -447,12 +450,49 @@ export function AtlasDailyTextbook({
                       {MASTERY_LABEL[m]}
                     </button>
                   ))}
+                  {mastery === "partial" || mastery === "stuck" ? (
+                    <button
+                      type="button"
+                      disabled={pending || promotingCheckId === ck.id}
+                      className="dq-btn !px-2 !py-1.5 text-[7px]"
+                      onClick={() => {
+                        setPromotionError(null);
+                        setPromotingCheckId(ck.id);
+                        startTransition(async () => {
+                          try {
+                            const result = await promoteTextbookCheckToGateAction(
+                              "daily",
+                              ck.id,
+                            );
+                            if (!result.ok) {
+                              setPromotionError(
+                                result.code === "not_actionable"
+                                  ? "「まだ半分」または「つまずき」の問いだけを、明示してしれんへ送れる。"
+                                  : "この問いは更新されたか、由来を確かめられない。しょを読み直してから試して。",
+                              );
+                              return;
+                            }
+                            router.push(`/gates/${result.gateId}`);
+                          } catch {
+                            setPromotionError("しれんの準備に失敗した。あとで改めて試して。");
+                          } finally {
+                            setPromotingCheckId(null);
+                          }
+                        });
+                      }}
+                    >
+                      {promotingCheckId === ck.id ? "しれんを準備中…" : "Gateで確かめる"}
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );
           })}
           {textbook.checks.length === 0 ? (
             <p className="atlas-journal__lead">確認問いがまだない。</p>
+          ) : null}
+          {promotionError ? (
+            <p className="m-0 text-[12px] text-[#e84848]">{promotionError}</p>
           ) : null}
           </div>
         </section>
