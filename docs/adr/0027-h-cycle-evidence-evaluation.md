@@ -53,8 +53,13 @@ sourceKind + textbookKey + source + checkIndex + sourceRevisionHash
 - `checkIndex`: その書の論理スロット
 - `sourceRevisionHash`: server 側で versioned canonical source projection から求める SHA-256
 
-`sourceRevisionHash` は ADR-0026 の Gate origin と同じ意味論を使う。ただし A7 は
+`sourceRevisionHash` は ADR-0026 の Gate origin と**同一の値**を使う。ただし A7 は
 Gate を作らないため、pure helper を `TextbookCheckSourceRevisionV1` として分離する。
+同じ有効な source input に対し、helperの `sourceRevisionHash` は
+`createTextbookCheckGateOriginV1(input).sourceRevisionHash` と完全一致しなければならない。
+second hash / version mapping / 類似度結合を定義しない。必要ならA6のcanonical source-snapshot
+計算を共有化し、`TextbookCheckGateOrigin` とは5-field identityでstrictに結ぶ。
+
 hash の入力は source identity、question hash、chapter index、bounded chapter/reference
 projection、schema versionである。answer、diff本文、会話本文、prompt本文、secretを入力にも
 保存先にも含めない。
@@ -191,7 +196,8 @@ DB write、worker、scheduler、queue、launchd、LLM、automatic intervention�
 ## 受入テスト
 
 1. pure source revision helper は同じ source を同一hash、question/reference変更を別hashにし、
-   answer/diff/secretを入力・保存・CLI outputに含めない。
+   同じinputのA6 `createTextbookCheckGateOriginV1` とsourceRevisionHashが完全一致することを
+   固定する。answer/diff/secretを入力・保存・CLI outputに含めない。
 2. temporary SQLiteで daily `auto` Check を削除→同内容再生成しても Evidence は1件、revision変更時は
    旧行を残して2件目を作ることを検証する。daily `compiled` とweekly の各writerも、Checkと同じ
    transactionで Evidence を一件だけ作ることを検証する。
