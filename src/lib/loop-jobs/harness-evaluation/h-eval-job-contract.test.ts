@@ -1156,10 +1156,14 @@ function assertExactPreviewMainAdapter(source: string): void {
   assert.equal(mainStatement.modifiers?.[0]?.kind, ts.SyntaxKind.AsyncKeyword, "preview main function must be async");
   assert.equal(mainStatement.parameters.length, 0, "preview main function must not accept capabilities or arguments");
   assert.equal(mainStatement.type?.getText(file), "Promise<void>", "preview main must return Promise<void>");
-  assert.equal(mainStatement.body?.statements.length, 1, "preview main body must contain only its awaited runner assignment");
-  const assignmentStatement = mainStatement.body?.statements[0];
+  const mainBody = mainStatement.body;
+  assert.notEqual(mainBody, undefined, "preview main must have a body");
+  if (!mainBody) return;
+  assert.equal(mainBody.statements.length, 1, "preview main body must contain only its awaited runner assignment");
+  const assignmentStatement = mainBody.statements[0];
   assert.equal(ts.isExpressionStatement(assignmentStatement), true, "preview main body must be the runner assignment");
-  if (!ts.isExpressionStatement(assignmentStatement) || !ts.isBinaryExpression(assignmentStatement.expression)) return;
+  if (!assignmentStatement || !ts.isExpressionStatement(assignmentStatement) ||
+      !ts.isBinaryExpression(assignmentStatement.expression)) return;
   const assignment = assignmentStatement.expression;
   assert.equal(assignment.operatorToken.kind, ts.SyntaxKind.EqualsToken, "preview main must use a simple exitCode assignment");
   assert.equal(
@@ -1250,18 +1254,24 @@ function assertExactPreviewCliShape(source: string): void {
     ts.isFunctionDeclaration(statement) && statement.name?.text === "readBoundedPreviewInputV1");
   const writer = file.statements.find((statement): statement is ts.FunctionDeclaration =>
     ts.isFunctionDeclaration(statement) && statement.name?.text === "writeOnePreviewResultV1");
-  assert.equal(reader?.parameters.length, 1, "preview input reader must have one injected capability");
-  assert.equal(writer?.parameters.length, 2, "preview writer must have only output and result capabilities");
+  assert.notEqual(reader, undefined, "preview input reader must exist");
+  assert.notEqual(writer, undefined, "preview writer must exist");
+  if (!reader || !writer) return;
+  assert.equal(reader.parameters.length, 1, "preview input reader must have one injected capability");
+  assert.equal(writer.parameters.length, 2, "preview writer must have only output and result capabilities");
+  const [inputParameter] = reader.parameters;
+  const [outputParameter, resultParameter] = writer.parameters;
+  if (!inputParameter || !outputParameter || !resultParameter) return;
   assert.equal(
-    ts.isIdentifier(reader?.parameters[0]?.name) && reader.parameters[0].name.text === "input" &&
-      reader.parameters[0].dotDotDotToken === undefined && reader.parameters[0].questionToken === undefined &&
-      reader.parameters[0].initializer === undefined,
+    ts.isIdentifier(inputParameter.name) && inputParameter.name.text === "input" &&
+      inputParameter.dotDotDotToken === undefined && inputParameter.questionToken === undefined &&
+      inputParameter.initializer === undefined,
     true,
     "preview reader must receive only its input capability",
   );
   assert.equal(
-    ts.isIdentifier(writer?.parameters[0]?.name) && writer.parameters[0].name.text === "output" &&
-      ts.isIdentifier(writer.parameters[1]?.name) && writer.parameters[1].name.text === "result" &&
+    ts.isIdentifier(outputParameter.name) && outputParameter.name.text === "output" &&
+      ts.isIdentifier(resultParameter.name) && resultParameter.name.text === "result" &&
       writer.parameters.every((parameter) => parameter.dotDotDotToken === undefined &&
         parameter.questionToken === undefined && parameter.initializer === undefined),
     true,
