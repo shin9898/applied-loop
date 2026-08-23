@@ -102,6 +102,9 @@ const A6_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/textbook-check-gate-promotion-core.ts",
   "src/lib/textbook-check-gate-promotion.ts",
 ] as const;
+const A7_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0027-h-cycle-evidence-evaluation.md",
+] as const;
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
   "h-eval-job-contract-v1.ts": "25a6bbc3bfd0ef30c70ee063c227e0352c6b0b76a2241e6fb206d61e1c6318ba",
@@ -1049,13 +1052,14 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter(
       (path) => !path.startsWith(H_EVAL_DIRECTORY_PREFIX)
         && !(A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        && !(A6_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        && !(A6_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A7_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
   assert.equal(
     nonA4A5A6Tracked.length,
     NON_A4_A5_A6_TRACKED_PATH_COUNT,
-    "unexpected non-A4/A5/A6 tracked path count",
+    "unexpected non-A4/A5/A6/A7 tracked path count",
   );
   const aggregate = nonA4A5A6Tracked
     .map((path) => `${path}\t${A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? contentSha256(join(root, path))}\n`)
@@ -1063,17 +1067,18 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
   assert.equal(
     createHash("sha256").update(aggregate, "utf8").digest("hex"),
     NON_A4_A5_A6_TRACKED_CONTENT_AGGREGATE_SHA256,
-    "unexpected non-A4/A5/A6 tracked content aggregate",
+    "unexpected non-A4/A5/A6/A7 tracked content aggregate",
   );
   const untracked = gitLines(root, ["ls-files", "--others", "--exclude-standard"]);
   assert.equal(
     untracked.every(
       (path) => (H_EVAL_ALLOWED_PATHS as readonly string[]).includes(path)
         || (A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        || (A6_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        || (A6_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A7_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
-    "unexpected untracked path outside the A3/A4/A5/A6 allowlist",
+    "unexpected untracked path outside the A3/A4/A5/A6/A7 allowlist",
   );
   const discoveredA5Paths = [
     ...gitLines(root, ["ls-files"]),
@@ -1089,6 +1094,13 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A6_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA6Paths, [...A6_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredA7Paths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A7_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA7Paths, [...A7_ALLOWED_NON_H_EVAL_PATHS].sort());
   assert.deepEqual(
     Object.keys(A6_MODIFIED_BASE_CONTENT_SHA256).sort(),
     A6_ALLOWED_NON_H_EVAL_PATHS.filter(
