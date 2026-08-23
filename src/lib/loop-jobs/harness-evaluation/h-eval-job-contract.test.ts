@@ -23,8 +23,8 @@ import {
 
 const hash = (character: string) => character.repeat(64);
 const policyVersion = "v1";
-const NON_A4_A5_TRACKED_PATH_COUNT = 544;
-const NON_A4_A5_TRACKED_CONTENT_AGGREGATE_SHA256 = "04029cc452fca91924a78a4980e7a8478646416da4e068cb17637d3f6e7581c9";
+const NON_A4_A5_A6_TRACKED_PATH_COUNT = 544;
+const NON_A4_A5_A6_TRACKED_CONTENT_AGGREGATE_SHA256 = "04029cc452fca91924a78a4980e7a8478646416da4e068cb17637d3f6e7581c9";
 const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract-v1.ts",
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
@@ -63,12 +63,44 @@ const A5_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/harness-usage-backfill.ts",
   "src/lib/harness-usage-evidence.ts",
 ] as const;
-
-// A6 is documentation-only at this PR boundary. Keep the exact path separate
-// from the dormant H-EVAL runtime surface so any other repo-wide addition is
-// still fail-closed.
-const A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS = [
+const A6_ALLOWED_NON_H_EVAL_PATHS = [
   "docs/adr/0026-textbook-check-gate-bridge.md",
+  "prisma/migrations/20260823152438_textbook_check_gate_origin/migration.sql",
+  "src/components/living-atlas/atlas-daily-textbook.tsx",
+  "src/components/living-atlas/atlas-weekly-textbook.tsx",
+  "src/lib/actions.ts",
+  "src/lib/gate-textbook-grading.test.ts",
+  "src/lib/gate.ts",
+  "src/lib/textbook-check-gate-origin.test.ts",
+  "src/lib/textbook-check-gate-origin.ts",
+  "src/lib/textbook-check-gate-promotion-core.ts",
+  "src/lib/textbook-check-gate-promotion.test.ts",
+  "src/lib/textbook-check-gate-promotion.ts",
+] as const;
+const A6_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0026-textbook-check-gate-bridge.md",
+  "prisma/migrations/20260823152438_textbook_check_gate_origin/migration.sql",
+  "src/lib/gate-textbook-grading.test.ts",
+  "src/lib/textbook-check-gate-origin.test.ts",
+  "src/lib/textbook-check-gate-origin.ts",
+  "src/lib/textbook-check-gate-promotion-core.ts",
+  "src/lib/textbook-check-gate-promotion.test.ts",
+  "src/lib/textbook-check-gate-promotion.ts",
+] as const;
+const A6_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "src/components/living-atlas/atlas-daily-textbook.tsx": "47f78d0c04e16eee25b167e9abb7e45f95da729f97bdfc1346172cf63a41dd68",
+  "src/components/living-atlas/atlas-weekly-textbook.tsx": "3a8f0e4073b4a82d1ed6f9a7257494aba0b52932d49762361ae303feaa1cd1e1",
+  "src/lib/actions.ts": "b00a50a2360735614f90ed7891b7d746e7e8851fe3efd1d362c446744982dd17",
+  "src/lib/gate.ts": "4f0058a9479e0ccd9f27554867f0dd6e1ca877a738bec5855aef6d8bbfc39eac",
+};
+const A6_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/components/living-atlas/atlas-daily-textbook.tsx",
+  "src/components/living-atlas/atlas-weekly-textbook.tsx",
+  "src/lib/actions.ts",
+  "src/lib/gate.ts",
+  "src/lib/textbook-check-gate-origin.ts",
+  "src/lib/textbook-check-gate-promotion-core.ts",
+  "src/lib/textbook-check-gate-promotion.ts",
 ] as const;
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
@@ -1017,20 +1049,20 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter(
       (path) => !path.startsWith(H_EVAL_DIRECTORY_PREFIX)
         && !(A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        && !(A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        && !(A6_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
   assert.equal(
     nonA4A5A6Tracked.length,
-    NON_A4_A5_TRACKED_PATH_COUNT,
+    NON_A4_A5_A6_TRACKED_PATH_COUNT,
     "unexpected non-A4/A5/A6 tracked path count",
   );
   const aggregate = nonA4A5A6Tracked
-    .map((path) => `${path}\t${contentSha256(join(root, path))}\n`)
+    .map((path) => `${path}\t${A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? contentSha256(join(root, path))}\n`)
     .join("");
   assert.equal(
     createHash("sha256").update(aggregate, "utf8").digest("hex"),
-    NON_A4_A5_TRACKED_CONTENT_AGGREGATE_SHA256,
+    NON_A4_A5_A6_TRACKED_CONTENT_AGGREGATE_SHA256,
     "unexpected non-A4/A5/A6 tracked content aggregate",
   );
   const untracked = gitLines(root, ["ls-files", "--others", "--exclude-standard"]);
@@ -1038,7 +1070,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     untracked.every(
       (path) => (H_EVAL_ALLOWED_PATHS as readonly string[]).includes(path)
         || (A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        || (A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        || (A6_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
     "unexpected untracked path outside the A3/A4/A5/A6 allowlist",
@@ -1050,16 +1082,33 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA5Paths, [...A5_ALLOWED_NON_H_EVAL_PATHS].sort());
-  const discoveredA6DesignPaths = [...gitLines(root, ["ls-files"]), ...untracked]
-    .filter((path) => (A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+  const discoveredA6Paths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A6_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
-  assert.deepEqual(discoveredA6DesignPaths, [...A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS].sort());
+  assert.deepEqual(discoveredA6Paths, [...A6_ALLOWED_NON_H_EVAL_PATHS].sort());
+  assert.deepEqual(
+    Object.keys(A6_MODIFIED_BASE_CONTENT_SHA256).sort(),
+    A6_ALLOWED_NON_H_EVAL_PATHS.filter(
+      (path) => !(A6_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+    ).sort(),
+  );
   assert.deepEqual(
     (await sourceFiles(a3Root)).map((path) => relative(root, path)).sort(),
     [...H_EVAL_ALLOWED_PATHS].sort(),
     "unexpected A4 source path",
   );
   for (const path of A5_NON_ACTIVATION_PRODUCTION_PATHS) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(
+      source,
+      /(?:loop:worker|worker-phase[12]|createLoopJobQueue|defineLoopJobRegistry|\bLoopJob\b)/,
+      path,
+    );
+  }
+  for (const path of A6_NON_ACTIVATION_PRODUCTION_PATHS) {
     const source = await readFile(join(root, path), "utf8");
     assert.doesNotMatch(
       source,

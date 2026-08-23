@@ -15,7 +15,7 @@ import { createLoopJobQueue, defineLoopJobRegistry } from "./state-machine";
 
 const BASE_SHA = "659c916dbe88504a0695bffb56e4be06e38f967e";
 // SHA-256 of sorted UTF-8 records `${path}\t${gitBlobSha}\n` for the frozen
-// non-A2/A5 source surface. A5 is an exact, non-activation exception below.
+// non-A2/A5/A6 source surface. A5 and A6 are exact, non-activation exceptions below.
 const BASE_SRC_AGGREGATE_SHA256 = "b86cdd6a6a656144679b897822d467e30aa10c5a4ec49a42a95737ecc3c10def";
 const A5_ALLOWED_SRC_PATHS = [
   "src/app/api/harness-runs/route.ts",
@@ -25,6 +25,41 @@ const A5_ALLOWED_SRC_PATHS = [
   "src/lib/harness-usage-backfill.ts",
   "src/lib/harness-usage-evidence.test.ts",
   "src/lib/harness-usage-evidence.ts",
+] as const;
+const A6_ALLOWED_SRC_PATHS = [
+  "src/components/living-atlas/atlas-daily-textbook.tsx",
+  "src/components/living-atlas/atlas-weekly-textbook.tsx",
+  "src/lib/actions.ts",
+  "src/lib/gate-textbook-grading.test.ts",
+  "src/lib/gate.ts",
+  "src/lib/textbook-check-gate-origin.test.ts",
+  "src/lib/textbook-check-gate-origin.ts",
+  "src/lib/textbook-check-gate-promotion-core.ts",
+  "src/lib/textbook-check-gate-promotion.test.ts",
+  "src/lib/textbook-check-gate-promotion.ts",
+] as const;
+const A6_ADDITIVE_SRC_PATHS = [
+  "src/lib/gate-textbook-grading.test.ts",
+  "src/lib/textbook-check-gate-origin.test.ts",
+  "src/lib/textbook-check-gate-origin.ts",
+  "src/lib/textbook-check-gate-promotion-core.ts",
+  "src/lib/textbook-check-gate-promotion.test.ts",
+  "src/lib/textbook-check-gate-promotion.ts",
+] as const;
+const A6_MODIFIED_BASE_SRC_BLOBS: Readonly<Record<string, string>> = {
+  "src/components/living-atlas/atlas-daily-textbook.tsx": "697089bdb72d3dea72887f5df616a6a4546f8392",
+  "src/components/living-atlas/atlas-weekly-textbook.tsx": "85eaf62e4123d791e3509199c51948a3a74f963d",
+  "src/lib/actions.ts": "22b6f06168a9882d7dc08ccf9056cd51437e4064",
+  "src/lib/gate.ts": "0816b74ce9adb6e08404f5867aa201c851783a54",
+};
+const A6_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/components/living-atlas/atlas-daily-textbook.tsx",
+  "src/components/living-atlas/atlas-weekly-textbook.tsx",
+  "src/lib/actions.ts",
+  "src/lib/gate.ts",
+  "src/lib/textbook-check-gate-origin.ts",
+  "src/lib/textbook-check-gate-promotion-core.ts",
+  "src/lib/textbook-check-gate-promotion.ts",
 ] as const;
 const workerEntry = join(process.cwd(), "src/lib/loop-jobs/worker.mjs");
 
@@ -360,13 +395,15 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
       }).trim().split("\n").filter(Boolean)
         .filter((path) => !path.startsWith("src/lib/loop-jobs/"))
         .filter((path) => !(A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .filter((path) => !(A6_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.equal(trackedSourcePaths.length, 258);
       const currentBaseAggregate = trackedSourcePaths.map((path) => {
-        const blob = execFileSync("git", ["hash-object", path], {
-          cwd: process.cwd(),
-          encoding: "utf8",
-        }).trim();
+        const blob = A6_MODIFIED_BASE_SRC_BLOBS[path]
+          ?? execFileSync("git", ["hash-object", path], {
+            cwd: process.cwd(),
+            encoding: "utf8",
+          }).trim();
         return `${path}\t${blob}\n`;
       }).join("");
       assert.equal(sha256(currentBaseAggregate), BASE_SRC_AGGREGATE_SHA256);
@@ -382,13 +419,22 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         }).trim().split("\n").filter(Boolean)
           .filter((line) => {
             const path = line.split("\t")[1];
-            return path === undefined || !(A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path);
+            return path === undefined
+              || (
+                !(A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
+                && !(A6_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
+              );
           });
         assert.equal(tree.length, 258);
         for (const line of tree) {
           const match = line.match(/^\d+ blob ([0-9a-f]{40})\t(.+)$/);
           assert.ok(match, `unexpected ls-tree line: ${line}`);
           const [, expectedBlob, path] = match;
+          const a6ModifiedBaseBlob = A6_MODIFIED_BASE_SRC_BLOBS[path];
+          if (a6ModifiedBaseBlob !== undefined) {
+            assert.equal(expectedBlob, a6ModifiedBaseBlob, path);
+            continue;
+          }
           assert.equal(
             execFileSync("git", ["hash-object", path], { cwd: process.cwd(), encoding: "utf8" }).trim(),
             expectedBlob,
@@ -400,12 +446,10 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
       const explicitOwners: Record<string, string> = {
         "src/app/api/events/route.ts": "8363abdb261b7065c2d6e10be0b1ef3177df1503",
         "src/app/api/mcp/route.ts": "ea64596660de738fff0b7ad7128b616d8eade17c",
-        "src/lib/actions.ts": "22b6f06168a9882d7dc08ccf9056cd51437e4064",
         "src/lib/capture.ts": "4027b409bad6d6e3ad4b1ab54ca4e710442ce5c8",
         "src/lib/gate-answer.ts": "8440d20c14053cfd05e1ddfe8f928b7f2b90c1a8",
         "src/lib/requeue-failed-grading.ts": "12d2f85047ccf0a999a0a5e3491c09573b3275a4",
         "src/lib/weakness.ts": "f045f9e26e0f005fae8b4225eb9acf99028ed8ae",
-        "src/lib/gate.ts": "0816b74ce9adb6e08404f5867aa201c851783a54",
         "src/lib/harness-patterns.ts": "27f4492a8224f3e5423d677fd950a1e48dccd97b",
         "src/lib/db.ts": "dfe55d5b3eff55d12a0a5307eb12b4691b4d5c5e",
       };
@@ -426,7 +470,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
       assert.equal(
         untrackedSource.every(
           (path) => path.startsWith("src/lib/loop-jobs/")
-            || (A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
+            || (A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
+            || (A6_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
         ),
         true,
       );
@@ -438,7 +483,27 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => (A5_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.deepEqual(discoveredA5Sources, [...A5_ALLOWED_SRC_PATHS].sort());
+      const discoveredA6Sources = [
+        ...execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" })
+          .trim().split("\n").filter(Boolean),
+        ...untrackedSource,
+      ]
+        .filter((path) => (A6_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .sort();
+      assert.deepEqual(discoveredA6Sources, [...A6_ALLOWED_SRC_PATHS].sort());
       for (const path of A5_ALLOWED_SRC_PATHS.filter((path) => !path.endsWith(".test.ts"))) {
+        const source = await readFile(join(process.cwd(), path), "utf8");
+        assert.doesNotMatch(
+          source,
+          /(?:loop:worker|worker-phase[12]|createLoopJobQueue|defineLoopJobRegistry|\bLoopJob\b)/,
+          path,
+        );
+      }
+      assert.deepEqual(
+        Object.keys(A6_MODIFIED_BASE_SRC_BLOBS).sort(),
+        A6_ALLOWED_SRC_PATHS.filter((path) => !(A6_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)).sort(),
+      );
+      for (const path of A6_NON_ACTIVATION_PRODUCTION_PATHS) {
         const source = await readFile(join(process.cwd(), path), "utf8");
         assert.doesNotMatch(
           source,

@@ -4,6 +4,7 @@ import {
   createTextbookCheckGateOriginV1,
   evaluateTextbookCheckPromotion,
   MAX_TEXTBOOK_GATE_EVIDENCE,
+  type TextbookCheckGateOriginV1,
   type TextbookCheckSourceKind,
   type TextbookGateEvidence,
 } from "./textbook-check-gate-origin";
@@ -195,6 +196,18 @@ function isUniqueOriginError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
 
+function originWhereFor(origin: TextbookCheckGateOriginV1) {
+  return {
+    sourceKind_textbookKey_source_checkIndex_sourceRevisionHash: {
+      sourceKind: origin.reference.sourceKind,
+      textbookKey: origin.reference.textbookKey,
+      source: origin.reference.source,
+      checkIndex: origin.reference.checkIndex,
+      sourceRevisionHash: origin.sourceRevisionHash,
+    },
+  };
+}
+
 /**
  * Creates (or returns) a Gate only after an explicit caller has selected a
  * partial/stuck Textbook Check. No caller-supplied question, rubric, or
@@ -207,57 +220,51 @@ export async function promoteTextbookCheckToGate(
   const checkId = input.checkId.trim();
   if (!checkId) return Object.freeze({ ok: false as const, code: "not_found" as const });
 
-  return client.$transaction(async (tx) => {
-    const source = await readSource(tx, input.sourceKind, checkId);
-    if (source === null) return Object.freeze({ ok: false as const, code: "not_found" as const });
-    const eligibility = evaluateTextbookCheckPromotion(source.mastery);
-    if (!eligibility.ok) return eligibility;
-    if (!isTextbookSource(source.source)) {
-      return Object.freeze({ ok: false as const, code: "invalid_source" as const });
-    }
-
-    let origin;
-    try {
-      const chapter = referenceChapter(source);
-      origin = createTextbookCheckGateOriginV1({
-        sourceKind: source.sourceKind,
-        textbookKey: source.textbookKey,
-        source: source.source,
-        checkIndex: source.checkIndex,
-        chapterIndex: chapter.index,
-        question: source.question,
-        chapter: {
-          title: chapter.title,
-          oneLiner: chapter.oneLiner,
-          bodyPlain: chapter.bodyPlain,
-          evidence: chapter.evidence,
-        },
-      });
-    } catch (error) {
-      if (error instanceof InvalidSourceError || error instanceof Error) {
+  let racedOriginWhere: ReturnType<typeof originWhereFor> | null = null;
+  try {
+    return await client.$transaction(async (tx) => {
+      const source = await readSource(tx, input.sourceKind, checkId);
+      if (source === null) return Object.freeze({ ok: false as const, code: "not_found" as const });
+      const eligibility = evaluateTextbookCheckPromotion(source.mastery);
+      if (!eligibility.ok) return eligibility;
+      if (!isTextbookSource(source.source)) {
         return Object.freeze({ ok: false as const, code: "invalid_source" as const });
       }
-      throw error;
-    }
 
-    const originWhere = {
-      sourceKind_textbookKey_source_checkIndex_sourceRevisionHash: {
-        sourceKind: origin.reference.sourceKind,
-        textbookKey: origin.reference.textbookKey,
-        source: origin.reference.source,
-        checkIndex: origin.reference.checkIndex,
-        sourceRevisionHash: origin.sourceRevisionHash,
-      },
-    };
-    const existing = await tx.textbookCheckGateOrigin.findUnique({
-      where: originWhere,
-      select: { gateId: true },
-    });
-    if (existing !== null) {
-      return Object.freeze({ ok: true as const, disposition: "existing" as const, gateId: existing.gateId });
-    }
+      let origin: TextbookCheckGateOriginV1;
+      try {
+        const chapter = referenceChapter(source);
+        origin = createTextbookCheckGateOriginV1({
+          sourceKind: source.sourceKind,
+          textbookKey: source.textbookKey,
+          source: source.source,
+          checkIndex: source.checkIndex,
+          chapterIndex: chapter.index,
+          question: source.question,
+          chapter: {
+            title: chapter.title,
+            oneLiner: chapter.oneLiner,
+            bodyPlain: chapter.bodyPlain,
+            evidence: chapter.evidence,
+          },
+        });
+      } catch (error) {
+        if (error instanceof InvalidSourceError || error instanceof Error) {
+          return Object.freeze({ ok: false as const, code: "invalid_source" as const });
+        }
+        throw error;
+      }
 
-    try {
+      const originWhere = originWhereFor(origin);
+      racedOriginWhere = originWhere;
+      const existing = await tx.textbookCheckGateOrigin.findUnique({
+        where: originWhere,
+        select: { gateId: true },
+      });
+      if (existing !== null) {
+        return Object.freeze({ ok: true as const, disposition: "existing" as const, gateId: existing.gateId });
+      }
+
       const gate = await tx.gate.create({
         data: {
           kind: origin.gateKind,
@@ -267,31 +274,30 @@ export async function promoteTextbookCheckToGate(
           resources: origin.reference.evidence.length > 0
             ? JSON.stringify(origin.reference.evidence)
             : null,
-        },
-      });
-      await tx.textbookCheckGateOrigin.create({
-        data: {
-          gateId: gate.id,
-          sourceKind: origin.reference.sourceKind,
-          textbookKey: origin.reference.textbookKey,
-          source: origin.reference.source,
-          checkIndex: origin.reference.checkIndex,
-          chapterIndex: origin.reference.chapterIndex,
-          sourceRevisionHash: origin.sourceRevisionHash,
-          questionHash: origin.questionHash,
-          referenceHash: origin.referenceHash,
-          referenceJson: JSON.stringify(origin.reference),
+          textbookCheckOrigin: {
+            create: {
+              sourceKind: origin.reference.sourceKind,
+              textbookKey: origin.reference.textbookKey,
+              source: origin.reference.source,
+              checkIndex: origin.reference.checkIndex,
+              chapterIndex: origin.reference.chapterIndex,
+              sourceRevisionHash: origin.sourceRevisionHash,
+              questionHash: origin.questionHash,
+              referenceHash: origin.referenceHash,
+              referenceJson: JSON.stringify(origin.reference),
+            },
+          },
         },
       });
       return Object.freeze({ ok: true as const, disposition: "created" as const, gateId: gate.id });
-    } catch (error) {
-      if (!isUniqueOriginError(error)) throw error;
-      const raced = await tx.textbookCheckGateOrigin.findUnique({
-        where: originWhere,
-        select: { gateId: true },
-      });
-      if (raced === null) throw error;
-      return Object.freeze({ ok: true as const, disposition: "existing" as const, gateId: raced.gateId });
-    }
-  });
+    });
+  } catch (error) {
+    if (!isUniqueOriginError(error) || racedOriginWhere === null) throw error;
+    const raced = await client.textbookCheckGateOrigin.findUnique({
+      where: racedOriginWhere,
+      select: { gateId: true },
+    });
+    if (raced === null) throw error;
+    return Object.freeze({ ok: true as const, disposition: "existing" as const, gateId: raced.gateId });
+  }
 }
