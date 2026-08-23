@@ -299,7 +299,27 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         "LoopJob_status_leaseExpiresAt_idx",
       ]);
 
-      execFileSync("npx", ["prisma", "generate"], { cwd: process.cwd(), stdio: "pipe" });
+      // `npm test` runs files concurrently. Generating into the repository's ignored
+      // client directory here used to race A3's static walk and Prisma consumers.
+      // Keep the generation proof, but make its output disposable just like this DB.
+      const repositoryGeneratedClient = join(process.cwd(), "src/generated/prisma/client.ts");
+      const generatedClientBefore = await readFile(repositoryGeneratedClient);
+      const sourceSchema = await readFile(join(process.cwd(), "prisma/schema.prisma"), "utf8");
+      const isolatedOutputSchema = sourceSchema.replace(
+        /^(\s*output\s*=\s*)"[^"]+"\s*$/m,
+        '$1"./generated"',
+      );
+      assert.notEqual(isolatedOutputSchema, sourceSchema, "schema must declare one generator output to isolate");
+      const isolatedSchema = join(fixtureRoot, "schema.prisma");
+      await writeFile(isolatedSchema, isolatedOutputSchema, "utf8");
+      execFileSync("npx", ["prisma", "generate", "--schema", isolatedSchema], {
+        cwd: process.cwd(),
+        env: { ...process.env, DATABASE_URL: `file:${spacedDatabase}` },
+        stdio: "pipe",
+      });
+      const isolatedClient = join(fixtureRoot, "generated/client.ts");
+      assert.equal((await stat(isolatedClient)).isFile(), true);
+      assert.deepEqual(await readFile(repositoryGeneratedClient), generatedClientBefore);
       execFileSync("npx", ["tsc", "--noEmit"], { cwd: process.cwd(), stdio: "pipe" });
     });
 
