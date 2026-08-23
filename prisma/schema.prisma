@@ -171,6 +171,7 @@ model Gate {
   createdAt        DateTime       @default(now())
   answeredAt       DateTime?
   gradedAt         DateTime?
+  textbookCheckOrigin TextbookCheckGateOrigin?
 }
 
 // 誤解 (コード非依存の抽象概念のみ保存。Capture 受信箱経由でユーザー accept 後に確定)
@@ -401,4 +402,25 @@ model WeeklyTextbookCheck {
   answeredAt DateTime?
 
   @@unique([weeklyId, index])
+}
+
+// Textbook Checkを本人が明示的にGateへ昇格したときのimmutableな由来。
+// 日次自動再生成で元Check行が消えても、Gateの問題・rubric・採点referenceを失わない。
+model TextbookCheckGateOrigin {
+  id                  String   @id @default(cuid())
+  gateId              String   @unique
+  gate                Gate     @relation(fields: [gateId], references: [id], onDelete: Cascade)
+  sourceKind          String   // daily / weekly
+  textbookKey         String   // dateKey / weekKey
+  source              String   // auto / compiled
+  checkIndex          Int
+  chapterIndex        Int?
+  sourceRevisionHash  String   // v1 canonical source snapshot SHA-256
+  questionHash        String   // Gate.question SHA-256
+  referenceHash       String   // referenceJson SHA-256
+  referenceJson       String   // bounded local JSON; user answer/diff全文/secretは含めない
+  createdAt           DateTime @default(now())
+
+  @@unique([sourceKind, textbookKey, source, checkIndex, sourceRevisionHash])
+  @@index([sourceKind, textbookKey, source, checkIndex])
 }

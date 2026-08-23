@@ -13,6 +13,12 @@ import {
   refreshRequirementsForGate,
 } from "@/lib/requirement";
 import { serializeGradePayload } from "@/lib/grade-payload";
+import {
+  TEXTBOOK_CHECK_GATE_KIND,
+  type StoredTextbookCheckGateOriginV1,
+  type TextbookCheckGateReferenceV1,
+  validateTextbookCheckGateOriginV1,
+} from "@/lib/textbook-check-gate-origin";
 import { readTutorialState } from "@/lib/tutorial-state";
 
 // 発火抑制ルール (ADR-0006 §2)。チューニングはここを変えるだけでよい
@@ -174,6 +180,61 @@ function normalizeRubricCriteria(raw: unknown): string[] | null {
     .map((x) => x.trim())
     .slice(0, 3);
   return items.length > 0 ? items : null;
+}
+
+export type GateGradingSource =
+  | Readonly<{
+      ok: true;
+      rubricCriteria: readonly string[] | null;
+      textbookReference: TextbookCheckGateReferenceV1 | null;
+    }>
+  | Readonly<{ ok: false; code: "invalid_textbook_origin" }>;
+
+/**
+ * Resolves the only prompt source a Gate may use. A textbook Gate has no
+ * mutable fallback: a missing or changed origin becomes `grading_failed`
+ * before any LLM call.
+ */
+export function resolveGateGradingSource(input: Readonly<{
+  kind: string;
+  question: string;
+  rubricCriteria: string | null;
+  textbookCheckOrigin: StoredTextbookCheckGateOriginV1 | null;
+}>): GateGradingSource {
+  let criteria: string[] | null = null;
+  if (input.rubricCriteria) {
+    try {
+      criteria = normalizeRubricCriteria(JSON.parse(input.rubricCriteria));
+    } catch {
+      criteria = null;
+    }
+  }
+
+  if (input.kind !== TEXTBOOK_CHECK_GATE_KIND) {
+    return input.textbookCheckOrigin === null
+      ? Object.freeze({ ok: true as const, rubricCriteria: criteria, textbookReference: null })
+      : Object.freeze({ ok: false as const, code: "invalid_textbook_origin" as const });
+  }
+  if (input.textbookCheckOrigin === null) {
+    return Object.freeze({ ok: false as const, code: "invalid_textbook_origin" as const });
+  }
+  const validated = validateTextbookCheckGateOriginV1({
+    question: input.question,
+    stored: input.textbookCheckOrigin,
+  });
+  if (
+    !validated.ok ||
+    criteria === null ||
+    criteria.length !== validated.origin.rubricCriteria.length ||
+    !criteria.every((criterion, index) => criterion === validated.origin.rubricCriteria[index])
+  ) {
+    return Object.freeze({ ok: false as const, code: "invalid_textbook_origin" as const });
+  }
+  return Object.freeze({
+    ok: true as const,
+    rubricCriteria: validated.origin.rubricCriteria,
+    textbookReference: validated.origin.reference,
+  });
 }
 
 function normalizeResources(raw: unknown): GateResource[] | null {
@@ -664,17 +725,42 @@ async function callGradingLLM(
   diff: string | null,
   question: string,
   answer: string,
-  rubricCriteria: string[] | null,
-  goalsBlock: string | null
+  rubricCriteria: readonly string[] | null,
+  goalsBlock: string | null,
+  textbookReference: TextbookCheckGateReferenceV1 | null = null,
 ): Promise<GradeResult | null> {
-  const rubricBlock = rubricCriteria?.length
-    ? `採点観点 (rubric): ${JSON.stringify(rubricCriteria)}\n各観点について score 0=欠落 / 1=部分的 / 2=押さえている で採点せよ。`
+  return parseLLMJson<GradeResult>(await runHeadlessLLM(buildGradingPrompt({
+    diff,
+    textbookReference,
+    question,
+    answer,
+    rubricCriteria,
+    goalsBlock,
+  })));
+}
+
+/**
+ * Pure prompt assembly. `gradeGate` only supplies `textbookReference` after
+ * immutable origin/hash verification; normal diff gates keep their old shape.
+ */
+export function buildGradingPrompt(input: Readonly<{
+  diff: string | null;
+  textbookReference: TextbookCheckGateReferenceV1 | null;
+  question: string;
+  answer: string;
+  rubricCriteria: readonly string[] | null;
+  goalsBlock: string | null;
+}>): string {
+  const rubricBlock = input.rubricCriteria?.length
+    ? `採点観点 (rubric): ${JSON.stringify(input.rubricCriteria)}\n各観点について score 0=欠落 / 1=部分的 / 2=押さえている で採点せよ。`
     : "rubric は空配列でよい。";
-  const goalJson = goalsBlock
+  const goalJson = input.goalsBlock
     ? ',"goal_suggestions":["goalId",...]'
     : "";
-  const prompt = [
-    "以下の git diff と、それについての問いへの回答を採点せよ。",
+  return [
+    input.textbookReference
+      ? "以下の教材参照と、それについての問いへの回答を採点せよ。"
+      : "以下の git diff と、それについての問いへの回答を採点せよ。",
     "判定は「概念の本質を説明できているか」で行い、記憶の正確さではなく理解を見る。厳しすぎる部分点は不要。",
     "verdict は合否の最終判断。スコアから機械計算せず、あなたの判断をそのまま書け。",
     "不合格 (fail) のとき必須の3点を分けて書け:",
@@ -693,16 +779,19 @@ async function callGradingLLM(
     "    model: 答え合わせ用の肯定文1-2文（『〜がない』ではなく『こう言えるとよい』）",
     "  score が 2 なら teach/model は省略可。",
     rubricBlock,
-    goalsBlock ?? "",
+    input.goalsBlock ?? "",
     `JSON のみで出力: {"verdict":"pass"|"fail","feedback":"...","correct_model":"..."|null,"misconception":"..."|null,"root_cause":"knowledge"|"verification"|"premise"|null,"rubric":[{"aspect":"...","score":0|1|2,"note":"...","teach":"...","model":"..."}]${goalJson}}`,
     "",
-    diff ? `<diff>\n${diff}\n</diff>` : "(diff なし。問いと回答のみで採点)",
-    `<question>\n${question}\n</question>`,
-    `<answer>\n${answer}\n</answer>`,
+    input.textbookReference
+      ? `<textbook_reference>\n${JSON.stringify(input.textbookReference)}\n</textbook_reference>`
+      : input.diff
+        ? `<diff>\n${input.diff}\n</diff>`
+        : "(diff なし。問いと回答のみで採点)",
+    `<question>\n${input.question}\n</question>`,
+    `<answer>\n${input.answer}\n</answer>`,
   ]
     .filter(Boolean)
     .join("\n");
-  return parseLLMJson<GradeResult>(await runHeadlessLLM(prompt));
 }
 
 /**
@@ -712,7 +801,7 @@ async function callGradingLLM(
 export async function gradeGate(gateId: string): Promise<void> {
   const gate = await prisma.gate.findUnique({
     where: { id: gateId },
-    include: { event: true },
+    include: { event: true, textbookCheckOrigin: true },
   });
   if (!gate || !gate.answer || gate.status !== "answered") return;
 
@@ -723,13 +812,21 @@ export async function gradeGate(gateId: string): Promise<void> {
     diff = await getDiff(gate.event.repoPath, gate.event.ref);
   }
 
-  let criteria: string[] | null = null;
-  if (gate.rubricCriteria) {
-    try {
-      criteria = normalizeRubricCriteria(JSON.parse(gate.rubricCriteria));
-    } catch {
-      criteria = null;
-    }
+  const gradingSource = resolveGateGradingSource({
+    kind: gate.kind,
+    question: gate.question,
+    rubricCriteria: gate.rubricCriteria,
+    textbookCheckOrigin: gate.textbookCheckOrigin,
+  });
+  if (!gradingSource.ok) {
+    await prisma.gate.update({
+      where: { id: gateId },
+      data: {
+        status: "grading_failed",
+        gradeNote: "教材由来を検証できませんでした。元のしょから作り直してください。",
+      },
+    });
+    return;
   }
 
   // active Goal があるときだけ採点 JSON に goal_suggestions を乗せる (ADR-0008)
@@ -741,8 +838,9 @@ export async function gradeGate(gateId: string): Promise<void> {
       diff,
       gate.question,
       gate.answer,
-      criteria,
-      goalsBlock
+      gradingSource.rubricCriteria,
+      goalsBlock,
+      gradingSource.textbookReference,
     );
     if (!result || resolveVerdict(result) === null) {
       // パース失敗 or verdict 欠損: 1回だけリトライ
@@ -750,8 +848,9 @@ export async function gradeGate(gateId: string): Promise<void> {
         diff,
         gate.question,
         gate.answer,
-        criteria,
-        goalsBlock
+        gradingSource.rubricCriteria,
+        goalsBlock,
+        gradingSource.textbookReference,
       );
     }
   } catch (e) {
