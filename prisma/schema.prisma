@@ -150,7 +150,7 @@ model Gate {
   event            DevEvent?      @relation(fields: [eventId], references: [id], onDelete: SetNull)
   misconceptionId  String?
   misconception    Misconception? @relation(fields: [misconceptionId], references: [id], onDelete: SetNull)
-  kind             String         @default("initial") // initial / retry / sr_review / module (ADR-0016)
+  kind             String         @default("initial") // initial / retry / sr_review / module / textbook_check (ADR-0016/0026)
   question         String
   targetConcept    String?
   domain           String? // 大分類 (例: "TypeScript / MCP", "PdM / 設計")

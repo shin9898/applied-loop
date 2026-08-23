@@ -196,6 +196,22 @@ test("A6-CG2-T1 explicitly promotes one daily source revision once and preserves
   });
 });
 
+test("A6-CG2-T1b concurrent explicit promotions leave exactly one Gate and origin", async () => {
+  await withFixture(async (client) => {
+    const check = await createDailySource(client, { mastery: "partial" });
+    const results = await Promise.all([
+      promoteTextbookCheckToGate(client, { sourceKind: "daily", checkId: check.id }),
+      promoteTextbookCheckToGate(client, { sourceKind: "daily", checkId: check.id }),
+    ]);
+    assert.equal(results.every((result) => result.ok), true);
+    const gateIds = results.flatMap((result) => result.ok ? [result.gateId] : []);
+    assert.equal(new Set(gateIds).size, 1);
+    assert.equal(results.filter((result) => result.ok && result.disposition === "created").length, 1);
+    assert.equal(await client.gate.count(), 1);
+    assert.equal(await client.textbookCheckGateOrigin.count(), 1);
+  });
+});
+
 test("A6-CG2-T2 never promotes clear, parked, or unknown source checks", async () => {
   await withFixture(async (client) => {
     const clear = await createDailySource(client, { mastery: "clear" });
