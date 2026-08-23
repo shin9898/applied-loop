@@ -494,7 +494,10 @@ function computedGlobalLoaderFindings(fileName: string, source: string): string[
       aliases.add(name.text);
       return true;
     }
-    return name.elements.reduce((changed, element) => addBindingAliases(element.name) || changed, false);
+    return name.elements.reduce((changed, element) => {
+      if (!ts.isBindingElement(element)) return changed;
+      return addBindingAliases(element.name) || changed;
+    }, false);
   }
 
   function isAliasReference(expression: ts.Expression): boolean {
