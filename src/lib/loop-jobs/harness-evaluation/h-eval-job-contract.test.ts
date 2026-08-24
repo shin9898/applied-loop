@@ -24,7 +24,7 @@ import {
 const hash = (character: string) => character.repeat(64);
 const policyVersion = "v1";
 const NON_A4_A5_A6_TRACKED_PATH_COUNT = 544;
-const NON_A4_A5_A6_TRACKED_CONTENT_AGGREGATE_SHA256 = "04029cc452fca91924a78a4980e7a8478646416da4e068cb17637d3f6e7581c9";
+const NON_A4_A5_A6_TRACKED_CONTENT_AGGREGATE_SHA256 = "302340affd7eba9ef350b3e9a69696f4269ea13e1bc5a8bb462ac3c79322d845";
 const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract-v1.ts",
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
@@ -251,12 +251,16 @@ const A8B2_NON_ACTIVATION_PRODUCTION_PATHS = [
 // unrelated global-layer decision as part of this implementation slice.
 const POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS = [
   "docs/adr/0030-global-layer-entry-criteria.md",
+  "docs/adr/0031-dogfooding-charter-repurposed-to-cs-handson.md",
 ] as const;
 const POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS = [
   "docs/adr/0030-global-layer-entry-criteria.md",
+  "docs/adr/0031-dogfooding-charter-repurposed-to-cs-handson.md",
 ] as const;
 const POST_A8B1_MAINLINE_CONTENT_SHA256: Readonly<Record<string, string>> = {
   "docs/adr/0030-global-layer-entry-criteria.md": "5650449519cd86b2272649954e9ac463d8825edf1e3ca0885729ec968fb38112",
+  "docs/adr/0031-dogfooding-charter-repurposed-to-cs-handson.md":
+    "4d214ac100b371d9047e352fd6cf82fcdb10ecfe039c5be2a9cf20a25a792c7e",
 };
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
