@@ -104,6 +104,32 @@ const A6_NON_ACTIVATION_PRODUCTION_PATHS = [
 ] as const;
 const A7_ALLOWED_NON_H_EVAL_PATHS = [
   "docs/adr/0027-h-cycle-evidence-evaluation.md",
+  "prisma/migrations/20260824003236_h_cycle_evidence_ledger/migration.sql",
+  "prisma/schema.prisma",
+  "src/lib/daily-textbook.ts",
+  "src/lib/weekly-textbook.ts",
+  "src/lib/textbook-check-gate-origin.ts",
+  "src/lib/textbook-check-gate-promotion-core.ts",
+  "src/lib/textbook-check-evidence.test.ts",
+  "src/lib/textbook-check-evidence.ts",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+] as const;
+const A7_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0027-h-cycle-evidence-evaluation.md",
+  "prisma/migrations/20260824003236_h_cycle_evidence_ledger/migration.sql",
+  "src/lib/textbook-check-evidence.test.ts",
+  "src/lib/textbook-check-evidence.ts",
+] as const;
+const A7_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "src/lib/daily-textbook.ts": "57a386192c90390b4388bbf9009301a1262580ebedfbb72de87a75004b401ed7",
+  "src/lib/weekly-textbook.ts": "4393df5343d1af15634e224fc62c7f0ffcbeeccca9c4446def70aad70a5bfc6e",
+};
+const A7_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/lib/daily-textbook.ts",
+  "src/lib/weekly-textbook.ts",
+  "src/lib/textbook-check-gate-origin.ts",
+  "src/lib/textbook-check-gate-promotion-core.ts",
+  "src/lib/textbook-check-evidence.ts",
 ] as const;
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
@@ -1053,7 +1079,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
       (path) => !path.startsWith(H_EVAL_DIRECTORY_PREFIX)
         && !(A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A6_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        && !(A7_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        && !(A7_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
   assert.equal(
@@ -1062,7 +1088,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     "unexpected non-A4/A5/A6/A7 tracked path count",
   );
   const aggregate = nonA4A5A6Tracked
-    .map((path) => `${path}\t${A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? contentSha256(join(root, path))}\n`)
+    .map((path) => `${path}\t${A7_MODIFIED_BASE_CONTENT_SHA256[path] ?? A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? contentSha256(join(root, path))}\n`)
     .join("");
   assert.equal(
     createHash("sha256").update(aggregate, "utf8").digest("hex"),
@@ -1121,6 +1147,14 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     );
   }
   for (const path of A6_NON_ACTIVATION_PRODUCTION_PATHS) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(
+      source,
+      /(?:loop:worker|worker-phase[12]|createLoopJobQueue|defineLoopJobRegistry|\bLoopJob\b)/,
+      path,
+    );
+  }
+  for (const path of A7_NON_ACTIVATION_PRODUCTION_PATHS) {
     const source = await readFile(join(root, path), "utf8");
     assert.doesNotMatch(
       source,

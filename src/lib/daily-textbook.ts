@@ -4,6 +4,7 @@
 
 import "server-only";
 
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { dateKeyJST } from "@/lib/date";
 import {
@@ -29,6 +30,10 @@ import {
   type TextbookGenerateResult,
   type TextbookView,
 } from "@/lib/daily-textbook-shared";
+import {
+  observeTextbookCheckEvidenceForCheck,
+  saveDailyTextbookCheckMastery,
+} from "@/lib/textbook-check-evidence";
 
 export * from "@/lib/daily-textbook-shared";
 
@@ -53,11 +58,8 @@ export async function loadMaterialsForDate(
   return rows;
 }
 
-/** $transaction 内でも外でも使える最小の client 面（tx は $-系を持たない） */
-type TextbookWriteClient = Pick<
-  typeof prisma,
-  "dailyTextbook" | "dailyTextbookChapter" | "dailyTextbookCheck"
->;
+/** $transaction 内でも外でも使える client 面。A7 evidenceも同じtransactionへ入れる。 */
+type TextbookWriteClient = PrismaClient | Prisma.TransactionClient;
 
 /**
  * 自動生成分の確認問いを作る。章 index → chapterId の解決を伴うため、
@@ -88,6 +90,23 @@ async function createAutoChecks(
       source: "auto",
     })),
   });
+  const createdChecks = await client.dailyTextbookCheck.findMany({
+    where: {
+      textbookId,
+      source: "auto",
+      index: { in: checks.map((check) => check.index) },
+    },
+    select: { id: true },
+  });
+  if (createdChecks.length !== checks.length) {
+    throw new Error("createAutoChecks: persisted check count mismatch");
+  }
+  for (const check of createdChecks) {
+    await observeTextbookCheckEvidenceForCheck(client, {
+      sourceKind: "daily",
+      checkId: check.id,
+    });
+  }
 }
 
 /** 指定日の Textbook を（再）生成して保存する。 */
@@ -113,14 +132,12 @@ export async function generateDailyTextbook(
     select: { id: true },
   });
 
-  let textbookId: string;
-  if (existing) {
-    textbookId = existing.id;
-    const id = existing.id;
-    // 削除→再作成を1トランザクションにまとめる（2026-08-17）。
-    // 途中で落ちると「自動章を消したまま作り直せない日」が残り、UI からは
-    // 再生成を押しても同じ所で落ち続けるため復旧手段が無くなる。
-    await prisma.$transaction(async (tx) => {
+  const textbookId = await prisma.$transaction(async (tx) => {
+    if (existing) {
+      const id = existing.id;
+      // 削除→再作成を1トランザクションにまとめる（2026-08-17）。
+      // 途中で落ちると「自動章を消したまま作り直せない日」が残り、UI からは
+      // 再生成を押しても同じ所で落ち続けるため復旧手段が無くなる。
       // source="compiled" の章・チェック（編纂で足したもの）は再圧縮の対象外。
       // 自動生成分だけを作り直す（2026-08-16、Phase1設計の核心）。
       await tx.dailyTextbookCheck.deleteMany({
@@ -156,9 +173,10 @@ export async function generateDailyTextbook(
         })),
       });
       await createAutoChecks(tx, id, checks);
-    });
-  } else {
-    const created = await prisma.dailyTextbook.create({
+      return id;
+    }
+
+    const created = await tx.dailyTextbook.create({
       data: {
         dateKey,
         title,
@@ -183,9 +201,9 @@ export async function generateDailyTextbook(
         },
       },
     });
-    textbookId = created.id;
-    await createAutoChecks(prisma, textbookId, checks);
-  }
+    await createAutoChecks(tx, created.id, checks);
+    return created.id;
+  });
 
   // あふれた材料を repo 単位で帯へ保存する（2026-08-16、取りこぼし対応）。
   // 既に章へ組み込み済み（incorporatedAt あり＝過去の編纂などで救済済み）の材料は
@@ -327,35 +345,41 @@ export async function compileMaterialBand(
     title = n === 2 ? `${draft.title}（つづき）` : `${draft.title}（つづき${n - 1}）`;
   }
 
-  const chapter = await prisma.dailyTextbookChapter.create({
-    data: {
-      textbookId: textbook.id,
-      index: draft.index,
-      title,
-      oneLiner: draft.oneLiner,
-      bodyPlain: draft.bodyPlain,
-      bodyDeep: draft.bodyDeep,
-      diagramKind: draft.diagramKind,
-      evidenceJson: JSON.stringify(draft.evidence),
-      materialIds: JSON.stringify(draft.materialIds),
-      source: "compiled",
-    },
-  });
-
   // チェックも同じ理由で compiled 専用レンジに隔離する（自動側は 1..7）。
   const maxCheckIndex = await prisma.dailyTextbookCheck.aggregate({
     where: { textbookId: textbook.id, source: "compiled" },
     _max: { index: true },
   });
   const check = distillSingleCheck(draft);
-  await prisma.dailyTextbookCheck.create({
-    data: {
-      textbookId: textbook.id,
-      chapterId: chapter.id,
-      index: nextCompiledIndex(maxCheckIndex._max.index),
-      question: check.question,
-      source: "compiled",
-    },
+  const chapter = await prisma.$transaction(async (tx) => {
+    const createdChapter = await tx.dailyTextbookChapter.create({
+      data: {
+        textbookId: textbook.id,
+        index: draft.index,
+        title,
+        oneLiner: draft.oneLiner,
+        bodyPlain: draft.bodyPlain,
+        bodyDeep: draft.bodyDeep,
+        diagramKind: draft.diagramKind,
+        evidenceJson: JSON.stringify(draft.evidence),
+        materialIds: JSON.stringify(draft.materialIds),
+        source: "compiled",
+      },
+    });
+    const createdCheck = await tx.dailyTextbookCheck.create({
+      data: {
+        textbookId: textbook.id,
+        chapterId: createdChapter.id,
+        index: nextCompiledIndex(maxCheckIndex._max.index),
+        question: check.question,
+        source: "compiled",
+      },
+    });
+    await observeTextbookCheckEvidenceForCheck(tx, {
+      sourceKind: "daily",
+      checkId: createdCheck.id,
+    });
+    return createdChapter;
   });
 
   await prisma.devEvent.updateMany({
@@ -524,10 +548,7 @@ export async function setCheckMastery(
   checkId: string,
   mastery: MasteryState,
 ): Promise<void> {
-  await prisma.dailyTextbookCheck.update({
-    where: { id: checkId },
-    data: { mastery, answeredAt: new Date() },
-  });
+  await saveDailyTextbookCheckMastery(prisma, checkId, mastery);
 }
 
 export async function listTextbookDates(limit = 14): Promise<

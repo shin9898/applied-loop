@@ -4,6 +4,7 @@ import {
   createTextbookCheckGateOriginV1,
   evaluateTextbookCheckPromotion,
   MAX_TEXTBOOK_GATE_EVIDENCE,
+  type TextbookCheckGateOriginInput,
   type TextbookCheckGateOriginV1,
   type TextbookCheckSourceKind,
   type TextbookGateEvidence,
@@ -35,6 +36,12 @@ type SourceCheck = Readonly<{
   mastery: string | null;
   chapter: SourceChapter | null;
   fallbackChapters: readonly SourceChapter[];
+}>;
+
+/** A server-re-read source bundle shared by A6 promotion and A7 evidence. */
+export type ReadTextbookCheckSourceResultV1 = Readonly<{
+  input: TextbookCheckGateOriginInput;
+  mastery: string | null;
 }>;
 
 class InvalidSourceError extends Error {}
@@ -192,6 +199,39 @@ async function readSource(
     : readWeeklySource(client, checkId);
 }
 
+/**
+ * Reads the current Check only on the server and rebuilds the canonical input
+ * used by both A6 origin creation and A7 evidence. No caller-provided source,
+ * question, reference, hash, or timestamp crosses this boundary.
+ */
+export async function readTextbookCheckSourceInputV1(
+  client: PromotionClient,
+  sourceKind: TextbookCheckSourceKind,
+  checkId: string,
+): Promise<ReadTextbookCheckSourceResultV1 | null> {
+  const source = await readSource(client, sourceKind, checkId);
+  if (source === null) return null;
+  if (!isTextbookSource(source.source)) return sourceError("invalid source");
+  const chapter = referenceChapter(source);
+  return Object.freeze({
+    mastery: source.mastery,
+    input: {
+      sourceKind: source.sourceKind,
+      textbookKey: source.textbookKey,
+      source: source.source,
+      checkIndex: source.checkIndex,
+      chapterIndex: chapter.index,
+      question: source.question,
+      chapter: {
+        title: chapter.title,
+        oneLiner: chapter.oneLiner,
+        bodyPlain: chapter.bodyPlain,
+        evidence: chapter.evidence,
+      },
+    },
+  });
+}
+
 function isUniqueOriginError(error: unknown): boolean {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
 }
@@ -223,31 +263,22 @@ export async function promoteTextbookCheckToGate(
   let racedOriginWhere: ReturnType<typeof originWhereFor> | null = null;
   try {
     return await client.$transaction(async (tx) => {
-      const source = await readSource(tx, input.sourceKind, checkId);
+      let source: ReadTextbookCheckSourceResultV1 | null;
+      try {
+        source = await readTextbookCheckSourceInputV1(tx, input.sourceKind, checkId);
+      } catch (error) {
+        if (error instanceof InvalidSourceError) {
+          return Object.freeze({ ok: false as const, code: "invalid_source" as const });
+        }
+        throw error;
+      }
       if (source === null) return Object.freeze({ ok: false as const, code: "not_found" as const });
       const eligibility = evaluateTextbookCheckPromotion(source.mastery);
       if (!eligibility.ok) return eligibility;
-      if (!isTextbookSource(source.source)) {
-        return Object.freeze({ ok: false as const, code: "invalid_source" as const });
-      }
 
       let origin: TextbookCheckGateOriginV1;
       try {
-        const chapter = referenceChapter(source);
-        origin = createTextbookCheckGateOriginV1({
-          sourceKind: source.sourceKind,
-          textbookKey: source.textbookKey,
-          source: source.source,
-          checkIndex: source.checkIndex,
-          chapterIndex: chapter.index,
-          question: source.question,
-          chapter: {
-            title: chapter.title,
-            oneLiner: chapter.oneLiner,
-            bodyPlain: chapter.bodyPlain,
-            evidence: chapter.evidence,
-          },
-        });
+        origin = createTextbookCheckGateOriginV1(source.input);
       } catch (error) {
         if (error instanceof InvalidSourceError || error instanceof Error) {
           return Object.freeze({ ok: false as const, code: "invalid_source" as const });
