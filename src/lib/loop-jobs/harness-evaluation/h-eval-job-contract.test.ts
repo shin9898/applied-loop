@@ -63,6 +63,13 @@ const A5_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/harness-usage-backfill.ts",
   "src/lib/harness-usage-evidence.ts",
 ] as const;
+
+// A6 is documentation-only at this PR boundary. Keep the exact path separate
+// from the dormant H-EVAL runtime surface so any other repo-wide addition is
+// still fail-closed.
+const A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0026-textbook-check-gate-bridge.md",
+] as const;
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
   "h-eval-job-contract-v1.ts": "25a6bbc3bfd0ef30c70ee063c227e0352c6b0b76a2241e6fb206d61e1c6318ba",
@@ -1006,33 +1013,35 @@ function assertExactPreviewPackageException(rawBytes: Uint8Array): void {
 }
 
 async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<void> {
-  const nonA4A5Tracked = gitLines(root, ["ls-files"])
+  const nonA4A5A6Tracked = gitLines(root, ["ls-files"])
     .filter(
       (path) => !path.startsWith(H_EVAL_DIRECTORY_PREFIX)
-        && !(A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        && !(A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
   assert.equal(
-    nonA4A5Tracked.length,
+    nonA4A5A6Tracked.length,
     NON_A4_A5_TRACKED_PATH_COUNT,
-    "unexpected non-A4/A5 tracked path count",
+    "unexpected non-A4/A5/A6 tracked path count",
   );
-  const aggregate = nonA4A5Tracked
+  const aggregate = nonA4A5A6Tracked
     .map((path) => `${path}\t${contentSha256(join(root, path))}\n`)
     .join("");
   assert.equal(
     createHash("sha256").update(aggregate, "utf8").digest("hex"),
     NON_A4_A5_TRACKED_CONTENT_AGGREGATE_SHA256,
-    "unexpected non-A4/A5 tracked content aggregate",
+    "unexpected non-A4/A5/A6 tracked content aggregate",
   );
   const untracked = gitLines(root, ["ls-files", "--others", "--exclude-standard"]);
   assert.equal(
     untracked.every(
       (path) => (H_EVAL_ALLOWED_PATHS as readonly string[]).includes(path)
-        || (A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        || (A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
-    "unexpected untracked path outside the A3/A4/A5 allowlist",
+    "unexpected untracked path outside the A3/A4/A5/A6 allowlist",
   );
   const discoveredA5Paths = [
     ...gitLines(root, ["ls-files"]),
@@ -1041,6 +1050,10 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA5Paths, [...A5_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredA6DesignPaths = [...gitLines(root, ["ls-files"]), ...untracked]
+    .filter((path) => (A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA6DesignPaths, [...A6_DESIGN_ALLOWED_NON_H_EVAL_PATHS].sort());
   assert.deepEqual(
     (await sourceFiles(a3Root)).map((path) => relative(root, path)).sort(),
     [...H_EVAL_ALLOWED_PATHS].sort(),
