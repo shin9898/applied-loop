@@ -12,7 +12,8 @@ import {
 type OpaqueIdField = { type: "opaque_id"; prefix: string };
 type EnumField = { type: "enum"; values: readonly string[] };
 type HashField = { type: "hash" };
-type Field = OpaqueIdField | EnumField | HashField;
+type IsoWeekField = { type: "iso_week" };
+type Field = OpaqueIdField | EnumField | HashField | IsoWeekField;
 
 type JobDefinition = {
   version: string;
@@ -55,6 +56,9 @@ type RecoveryResult =
 const KIND_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 const VERSION_PATTERN = /^v[1-9][0-9]{0,5}$/;
 const HASH_PATTERN = /^[0-9a-f]{64}$/;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
@@ -95,6 +99,37 @@ function bytesToHex(bytes: Uint8Array, length: number): string {
 
 function validOpaquePrefix(prefix: string): boolean {
   return /^[a-z][a-z0-9]{0,15}$/.test(prefix);
+}
+
+function utcMidnightMs(year: number, month: number, date: number): number {
+  const instant = new Date(0);
+  instant.setUTCFullYear(year, month, date);
+  instant.setUTCHours(0, 0, 0, 0);
+  return instant.getTime();
+}
+
+function firstJstIsoMondayMs(year: number): number {
+  const janFourthMs = utcMidnightMs(year, 0, 4);
+  const janFourthWeekday = new Date(janFourthMs).getUTCDay() || 7;
+  return janFourthMs - (janFourthWeekday - 1) * DAY_MS - JST_OFFSET_MS;
+}
+
+function isoWeeksInJstYear(year: number): number {
+  return Math.round((firstJstIsoMondayMs(year + 1) - firstJstIsoMondayMs(year)) / WEEK_MS);
+}
+
+/**
+ * Strict calendar validation for the ISO week identity used by H-CYCLE.
+ * Calendar math is JST-shaped and never consults the host timezone or a clock.
+ */
+export function isValidJstIsoWeek(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = /^(\d{4})-W(\d{2})$/.exec(value);
+  if (match === null) return false;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  return Number.isSafeInteger(year) && year >= 1 && year <= 9999
+    && Number.isSafeInteger(week) && week >= 1 && week <= isoWeeksInJstYear(year);
 }
 
 export function defineLoopJobRegistry<const T extends LoopJobRegistry>(registry: T): T {
@@ -146,6 +181,7 @@ function validatePayload(definition: JobDefinition, payload: unknown): payload i
     if (typeof value !== "string") return false;
     if (field.type === "hash" && !HASH_PATTERN.test(value)) return false;
     if (field.type === "enum" && !field.values.includes(value)) return false;
+    if (field.type === "iso_week" && !isValidJstIsoWeek(value)) return false;
     if (field.type === "opaque_id") {
       const pattern = new RegExp(`^${field.prefix}_[0-9a-f]{32}$`);
       if (!pattern.test(value)) return false;

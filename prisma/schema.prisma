@@ -33,6 +33,31 @@ model LoopJob {
   @@index([status, leaseExpiresAt])
 }
 
+// A8-B1: aggregate-only output from one completed H-CYCLE evaluation.
+// This is deliberately independent from LoopJob execution; A8-C alone may wire
+// a scheduler/worker and explicit operator activation to this dormant substrate.
+model HCycleEvaluationRecord {
+  id                      String   @id @default(cuid())
+  recordSchema            String
+  policyVersion           String
+  projectionSchemaVersion String
+  previousWeekKey         String
+  targetWeekKey           String
+  previousPeriodJson      String
+  targetPeriodJson        String
+  scheduledFor            DateTime
+  evaluatedAt             DateTime
+  triggerKind             String
+  timeliness              String
+  aggregateEnvelopeJson   String
+  aggregateEnvelopeSha256 String
+  recordSha256            String
+  createdAt               DateTime @default(now())
+
+  @@unique([recordSchema, policyVersion, projectionSchemaVersion, targetWeekKey])
+  @@index([targetWeekKey, createdAt])
+}
+
 // 学び (pm-learn の kind: material 相当)
 // kind: book / article / course / magazine / other / insight (会話由来の原子的な学び)
 model Entry {
