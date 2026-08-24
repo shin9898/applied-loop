@@ -176,6 +176,30 @@ const A7B_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/requeue-failed-grading.ts",
   "src/lib/textbook-check-gate-history.ts",
 ] as const;
+const A7C_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0028-h-cycle-manual-preview.md",
+  "package.json",
+  "scripts/preview-h-cycle-evidence.ts",
+  "src/lib/h-cycle-evidence-adapter.test.ts",
+  "src/lib/h-cycle-evidence-adapter.ts",
+  "src/lib/h-cycle-evidence-preview.test.ts",
+  "src/lib/h-cycle-evidence-preview.ts",
+  "src/lib/h-cycle-evidence-preview-query.ts",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+] as const;
+const A7C_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0028-h-cycle-manual-preview.md",
+  "scripts/preview-h-cycle-evidence.ts",
+  "src/lib/h-cycle-evidence-preview.test.ts",
+  "src/lib/h-cycle-evidence-preview.ts",
+  "src/lib/h-cycle-evidence-preview-query.ts",
+] as const;
+const A7C_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "scripts/preview-h-cycle-evidence.ts",
+  "src/lib/h-cycle-evidence-preview.ts",
+  "src/lib/h-cycle-evidence-preview-query.ts",
+] as const;
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
   "h-eval-job-contract-v1.ts": "25a6bbc3bfd0ef30c70ee063c227e0352c6b0b76a2241e6fb206d61e1c6318ba",
@@ -1077,6 +1101,7 @@ function packageBaselineSha256(packageJson: JsonDataRecord): string {
   const scripts = baseline.scripts;
   if (!isOrdinaryDataObject(scripts)) throw new Error("package JSON scripts must be an object");
   delete scripts["harness:evaluate-preview"];
+  delete scripts["harness:preview-cycle-evidence"];
   delete scripts["harness:plan-usage-backfill"];
   return createHash("sha256").update(canonicalJson(baseline), "utf8").digest("hex");
 }
@@ -1102,6 +1127,16 @@ function assertExactPreviewPackageException(rawBytes: Uint8Array): void {
     "unexpected preview-script alias",
   );
   assert.equal(
+    scripts["harness:preview-cycle-evidence"],
+    "tsx scripts/preview-h-cycle-evidence.ts",
+    "unexpected A7C preview script value",
+  );
+  assert.equal(
+    Object.keys(scripts).filter((key) => key.includes("preview-cycle-evidence")).length,
+    1,
+    "unexpected A7C preview-script alias",
+  );
+  assert.equal(
     scripts["harness:plan-usage-backfill"],
     "tsx scripts/plan-harness-usage-backfill.ts",
     "unexpected A5 backfill-plan script value",
@@ -1114,7 +1149,7 @@ function assertExactPreviewPackageException(rawBytes: Uint8Array): void {
   assert.equal(
     packageBaselineSha256(packageJson),
     "20cd7ae015277d2b5a0ee0b01f4bcae1e632a082f4f1f02198dab776aad00ca1",
-    "unexpected package baseline after deleting the sole preview script",
+    "unexpected package baseline after deleting the approved preview scripts",
   );
 }
 
@@ -1125,7 +1160,8 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A6_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A7_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        && !(A7B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        && !(A7B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A7C_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
   assert.equal(
@@ -1148,7 +1184,8 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A5_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A6_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A7_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        || (A7B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        || (A7B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A7C_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
     "unexpected untracked path outside the A3/A4/A5/A6/A7/A7B allowlist",
@@ -1181,6 +1218,13 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A7B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA7BPaths, [...A7B_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredA7CPaths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A7C_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA7CPaths, [...A7C_ALLOWED_NON_H_EVAL_PATHS].sort());
   assert.deepEqual(
     Object.keys(A6_MODIFIED_BASE_CONTENT_SHA256).sort(),
     A6_ALLOWED_NON_H_EVAL_PATHS.filter(
@@ -1225,6 +1269,14 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     );
   }
   for (const path of A7B_NON_ACTIVATION_PRODUCTION_PATHS) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(
+      source,
+      /(?:loop:worker|worker-phase[12]|createLoopJobQueue|defineLoopJobRegistry|\bLoopJob\b)/,
+      path,
+    );
+  }
+  for (const path of A7C_NON_ACTIVATION_PRODUCTION_PATHS) {
     const source = await readFile(join(root, path), "utf8");
     assert.doesNotMatch(
       source,
