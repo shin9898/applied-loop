@@ -8,6 +8,7 @@ import { requireAuth } from "@/lib/auth";
 import { dayStartJST } from "@/lib/date";
 import { gradeGate } from "@/lib/gate";
 import { computeDismissRecoveryNextReviewAt } from "@/lib/gate-dismiss-recovery";
+import { transitionGateStatusWithTextbookHistory } from "@/lib/textbook-check-gate-history";
 import {
   probeGradingCliLive,
   type GradingProbeResult,
@@ -408,11 +409,13 @@ export async function retryGateGrading(gateId: string): Promise<"pending" | "bus
   await requireAuth();
   const id = gateId.trim();
   if (!id) return "busy";
-  const updated = await prisma.gate.updateMany({
-    where: { id, status: "grading_failed" },
-    data: { status: "answered", gradeNote: null },
+  const transitioned = await transitionGateStatusWithTextbookHistory(prisma, {
+    gateId: id,
+    from: "grading_failed",
+    status: "answered",
+    data: { gradeNote: null },
   });
-  if (updated.count === 0) return "busy";
+  if (!transitioned.updated) return "busy";
   after(async () => {
     await gradeGate(id).catch((e) => console.error("[gate] grade failed:", e));
   });
@@ -431,13 +434,15 @@ export async function selfGrade(formData: FormData) {
   }
   const gate = await prisma.gate.findUniqueOrThrow({ where: { id: gateId } });
   if (gate.status !== "grading_failed") return;
-  await prisma.gate.update({
-    where: { id: gateId },
+  const transitioned = await transitionGateStatusWithTextbookHistory(prisma, {
+    gateId,
+    from: "grading_failed",
+    status: verdict === "pass" ? "self_graded_pass" : "self_graded_fail",
     data: {
-      status: verdict === "pass" ? "self_graded_pass" : "self_graded_fail",
       gradedAt: new Date(),
     },
   });
+  if (!transitioned.updated) return;
   if (verdict === "pass") {
     await refreshRequirementsForGate(gateId).catch((e) =>
       console.error("[requirement] refresh after selfGrade failed:", e)
@@ -479,11 +484,13 @@ export async function dismissGateWithReason(
     where: { id },
     select: { kind: true, misconceptionId: true },
   });
-  const updated = await prisma.gate.updateMany({
-    where: { id, status: { in: ["pending", "failed", "grading_failed"] } },
-    data: { status: "dismissed", dismissReason: r },
+  const transitioned = await transitionGateStatusWithTextbookHistory(prisma, {
+    gateId: id,
+    from: ["pending", "failed", "grading_failed"],
+    status: "dismissed",
+    data: { dismissReason: r },
   });
-  if (updated.count === 0) return "busy";
+  if (!transitioned.updated) return "busy";
   // gate 自体の dismiss は既に成功済み。復旧処理は本筋でない後処理なので
   // best-effort にする（refreshRequirementsForGate 等の既存パターンと同様）。
   // ここで throw すると dismiss 成功なのに "busy" 扱いになってしまう
@@ -538,11 +545,13 @@ export async function parkGate(gateId: string): Promise<"ok" | "busy"> {
   await requireAuth();
   const id = gateId.trim();
   if (!id) return "busy";
-  const updated = await prisma.gate.updateMany({
-    where: { id, status: "pending" },
-    data: { status: "parked", dismissReason: "parked" },
+  const transitioned = await transitionGateStatusWithTextbookHistory(prisma, {
+    gateId: id,
+    from: "pending",
+    status: "parked",
+    data: { dismissReason: "parked" },
   });
-  if (updated.count === 0) return "busy";
+  if (!transitioned.updated) return "busy";
   revalidatePath("/gates");
   revalidatePath(`/gates/${id}`);
   revalidatePath("/");
@@ -554,11 +563,13 @@ export async function unparkGate(gateId: string): Promise<"ok" | "busy"> {
   await requireAuth();
   const id = gateId.trim();
   if (!id) return "busy";
-  const updated = await prisma.gate.updateMany({
-    where: { id, status: "parked" },
-    data: { status: "pending", dismissReason: null },
+  const transitioned = await transitionGateStatusWithTextbookHistory(prisma, {
+    gateId: id,
+    from: "parked",
+    status: "pending",
+    data: { dismissReason: null },
   });
-  if (updated.count === 0) return "busy";
+  if (!transitioned.updated) return "busy";
   revalidatePath("/gates");
   revalidatePath(`/gates/${id}`);
   revalidatePath("/");

@@ -6,6 +6,7 @@ import {
   type RootCause,
 } from "@/lib/gate";
 import { suggestLinksForTarget } from "@/lib/goal";
+import { observeTextbookCheckGateFollowup } from "@/lib/textbook-check-gate-history";
 import {
   checkMisconceptionOverlap,
   computeLinkExistingNextReviewAt,
@@ -49,21 +50,36 @@ async function createMisconceptionAndAccept(
   rootCause: RootCause | null,
   overlapCheckJson?: string
 ): Promise<{ id: string } | null> {
-  const claimed = await prisma.capture.updateMany({
-    where: { id: captureId, status: "pending" },
-    data: {
-      status: "accepted",
-      reviewedAt: new Date(),
-      ...(overlapCheckJson !== undefined ? { overlapCheckJson } : {}),
-    },
+  const acceptedAt = new Date();
+  return prisma.$transaction(async (tx) => {
+    const claimed = await tx.capture.updateMany({
+      where: { id: captureId, status: "pending" },
+      data: {
+        status: "accepted",
+        reviewedAt: acceptedAt,
+        ...(overlapCheckJson !== undefined ? { overlapCheckJson } : {}),
+      },
+    });
+    if (claimed.count === 0) return null;
+    const created = await confirmMisconception(title, gateId, rootCause, tx, acceptedAt);
+    await tx.capture.update({
+      where: { id: captureId },
+      data: { misconceptionId: created.id },
+    });
+    const directFailureCapture = await tx.textbookCheckGateFailureCapture.findUnique({
+      where: { captureId },
+      select: { id: true },
+    });
+    if (directFailureCapture !== null) {
+      await observeTextbookCheckGateFollowup(tx, {
+        failureCaptureId: directFailureCapture.id,
+        misconceptionId: created.id,
+        scheduledFor: created.nextReviewAt,
+        observedAt: acceptedAt,
+      });
+    }
+    return { id: created.id };
   });
-  if (claimed.count === 0) return null;
-  const created = await confirmMisconception(title, gateId, rootCause);
-  await prisma.capture.update({
-    where: { id: captureId },
-    data: { misconceptionId: created.id },
-  });
-  return created;
 }
 
 /**
@@ -142,22 +158,43 @@ export async function triageCapture(
         // (confirmMisconception と同じ扱い。gate.ts:982-991)
         const linkGate = gateId ? await prisma.gate.findUnique({ where: { id: gateId } }) : null;
 
-        // 先に Capture を claim してから Misconception を書き換える（同一 Capture への
-        // 並行 accept が二重に確定させるレースを防ぐ。opus レビュー指摘）
-        const claimed = await prisma.capture.updateMany({
-          where: { id, status: "pending" },
-          data: { status: "accepted", reviewedAt: new Date(), misconceptionId: targetId },
+        // Capture accept・予約更新・A7-B follow-up evidenceを一つのtransactionに閉じる。
+        // これにより後から nextReviewAt が変わっても、accept時点の予約を失わない。
+        const acceptedAt = new Date();
+        const accepted = await prisma.$transaction(async (tx) => {
+          const latestTarget = await tx.misconception.findUnique({
+            where: { id: targetId },
+            select: { nextReviewAt: true },
+          });
+          if (latestTarget === null) return false;
+          const claimed = await tx.capture.updateMany({
+            where: { id, status: "pending" },
+            data: { status: "accepted", reviewedAt: acceptedAt, misconceptionId: targetId },
+          });
+          if (claimed.count === 0) return false;
+          const nextReviewAt = computeLinkExistingNextReviewAt(latestTarget.nextReviewAt, acceptedAt);
+          await tx.misconception.update({
+            where: { id: targetId },
+            data: {
+              nextReviewAt,
+              ...(linkGate ? { gates: { connect: { id: linkGate.id } } } : {}),
+            },
+          });
+          const directFailureCapture = await tx.textbookCheckGateFailureCapture.findUnique({
+            where: { captureId: id },
+            select: { id: true },
+          });
+          if (directFailureCapture !== null) {
+            await observeTextbookCheckGateFollowup(tx, {
+              failureCaptureId: directFailureCapture.id,
+              misconceptionId: targetId,
+              scheduledFor: nextReviewAt,
+              observedAt: acceptedAt,
+            });
+          }
+          return true;
         });
-        if (claimed.count === 0) return ALREADY_PROCESSED_RACE;
-
-        const nextReviewAt = computeLinkExistingNextReviewAt(target.nextReviewAt, new Date());
-        await prisma.misconception.update({
-          where: { id: targetId },
-          data: {
-            nextReviewAt,
-            ...(linkGate ? { gates: { connect: { id: linkGate.id } } } : {}),
-          },
-        });
+        if (!accepted) return ALREADY_PROCESSED_RACE;
         return {
           ok: true,
           message: `既存の誤解に紐付けました (misconceptionId: ${targetId})。`,
