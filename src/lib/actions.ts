@@ -860,6 +860,37 @@ export async function setWeeklyCheckMasteryAction(
   revalidatePath("/retro");
 }
 
+export type TextbookCheckGatePromotionActionResult =
+  | Readonly<{ ok: true; disposition: "created" | "existing"; gateId: string }>
+  | Readonly<{
+      ok: false;
+      code: "not_found" | "not_actionable" | "invalid_mastery" | "invalid_source";
+    }>;
+
+/**
+ * A human-only bridge from a self-reported Textbook Check to a Gate. The
+ * client may name a Check, but never supplies the question, rubric, source
+ * snapshot, or hashes used to create/grading the Gate.
+ */
+export async function promoteTextbookCheckToGateAction(
+  sourceKind: string,
+  checkId: string,
+): Promise<TextbookCheckGatePromotionActionResult> {
+  await requireAuth();
+  if (sourceKind !== "daily" && sourceKind !== "weekly") {
+    return Object.freeze({ ok: false as const, code: "invalid_source" as const });
+  }
+  const { promoteTextbookCheckToGate } = await import(
+    "@/lib/textbook-check-gate-promotion"
+  );
+  const result = await promoteTextbookCheckToGate(prisma, { sourceKind, checkId });
+  if (result.ok) {
+    revalidatePath("/gates");
+    revalidatePath("/retro");
+  }
+  return result;
+}
+
 /** /setup の「賢者に伺いを立てる」ボタン用: live probe を手動実行する */
 export async function runGradingProbeLiveAction(): Promise<GradingProbeResult> {
   await requireAuth();
