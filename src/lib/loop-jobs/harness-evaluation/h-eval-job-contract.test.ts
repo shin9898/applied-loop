@@ -230,6 +230,34 @@ const A8B_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/h-cycle-evaluation-record.ts",
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-job-contract-v1.ts",
 ] as const;
+const A8B2_ALLOWED_NON_H_EVAL_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.ts",
+] as const;
+const A8B2_ADDITIVE_NON_H_EVAL_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.ts",
+] as const;
+const A8B2_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.ts",
+] as const;
+// This mainline-only ADR arrived after A8-B1. Keep it classified separately
+// from A8-B2 so the historical scope guard remains exact without claiming the
+// unrelated global-layer decision as part of this implementation slice.
+const POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0030-global-layer-entry-criteria.md",
+] as const;
+const POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0030-global-layer-entry-criteria.md",
+] as const;
+const POST_A8B1_MAINLINE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "docs/adr/0030-global-layer-entry-criteria.md": "5650449519cd86b2272649954e9ac463d8825edf1e3ca0885729ec968fb38112",
+};
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
   "h-eval-job-contract-v1.ts": "25a6bbc3bfd0ef30c70ee063c227e0352c6b0b76a2241e6fb206d61e1c6318ba",
@@ -1193,7 +1221,9 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A7B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A7C_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8A_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        && !(A8B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        && !(A8B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A8B2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
   assert.equal(
@@ -1219,7 +1249,9 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A7B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A7C_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8A_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        || (A8B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        || (A8B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A8B2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
     "unexpected untracked path outside the A3/A4/A5/A6/A7/A7B/A7C/A8A/A8B allowlist",
@@ -1273,6 +1305,26 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A8B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA8BPaths, [...A8B_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredA8B2Paths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A8B2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA8B2Paths, [...A8B2_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredPostA8B1MainlinePaths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(
+    discoveredPostA8B1MainlinePaths,
+    [...POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS].sort(),
+  );
+  for (const [path, expectedSha256] of Object.entries(POST_A8B1_MAINLINE_CONTENT_SHA256)) {
+    assert.equal(contentSha256(join(root, path)), expectedSha256, path);
+  }
   assert.deepEqual(
     Object.keys(A6_MODIFIED_BASE_CONTENT_SHA256).sort(),
     A6_ALLOWED_NON_H_EVAL_PATHS.filter(
@@ -1341,6 +1393,14 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     assert.doesNotMatch(
       source,
       /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli)/,
+      path,
+    );
+  }
+  for (const path of A8B2_NON_ACTIVATION_PRODUCTION_PATHS) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(
+      source,
+      /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli|queryReadonlyHCycleEvidencePreviewSnapshotV1|createReadonlyHCycleEvidencePreviewClient|DATABASE_URL|PrismaClient|PrismaBetterSqlite3|launchd)/,
       path,
     );
   }
