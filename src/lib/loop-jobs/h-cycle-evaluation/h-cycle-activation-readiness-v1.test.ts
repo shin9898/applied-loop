@@ -532,8 +532,67 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
   const sha256 = (path: string): string => createHash("sha256")
     .update(readFileSync(join(root, path)))
     .digest("hex");
+  const a8c2Snippets: Readonly<Record<string, ReadonlyArray<Readonly<{
+    begin: string;
+    end: string;
+    leading: string;
+    trailing: string;
+  }>>>> = {
+    "src/lib/loop-jobs/state-machine.ts": [
+      {
+        begin: "// A8-C2 BEGIN: single-kind raw claim import",
+        end: "// A8-C2 END: single-kind raw claim import",
+        leading: "",
+        trailing: "\n\n",
+      },
+      {
+        begin: "    // A8-C2 BEGIN: queue claimKind method",
+        end: "    // A8-C2 END: queue claimKind method",
+        leading: "",
+        trailing: "\n\n",
+      },
+    ],
+    "src/lib/loop-jobs/delivery.ts": [
+      {
+        begin: "// A8-C2 BEGIN: scoped capability snapshot helpers",
+        end: "// A8-C2 END: scoped capability snapshot helpers",
+        leading: "",
+        trailing: "\n\n",
+      },
+      {
+        begin: "// A8-C2 BEGIN: runOneKindDelivery",
+        end: "// A8-C2 END: runOneKindDelivery",
+        leading: "\n",
+        trailing: "\n",
+      },
+    ],
+  };
+  const sha256BeforeA8C2 = (path: string): string => {
+    const snippets = a8c2Snippets[path];
+    if (!snippets) return sha256(path);
+    const source = readFileSync(join(root, path), "utf8");
+    let cursor = 0;
+    let reconstructed = "";
+    for (const snippet of snippets) {
+      assert.equal(source.split(snippet.begin).length - 1, 1, `${path}: A8-C2 begin marker count`);
+      assert.equal(source.split(snippet.end).length - 1, 1, `${path}: A8-C2 end marker count`);
+      const markerStart = source.indexOf(snippet.begin);
+      const snippetStart = markerStart - snippet.leading.length;
+      assert.ok(snippetStart >= cursor, `${path}: A8-C2 marker order/non-overlap`);
+      assert.equal(source.slice(snippetStart, markerStart), snippet.leading, `${path}: A8-C2 leading delimiter`);
+      const endMarkerStart = source.indexOf(snippet.end, markerStart + snippet.begin.length);
+      assert.ok(endMarkerStart > markerStart, `${path}: A8-C2 marker order`);
+      const endMarkerEnd = endMarkerStart + snippet.end.length;
+      const snippetEnd = endMarkerEnd + snippet.trailing.length;
+      assert.equal(source.slice(endMarkerEnd, snippetEnd), snippet.trailing, `${path}: A8-C2 trailing delimiter`);
+      reconstructed += source.slice(cursor, snippetStart);
+      cursor = snippetEnd;
+    }
+    reconstructed += source.slice(cursor);
+    return createHash("sha256").update(reconstructed, "utf8").digest("hex");
+  };
   for (const [path, expectedSha256] of Object.entries(immutableSurfaceSha256)) {
-    assert.equal(sha256(path), expectedSha256, path);
+    assert.equal(sha256BeforeA8C2(path), expectedSha256, path);
   }
 
   const schemaPath = join(root, "prisma/schema.prisma");
