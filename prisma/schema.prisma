@@ -424,3 +424,32 @@ model TextbookCheckGateOrigin {
   @@unique([sourceKind, textbookKey, source, checkIndex, sourceRevisionHash])
   @@index([sourceKind, textbookKey, source, checkIndex])
 }
+
+// H-CYCLE の将来向け観測台帳。再生成されるCheck行ではなく、logical source revisionを
+// 分母にする。question / chapter body / answer / diff / prompt本文は複製しない。
+model TextbookCheckEvidence {
+  id                  String                      @id @default(cuid())
+  sourceKind          String                      // daily / weekly
+  textbookKey         String                      // dateKey / weekKey
+  source              String                      // auto / compiled (weekly is always auto)
+  checkIndex          Int
+  chapterIndex        Int?
+  sourceRevisionHash  String                      // A6 originと同じv1 canonical source SHA-256
+  questionHash        String                      // source revisionの監査用。本文は保存しない。
+  firstObservedAt     DateTime                    @default(now())
+  masteryEvents       TextbookCheckMasteryEvent[]
+
+  @@unique([sourceKind, textbookKey, source, checkIndex, sourceRevisionHash])
+  @@index([firstObservedAt])
+}
+
+// 本人が既存のMastery操作を明示保存したときだけ足すappend-only event。
+model TextbookCheckMasteryEvent {
+  id          String                @id @default(cuid())
+  evidenceId  String
+  evidence    TextbookCheckEvidence @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  mastery     String                // clear / partial / stuck / parked
+  recordedAt  DateTime              @default(now())
+
+  @@index([evidenceId, recordedAt])
+}

@@ -24,6 +24,10 @@ import {
   recentCompletedWeekRanges,
   type WeekRange,
 } from "@/lib/weekly-textbook-shared";
+import {
+  observeTextbookCheckEvidenceForCheck,
+  saveWeeklyTextbookCheckMastery,
+} from "@/lib/textbook-check-evidence";
 
 async function loadUncoveredMaterialsForWeek(
   start: Date,
@@ -126,6 +130,22 @@ export async function generateWeeklyTextbook(
           question: ck.question,
         })),
       });
+      const createdChecks = await tx.weeklyTextbookCheck.findMany({
+        where: {
+          weeklyId: created.id,
+          index: { in: checks.map((check) => check.index) },
+        },
+        select: { id: true },
+      });
+      if (createdChecks.length !== checks.length) {
+        throw new Error("generateWeeklyTextbook: persisted check count mismatch");
+      }
+      for (const check of createdChecks) {
+        await observeTextbookCheckEvidenceForCheck(tx, {
+          sourceKind: "weekly",
+          checkId: check.id,
+        });
+      }
     }
 
     // 章に入った材料を「捕捉済み」にする。溢れた分（droppedMaterialIds）は
@@ -286,8 +306,5 @@ export async function setWeeklyCheckMastery(
   checkId: string,
   mastery: MasteryState,
 ): Promise<void> {
-  await prisma.weeklyTextbookCheck.update({
-    where: { id: checkId },
-    data: { mastery, answeredAt: new Date() },
-  });
+  await saveWeeklyTextbookCheckMastery(prisma, checkId, mastery);
 }

@@ -54,6 +54,22 @@ export type TextbookCheckGateOriginV1 = Readonly<{
   referenceHash: string;
 }>;
 
+/**
+ * Privacy-minimized identity projection for the H-CYCLE evidence ledger.
+ * Its hashes deliberately come from the exact immutable A6 origin projection;
+ * this is not a second identity scheme.
+ */
+export type TextbookCheckSourceRevisionV1 = Readonly<{
+  schema: "textbook_check_source_revision_v1";
+  sourceKind: TextbookCheckSourceKind;
+  textbookKey: string;
+  source: TextbookCheckSource;
+  checkIndex: number;
+  chapterIndex: number | null;
+  sourceRevisionHash: string;
+  questionHash: string;
+}>;
+
 export type TextbookCheckPromotionDecision =
   | Readonly<{ ok: true }>
   | Readonly<{ ok: false; code: "not_actionable" | "invalid_mastery" }>;
@@ -190,6 +206,27 @@ export function createTextbookCheckGateOriginV1(
     sourceRevisionHash: sha256(canonicalJson(origin)),
     questionHash,
     referenceHash,
+  });
+}
+
+/**
+ * Derives the ledger-safe identity from the same canonical source bundle used
+ * by explicit A6 promotion. The returned value intentionally contains neither
+ * question nor chapter/reference material.
+ */
+export function createTextbookCheckSourceRevisionV1(
+  input: TextbookCheckGateOriginInput,
+): TextbookCheckSourceRevisionV1 {
+  const origin = createTextbookCheckGateOriginV1(input);
+  return deepFreeze({
+    schema: "textbook_check_source_revision_v1" as const,
+    sourceKind: origin.reference.sourceKind,
+    textbookKey: origin.reference.textbookKey,
+    source: origin.reference.source,
+    checkIndex: origin.reference.checkIndex,
+    chapterIndex: origin.reference.chapterIndex,
+    sourceRevisionHash: origin.sourceRevisionHash,
+    questionHash: origin.questionHash,
   });
 }
 
