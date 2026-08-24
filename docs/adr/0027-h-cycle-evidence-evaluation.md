@@ -304,6 +304,24 @@ answer を受理する writer は `answered`、採点開始は `grading`、採�
 も、それぞれ原子化する。連番の競合は `(gateId, ordinal)` の unique violation を再読・
 retry して解決し、イベントを上書きしない。
 
+実装前に source map を再確認し、少なくとも次の current writer を共通の
+`textbook_check` state-event helper へ通す。MCP / UI はこれらを呼ぶだけで直接 status を
+書かないため、入口ごとに複製しない。
+
+- `src/lib/gate-answer.ts` の `acceptGateAnswer`（通常回答・resubmit）
+- `src/lib/gate.ts` の `gradeGate`（`grading`、`grading_failed`、`passed`、`failed`）
+- `src/lib/actions.ts` の `retryGateGrading`、`selfGrade`、`dismissGateWithReason`、
+  `parkGate`、`unparkGate`
+- `src/lib/requeue-failed-grading.ts` の global retry。textbook origin を持つ Gate だけを
+  helperへ渡し、worker / scheduler を新規に起動しない。
+- `src/lib/capture.ts` の gate Capture accept / link-existing / skip。accepted pathだけが
+  direct mapping を再読して FollowupObservation を作り、ignored path は作らない。
+
+`place-enrich` / resource-access のように status を変えない更新、origin を作る
+`promoteTextbookCheckToGate` の初期 pending、textbook origin を持たない Gate はこの event
+対象外である。static test は上記 writer が event を経由しない textbook status mutation を
+failさせる。
+
 ### B-2. pure projection の入力・as-of・出力を固定する
 
 `projectHCycleEvidenceV1(input)` は引き続き DB client、時計、LLM、外部 I/O を
