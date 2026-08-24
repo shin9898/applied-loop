@@ -298,19 +298,41 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
     "--",
     readinessPath,
   ])[0];
-  const changedPaths = introductionCommit === undefined
-    ? [
+  if (introductionCommit === undefined) {
+    const changedPaths = [
       ...lines(["diff", "--name-only", "HEAD"]),
       ...lines(["ls-files", "--others", "--exclude-standard"]),
-    ].sort()
-    : lines([
+    ].sort();
+    assert.deepEqual(changedPaths, expectedChangedPaths, "A8-C0 historical guard paths must both be classified");
+  } else {
+    const introductionPaths = lines([
       "diff-tree",
       "--no-commit-id",
       "--name-only",
       "-r",
       introductionCommit,
     ]).sort();
-  assert.deepEqual(changedPaths, expectedChangedPaths, "A8-C0 historical guard paths must both be classified");
+    if (introductionPaths.length > 0) {
+      assert.deepEqual(introductionPaths, expectedChangedPaths, "A8-C0 historical guard paths must both be classified");
+    } else {
+      // actions/checkout uses a depth-1 synthetic PR merge commit. It has no
+      // parent object, so diff-tree cannot expose the introduction paths.
+      // Keep the provenance check strict in full history; in this CI-only
+      // shape, prove the tree is clean and let the exact literal allowlists
+      // below classify the frozen five paths.
+      assert.equal(lines(["rev-parse", "--is-shallow-repository"])[0], "true");
+      assert.deepEqual(lines(["show", "-s", "--format=%P", introductionCommit]), []);
+      assert.deepEqual(lines(["status", "--porcelain"]), []);
+      assert.deepEqual(expectedChangedPaths.filter((path) => lines([
+        "ls-tree",
+        "-r",
+        "--name-only",
+        "HEAD",
+        "--",
+        path,
+      ]).includes(path)), expectedChangedPaths);
+    }
+  }
 
   const parse = (path: string): ts.SourceFile => ts.createSourceFile(
     path,
