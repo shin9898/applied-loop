@@ -11,15 +11,21 @@ import {
 type EvidenceReadClient = PrismaClient | Prisma.TransactionClient;
 
 /**
+ * Privacy-minimized evidence read once from the ledger. A caller supplies the
+ * completed period separately, so adjacent windows can be projected from the
+ * same database snapshot without querying mutable current rows twice.
+ */
+export type HCycleEvidenceSnapshotV1 = Readonly<Omit<HCycleEvidenceProjectionInputV1, "period">>;
+
+/**
  * Reads only the privacy-minimized history needed by the pure H-CYCLE
  * projection. Current Gate.status / gradedAt and Misconception.nextReviewAt
  * are intentionally absent: those values are mutable after the completed
  * period and must never rewrite its result.
  */
-export async function readHCycleEvidenceProjectionInputV1(
+export async function readHCycleEvidenceSnapshotV1(
   client: EvidenceReadClient,
-  period: HCyclePeriodV1,
-): Promise<HCycleEvidenceProjectionInputV1> {
+): Promise<HCycleEvidenceSnapshotV1> {
   const [sourceRevisions, origins, gateStateEvents, failureCaptureRows, followupObservations] = await Promise.all([
     client.textbookCheckEvidence.findMany({
       select: {
@@ -75,7 +81,6 @@ export async function readHCycleEvidenceProjectionInputV1(
   ]);
 
   return {
-    period,
     sourceRevisions: sourceRevisions.map((revision) => ({
       sourceKind: revision.sourceKind as "daily" | "weekly",
       textbookKey: revision.textbookKey,
@@ -123,6 +128,20 @@ export async function readHCycleEvidenceProjectionInputV1(
       observedAt: observation.observedAt,
     })),
   };
+}
+
+export function attachHCycleEvidencePeriodV1(
+  snapshot: HCycleEvidenceSnapshotV1,
+  period: HCyclePeriodV1,
+): HCycleEvidenceProjectionInputV1 {
+  return { period, ...snapshot };
+}
+
+export async function readHCycleEvidenceProjectionInputV1(
+  client: EvidenceReadClient,
+  period: HCyclePeriodV1,
+): Promise<HCycleEvidenceProjectionInputV1> {
+  return attachHCycleEvidencePeriodV1(await readHCycleEvidenceSnapshotV1(client), period);
 }
 
 /** Reads an explicit completed period and delegates all evaluation to the pure function. */
