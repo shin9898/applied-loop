@@ -68,6 +68,7 @@ model Capture {
   overlapCheckJson String? // しれん重複ガードの判定ログ (ADR-0021)。OverlapCheckLog の JSON
   misconceptionId  String? // 人間が選んだ最終的な Misconception id (紐付け先 or 新規作成id。ADR-0021)
   misconception    Misconception? @relation(fields: [misconceptionId], references: [id], onDelete: SetNull)
+  textbookCheckFailureCapture TextbookCheckGateFailureCapture?
 }
 
 // 当日タスク → 関連学び/誤解/ゲートのマッピング (ADR-0013 §1)
@@ -172,6 +173,7 @@ model Gate {
   answeredAt       DateTime?
   gradedAt         DateTime?
   textbookCheckOrigin TextbookCheckGateOrigin?
+  textbookCheckStateEvents TextbookCheckGateStateEvent[]
 }
 
 // 誤解 (コード非依存の抽象概念のみ保存。Capture 受信箱経由でユーザー accept 後に確定)
@@ -187,6 +189,7 @@ model Misconception {
   createdAt    DateTime  @default(now())
   gates        Gate[]
   captures     Capture[] // しれん重複ガードで紐付いた Capture (ADR-0021)
+  textbookCheckFollowupObservations TextbookCheckGateFollowupObservation[]
 }
 
 // 弱点パターン集計の週次キャッシュ (ADR-0011)
@@ -452,4 +455,47 @@ model TextbookCheckMasteryEvent {
   recordedAt  DateTime              @default(now())
 
   @@index([evidenceId, recordedAt])
+}
+
+// A7-B: textbook_check Gate の永続status遷移だけを順序付きで残す本文なし証跡。
+// Gate.status は現在表示用であり、過去週の判定はこのeventからのみ再構成する。
+model TextbookCheckGateStateEvent {
+  id              String   @id @default(cuid())
+  gateId          String
+  gate            Gate     @relation(fields: [gateId], references: [id], onDelete: Cascade)
+  ordinal         Int
+  status          String   // pending / answered / grading / grading_failed / passed / failed / self_graded_* / dismissed / parked
+  recordedAt      DateTime @default(now())
+  failureCaptures TextbookCheckGateFailureCapture[]
+
+  @@unique([gateId, ordinal])
+  @@index([gateId, recordedAt])
+}
+
+// A7-B: failed StateEvent とその場で新規作成されたgate Captureだけを結ぶ。
+// Capture本文やsourceContextを複製せず、既存Captureへのdedupeは記録しない。
+model TextbookCheckGateFailureCapture {
+  id                  String                      @id @default(cuid())
+  failedStateEventId  String
+  failedStateEvent    TextbookCheckGateStateEvent @relation(fields: [failedStateEventId], references: [id], onDelete: Cascade)
+  captureId           String                      @unique
+  capture             Capture                     @relation(fields: [captureId], references: [id], onDelete: Cascade)
+  recordedAt          DateTime                    @default(now())
+  followupObservation TextbookCheckGateFollowupObservation?
+
+  @@unique([failedStateEventId, captureId])
+}
+
+// A7-B: accepted direct Capture と同じtransactionで確定した予約だけを観測する。
+// Misconception.nextReviewAt の後続変更を過去週の証拠に用いない。
+model TextbookCheckGateFollowupObservation {
+  id               String                          @id @default(cuid())
+  failureCaptureId String                          @unique
+  failureCapture   TextbookCheckGateFailureCapture @relation(fields: [failureCaptureId], references: [id], onDelete: Cascade)
+  misconceptionId  String
+  misconception    Misconception                   @relation(fields: [misconceptionId], references: [id], onDelete: Restrict)
+  scheduledFor     DateTime
+  observedAt       DateTime                        @default(now())
+
+  @@index([misconceptionId, observedAt])
 }

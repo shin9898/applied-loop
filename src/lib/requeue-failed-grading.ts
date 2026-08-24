@@ -6,6 +6,7 @@ import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { gradeGate } from "@/lib/gate";
 import { probeGradingCli } from "@/lib/headless-llm";
+import { appendTextbookCheckGateStateEvent } from "@/lib/textbook-check-gate-history";
 
 const COOLDOWN_MS = 30 * 60 * 1000;
 const DEFAULT_LIMIT = 8;
@@ -37,13 +38,26 @@ export async function requeueFailedGradingIfCliReady(opts?: {
 
   if (ids.length === 0) return 0;
 
-  const updated = await prisma.gate.updateMany({
-    where: { id: { in: ids }, status: "grading_failed" },
-    data: { status: "answered", gradeNote: null },
+  const transitionedIds = await prisma.$transaction(async (tx) => {
+    const candidates = await tx.gate.findMany({
+      where: { id: { in: ids }, status: "grading_failed" },
+      select: { id: true },
+    });
+    if (candidates.length === 0) return [];
+    await tx.gate.updateMany({
+      where: { id: { in: candidates.map((gate) => gate.id) }, status: "grading_failed" },
+      data: { status: "answered", gradeNote: null },
+    });
+    await Promise.all(candidates.map((gate) => appendTextbookCheckGateStateEvent(tx, {
+      gateId: gate.id,
+      status: "answered",
+      recordedAt: new Date(now),
+    })));
+    return candidates.map((gate) => gate.id);
   });
-  if (updated.count === 0) return 0;
+  if (transitionedIds.length === 0) return 0;
 
-  for (const id of ids) {
+  for (const id of transitionedIds) {
     lastAuto.set(id, now);
     after(async () => {
       await gradeGate(id).catch((e) =>
@@ -51,5 +65,5 @@ export async function requeueFailedGradingIfCliReady(opts?: {
       );
     });
   }
-  return updated.count;
+  return transitionedIds.length;
 }

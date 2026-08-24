@@ -1,7 +1,13 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { computeDismissRecoveryNextReviewAt } from "@/lib/gate-dismiss-recovery";
+import {
+  encodeGateSourceContext,
+  normalizeRootCause,
+  type RootCause,
+} from "@/lib/gate-source-context";
 import { runHeadlessLLM, parseLLMJson, HeadlessLLMError } from "@/lib/headless-llm";
 import {
   activeGoalsPromptBlock,
@@ -19,6 +25,11 @@ import {
   type TextbookCheckGateReferenceV1,
   validateTextbookCheckGateOriginV1,
 } from "@/lib/textbook-check-gate-origin";
+import {
+  appendTextbookCheckGateStateEvent,
+  linkTextbookCheckGateFailureCapture,
+  transitionGateStatusWithTextbookHistory,
+} from "@/lib/textbook-check-gate-history";
 import { readTutorialState } from "@/lib/tutorial-state";
 
 // 発火抑制ルール (ADR-0006 §2)。チューニングはここを変えるだけでよい
@@ -39,11 +50,9 @@ const SR_BASE_DAYS = 7;
 const SR_MAX_DAYS = 60;
 const PERFECT_INTERVAL_CAP_DAYS = 14; // ADR-0010: 全観点 score=2 時の延長上限
 const RESOURCE_KINDS = new Set(["doc", "file", "commit", "adr"]);
-const ROOT_CAUSES = new Set(["knowledge", "verification", "premise"]);
-
 const execFileAsync = promisify(execFile);
 
-export type RootCause = "knowledge" | "verification" | "premise";
+export { encodeGateSourceContext, parseGateSourceContext, type RootCause } from "@/lib/gate-source-context";
 
 export type GateResource = { kind: string; label: string; ref: string };
 export type RubricScore = {
@@ -604,40 +613,6 @@ type GradeResult = {
   goal_suggestions?: unknown;
 };
 
-function normalizeRootCause(raw: unknown): RootCause | null {
-  if (typeof raw !== "string") return null;
-  const v = raw.trim().toLowerCase();
-  return ROOT_CAUSES.has(v) ? (v as RootCause) : null;
-}
-
-/** Capture.sourceContext 用: gateId と任意の rootCause をエンコード */
-export function encodeGateSourceContext(
-  gateId: string,
-  rootCause?: RootCause | null
-): string {
-  return rootCause ? `gateId:${gateId};rootCause:${rootCause}` : `gateId:${gateId}`;
-}
-
-/** Capture.sourceContext から gateId / rootCause を取り出す */
-export function parseGateSourceContext(raw: string | null | undefined): {
-  gateId: string | null;
-  rootCause: RootCause | null;
-} {
-  if (!raw) return { gateId: null, rootCause: null };
-  const gateMatch = raw.match(/(?:^|[;|])gateId:([^;|\s]+)/);
-  const causeMatch = raw.match(/(?:^|[;|])rootCause:([^;|\s]+)/);
-  const gateId = gateMatch?.[1]?.trim() || null;
-  // 旧形式: "gateId:xxx" のみ (セミコロンなし)
-  const legacyGateId =
-    !gateId && raw.startsWith("gateId:")
-      ? raw.slice("gateId:".length).split(/[;\s]/)[0]?.trim() || null
-      : null;
-  return {
-    gateId: gateId ?? legacyGateId,
-    rootCause: normalizeRootCause(causeMatch?.[1] ?? null),
-  };
-}
-
 function normalizeRubricResult(raw: unknown): RubricScore[] | null {
   if (!Array.isArray(raw)) return null;
   const items: RubricScore[] = [];
@@ -805,7 +780,12 @@ export async function gradeGate(gateId: string): Promise<void> {
   });
   if (!gate || !gate.answer || gate.status !== "answered") return;
 
-  await prisma.gate.update({ where: { id: gateId }, data: { status: "grading" } });
+  const gradingStarted = await transitionGateStatusWithTextbookHistory(prisma, {
+    gateId,
+    from: "answered",
+    status: "grading",
+  });
+  if (!gradingStarted.updated) return;
 
   let diff: string | null = gate.event?.diffSnapshot ?? null;
   if (!diff && gate.event?.repoPath && gate.event?.ref) {
@@ -819,10 +799,11 @@ export async function gradeGate(gateId: string): Promise<void> {
     textbookCheckOrigin: gate.textbookCheckOrigin,
   });
   if (!gradingSource.ok) {
-    await prisma.gate.update({
-      where: { id: gateId },
+    await transitionGateStatusWithTextbookHistory(prisma, {
+      gateId,
+      from: "grading",
+      status: "grading_failed",
       data: {
-        status: "grading_failed",
         gradeNote: "教材由来を検証できませんでした。元のしょから作り直してください。",
       },
     });
@@ -862,19 +843,22 @@ export async function gradeGate(gateId: string): Promise<void> {
             ? `${e.message} 枠が戻ってから再採点してください。`
             : e.message
         : "採点の呼び出しに失敗しました。";
-    await prisma.gate.update({
-      where: { id: gateId },
-      data: { status: "grading_failed", gradeNote: reason },
+    await transitionGateStatusWithTextbookHistory(prisma, {
+      gateId,
+      from: "grading",
+      status: "grading_failed",
+      data: { gradeNote: reason },
     });
     return;
   }
 
   const passed = result ? resolveVerdict(result) : null;
   if (passed === null) {
-    await prisma.gate.update({
-      where: { id: gateId },
+    await transitionGateStatusWithTextbookHistory(prisma, {
+      gateId,
+      from: "grading",
+      status: "grading_failed",
       data: {
-        status: "grading_failed",
         gradeNote: "採点結果を読み取れませんでした。リトライしてください。",
       },
     });
@@ -904,24 +888,41 @@ export async function gradeGate(gateId: string): Promise<void> {
     !!payload.misconception ||
     !!payload.rootCause;
   const now = new Date();
-  await prisma.gate.update({
-    where: { id: gateId },
-    data: {
-      status: passed ? "passed" : "failed",
-      gradeNote: result?.feedback?.trim() || null,
-      // 配列互換の envelope。correct_model / misconception も同梱
-      rubricResult: hasPayload ? serializeGradePayload(payload) : null,
-      gradedAt: now,
-    },
-  });
+  const gradeData = {
+    gradeNote: result?.feedback?.trim() || null,
+    // 配列互換の envelope。correct_model / misconception も同梱
+    rubricResult: hasPayload ? serializeGradePayload(payload) : null,
+    gradedAt: now,
+  };
+  const graded = passed
+    ? await transitionGateStatusWithTextbookHistory(prisma, {
+      gateId,
+      from: "grading",
+      status: "passed",
+      recordedAt: now,
+      data: gradeData,
+    })
+    : await prisma.$transaction(async (tx) => {
+      const updated = await tx.gate.updateMany({
+        where: { id: gateId, status: "grading" },
+        data: { ...gradeData, status: "failed" },
+      });
+      if (updated.count === 0) return { updated: false, stateEventId: null } as const;
+      const failedEvent = await appendTextbookCheckGateStateEvent(tx, {
+        gateId,
+        status: "failed",
+        recordedAt: now,
+      });
+      await onGateFailed(tx, gate, misconceptions, now, rootCause, failedEvent?.id ?? null);
+      return { updated: true, stateEventId: failedEvent?.id ?? null } as const;
+    });
+  if (!graded.updated) return;
 
   if (passed) {
     await onGatePassed(gate, now, result?.goal_suggestions, rubric);
     await refreshRequirementsForGate(gateId).catch((e) =>
       console.error("[requirement] refresh after pass failed:", e)
     );
-  } else {
-    await onGateFailed(gate, misconceptions, now, rootCause);
   }
 }
 
@@ -1014,14 +1015,16 @@ async function onGatePassed(
 }
 
 async function onGateFailed(
+  client: Prisma.TransactionClient,
   gate: { id: string; kind: string; misconceptionId: string | null },
   misconceptions: string[],
   now: Date,
-  rootCause: RootCause | null
+  rootCause: RootCause | null,
+  failedStateEventId: string | null,
 ) {
   if (gate.kind === "sr_review" && gate.misconceptionId) {
     // 定着レビューで再度誤解: regressed → open に戻し 72h 後に再出題
-    await prisma.misconception.update({
+    await client.misconception.update({
       where: { id: gate.misconceptionId },
       data: {
         status: "regressed",
@@ -1040,19 +1043,28 @@ async function onGateFailed(
     // pending だけでなく accepted も見る（harness-patterns.ts:285 と同じ判定）。
     // pending のみだと、一度 accept 済み（Misconception 確定済み）の概念が
     // 再度失敗検出されたときに重複 Capture を作ってしまう
-    const existing = await prisma.capture.findFirst({
+    const existing = await client.capture.findFirst({
       where: { dedupeKey, status: { in: ["pending", "accepted"] } },
     });
     if (existing) continue;
-    await prisma.capture.create({
+    const capture = await client.capture.create({
       data: {
         title: concept,
         note: "理解度ゲートの採点で検出された誤解です。",
         sourceTool: "gate",
         sourceContext: encodeGateSourceContext(gate.id, rootCause),
         dedupeKey,
+        // failed StateEvent と同じserver時刻を使い、SQLiteのCURRENT_TIMESTAMP秒丸めで
+        // 「Captureがfailureより前」に見えることを防ぐ。
+        capturedAt: now,
       },
     });
+    if (failedStateEventId !== null) {
+      await linkTextbookCheckGateFailureCapture(client, {
+        failedStateEventId,
+        captureId: capture.id,
+      });
+    }
   }
 
   // 再出題 (retry) / 初回 (initial) に紐づく誤解は次回復習を予約（G3）
@@ -1060,7 +1072,7 @@ async function onGateFailed(
     (gate.kind === "retry" || gate.kind === "initial") &&
     gate.misconceptionId
   ) {
-    await prisma.misconception.update({
+    await client.misconception.update({
       where: { id: gate.misconceptionId },
       data: {
         nextReviewAt: new Date(now.getTime() + RETRY_DELAY_MS),
@@ -1077,21 +1089,24 @@ async function onGateFailed(
 export async function confirmMisconception(
   concept: string,
   gateId: string | null,
-  rootCause?: RootCause | null
-): Promise<{ id: string }> {
+  rootCause?: RootCause | null,
+  client: PrismaClient | Prisma.TransactionClient = prisma,
+  now = new Date(),
+): Promise<{ id: string; nextReviewAt: Date }> {
   const firstGate = gateId
-    ? await prisma.gate.findUnique({ where: { id: gateId } })
+    ? await client.gate.findUnique({ where: { id: gateId } })
     : null;
-  const created = await prisma.misconception.create({
+  const nextReviewAt = new Date(now.getTime() + RETRY_DELAY_MS);
+  const created = await client.misconception.create({
     data: {
       concept,
       rootCause: rootCause ?? null,
       firstGateId: firstGate?.id ?? null,
-      nextReviewAt: new Date(Date.now() + RETRY_DELAY_MS), // 72h 後に再出題
+      nextReviewAt, // 72h 後に再出題
       gates: firstGate ? { connect: { id: firstGate.id } } : undefined,
     },
   });
-  return { id: created.id };
+  return { id: created.id, nextReviewAt };
 }
 
 /**

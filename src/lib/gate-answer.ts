@@ -5,6 +5,7 @@
 import { after } from "next/server";
 import { prisma } from "@/lib/db";
 import { gradeGate } from "@/lib/gate";
+import { transitionGateStatusWithTextbookHistory } from "@/lib/textbook-check-gate-history";
 
 export type GateAnswerSource = "mcp" | "terminal" | "battle";
 
@@ -128,11 +129,12 @@ export async function acceptGateAnswer(input: {
   const answerMode = answerModeFor(input.source);
   const clearGrade = Boolean(input.resubmit && gate.status !== "pending");
 
-  await prisma.gate.update({
-    where: { id },
+  const transitioned = await transitionGateStatusWithTextbookHistory(prisma, {
+    gateId: id,
+    from: gate.status,
+    status: "answered",
     data: {
       answer: ans,
-      status: "answered",
       answeredAt: new Date(),
       answerMode,
       ...(clearGrade
@@ -144,6 +146,13 @@ export async function acceptGateAnswer(input: {
         : {}),
     },
   });
+  if (!transitioned.updated) {
+    return {
+      ok: false,
+      code: "not_accepting",
+      message: "このゲートは回答を受け付けていません。",
+    };
+  }
 
   try {
     const { recordActivationOnce } = await import("@/lib/activation-funnel");
