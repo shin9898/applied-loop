@@ -15,7 +15,8 @@ import { createLoopJobQueue, defineLoopJobRegistry } from "./state-machine";
 
 const BASE_SHA = "659c916dbe88504a0695bffb56e4be06e38f967e";
 // SHA-256 of sorted UTF-8 records `${path}\t${gitBlobSha}\n` for the frozen
-// non-A2/A5/A6/A7/A7B/A7C source surface. A5/A6/A7/A7B/A7C are exact, non-activation exceptions below.
+// non-A2/A5/A6/A7/A7B/A7C/A8B source surface. Later slices are exact,
+// non-activation exceptions below.
 const BASE_SRC_AGGREGATE_SHA256 = "b86cdd6a6a656144679b897822d467e30aa10c5a4ec49a42a95737ecc3c10def";
 const A5_ALLOWED_SRC_PATHS = [
   "src/app/api/harness-runs/route.ts",
@@ -140,6 +141,24 @@ const A7C_ADDITIVE_SRC_PATHS = [
 const A7C_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/h-cycle-evidence-preview.ts",
   "src/lib/h-cycle-evidence-preview-query.ts",
+] as const;
+const A8B_ALLOWED_SRC_PATHS = [
+  "src/lib/h-cycle-evaluation-record.test.ts",
+  "src/lib/h-cycle-evaluation-record.ts",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-job-contract-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-job-contract-v1.ts",
+  "src/lib/loop-jobs/state-machine.ts",
+] as const;
+const A8B_ADDITIVE_SRC_PATHS = [
+  "src/lib/h-cycle-evaluation-record.test.ts",
+  "src/lib/h-cycle-evaluation-record.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-job-contract-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-job-contract-v1.ts",
+] as const;
+const A8B_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/lib/h-cycle-evaluation-record.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-job-contract-v1.ts",
 ] as const;
 const workerEntry = join(process.cwd(), "src/lib/loop-jobs/worker.mjs");
 
@@ -499,6 +518,7 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => !(A7_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .filter((path) => !(A7B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .filter((path) => !(A7C_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
+        .filter((path) => !(A8B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.equal(trackedSourcePaths.length, 258);
       const currentBaseAggregate = trackedSourcePaths.map((path) => {
@@ -531,6 +551,7 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
                 && !(A7_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
                 && !(A7B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
                 && !(A7C_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
+                && !(A8B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
               );
           });
         assert.equal(tree.length, 258);
@@ -581,7 +602,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
             || (A6_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A7_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A7B_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
-            || (A7C_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
+            || (A7C_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
+            || (A8B_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
         ),
         true,
       );
@@ -625,6 +647,14 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => (A7C_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.deepEqual(discoveredA7CSources, [...A7C_ALLOWED_SRC_PATHS].sort());
+      const discoveredA8BSources = [
+        ...execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" })
+          .trim().split("\n").filter(Boolean),
+        ...untrackedSource,
+      ]
+        .filter((path) => (A8B_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .sort();
+      assert.deepEqual(discoveredA8BSources, [...A8B_ALLOWED_SRC_PATHS].sort());
       for (const path of A5_ALLOWED_SRC_PATHS.filter((path) => !path.endsWith(".test.ts"))) {
         const source = await readFile(join(process.cwd(), path), "utf8");
         assert.doesNotMatch(
@@ -673,6 +703,14 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         assert.doesNotMatch(
           source,
           /(?:loop:worker|worker-phase[12]|createLoopJobQueue|defineLoopJobRegistry|\bLoopJob\b)/,
+          path,
+        );
+      }
+      for (const path of A8B_NON_ACTIVATION_PRODUCTION_PATHS) {
+        const source = await readFile(join(process.cwd(), path), "utf8");
+        assert.doesNotMatch(
+          source,
+          /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli)/,
           path,
         );
       }
