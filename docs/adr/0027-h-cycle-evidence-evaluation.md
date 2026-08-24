@@ -232,10 +232,205 @@ DB write、worker、scheduler、queue、launchd、LLM、automatic intervention�
 4. **LLMでCapture/Gateの関連を推測する**: privacy、再現性、token効率を壊すため採らない。
 5. **最初からschedulerで毎週評価する**: A2のactivationとsleep/catch-up証拠を先取りするため採らない。
 
+## A7-B 追補: 過去週の Gate / follow-up は現在行から復元しない
+
+この追補は、§3〜§5 にある「current Gate / Capture / Misconception を as-of に
+読む」と解釈できる箇所を置き換える。A7-A の `TextbookCheckEvidence` と
+`TextbookCheckMasteryEvent` は source revision / self-report の履歴として十分だが、
+Gate と `Misconception.nextReviewAt` は現在値を後から更新できる。
+
+実装を確認すると、`textbook_check` Gate は failed 後に明示 resubmit されると
+`answered` へ戻り `gradedAt` も消去される。さらに `nextReviewAt` は pass、fail、
+link-existing、stale recovery、due Gate 作成で上書きまたは `null` にされる。このため、
+現在の `status` / `gradedAt` / `nextReviewAt` を過去の週末状態として使うと、将来の
+操作が過去の評価を無言に書き換える。
+
+### B-1. A7-B は三つの本文なし append-only 証跡を追加する
+
+PR #36 が main に入った後の別 implementation slice で、次の三つを追加する。
+いずれも ID、列挙値、時刻だけであり、answer、question、reference、diff、prompt、
+Capture title / note、会話本文を持たない。
+
+```text
+TextbookCheckGateStateEvent
+  id, gateId, ordinal, status, recordedAt
+  UNIQUE(gateId, ordinal), INDEX(gateId, recordedAt)
+
+TextbookCheckGateFailureCapture
+  id, failedStateEventId, captureId, recordedAt
+  UNIQUE(failedStateEventId, captureId), UNIQUE(captureId)
+
+TextbookCheckGateFollowupObservation
+  id, failureCaptureId, misconceptionId, scheduledFor, observedAt
+  UNIQUE(failureCaptureId)
+```
+
+- `TextbookCheckGateStateEvent` は、origin を持つ `textbook_check` Gate の永続
+  status 遷移ごとに一度だけ足す。許可する値は
+  `pending` / `answered` / `grading` / `grading_failed` / `passed` / `failed` /
+  `self_graded_pass` / `self_graded_fail` / `dismissed` / `parked` とする。
+  `ordinal` は Gate 内で連番かつ一意であり、同一ミリ秒の遷移でも順序を失わない。
+  初期 `pending` は origin の `createdAt` で表現できるが、park → pending の復帰は
+  event として残す。
+- `TextbookCheckGateFailureCapture` は、`failed` StateEvent を起点に実際に新規作成
+  された Capture だけを結ぶ。Capture の `sourceTool === "gate"`、
+  `parseGateSourceContext(sourceContext).gateId === gateId`、Capture 作成時刻が失敗
+  event 以後、を同一 transaction 内で検証する。既存 Capture への dedupe、LLM が
+  concept を返さない失敗、または検証不能な関連には行を推測作成しない。
+- `TextbookCheckGateFollowupObservation` は、上の Capture が accepted になり、
+  `misconceptionId` と non-null の `scheduledFor` が同じ transaction で確定した
+  ときだけ一度だけ足す。これは「その時点で follow-up が予約された」観測であって、
+  scheduler が実行済み・学習が完了済みであるという主張ではない。
+
+```text
+ TextbookCheckEvidence ──▶ MasteryEvent
+          │
+          └──▶ GateOrigin ──▶ GateStateEvent (append-only)
+                                      │ failed only
+                                      ▼
+                         GateFailureCapture (direct mapping)
+                                      │ accepted + scheduled
+                                      ▼
+                         FollowupObservation (append-only)
+
+ 【重要】現在の Gate.status / Misconception.nextReviewAt は表示用の現在値。
+          過去週の証拠には使わない。
+```
+
+各 writer は、状態遷移と対応する証跡を同じ database transaction で保存する。
+answer を受理する writer は `answered`、採点開始は `grading`、採点終了は
+`passed` / `failed` / `grading_failed`、self-grade / dismiss / park / unpark も同じ
+規則に従う。失敗時の Capture create と direct mapping、accept と follow-up observation
+も、それぞれ原子化する。連番の競合は `(gateId, ordinal)` の unique violation を再読・
+retry して解決し、イベントを上書きしない。
+
+実装前に source map を再確認し、少なくとも次の current writer を共通の
+`textbook_check` state-event helper へ通す。MCP / UI はこれらを呼ぶだけで直接 status を
+書かないため、入口ごとに複製しない。
+
+- `src/lib/gate-answer.ts` の `acceptGateAnswer`（通常回答・resubmit）
+- `src/lib/gate.ts` の `gradeGate`（`grading`、`grading_failed`、`passed`、`failed`）
+- `src/lib/actions.ts` の `retryGateGrading`、`selfGrade`、`dismissGateWithReason`、
+  `parkGate`、`unparkGate`
+- `src/lib/requeue-failed-grading.ts` の global retry。textbook origin を持つ Gate だけを
+  helperへ渡し、worker / scheduler を新規に起動しない。
+- `src/lib/capture.ts` の gate Capture accept / link-existing / skip。accepted pathだけが
+  direct mapping を再読して FollowupObservation を作り、ignored path は作らない。
+
+`place-enrich` / resource-access のように status を変えない更新、origin を作る
+`promoteTextbookCheckToGate` の初期 pending、textbook origin を持たない Gate はこの event
+対象外である。static test は上記 writer が event を経由しない textbook status mutation を
+failさせる。
+
+### B-2. pure projection の入力・as-of・出力を固定する
+
+`projectHCycleEvidenceV1(input)` は引き続き DB client、時計、LLM、外部 I/O を
+持たない。adapter は completed JST week の `[start, end)` と `asOf === end` を渡す。
+「今」を入力に含めず、CLI が completed period だけを選ぶ責務とする。
+
+adapter が pure function に渡してよいのは、次の privacy-minimized projection だけである。
+
+```text
+source revision: identity/hash, firstObservedAt, mastery value/recordedAt
+promotion: gateId, immutable origin identity, originCreatedAt
+gate state: gateId, ordinal, status, recordedAt
+failure capture: failedStateEventId, captureId, capturedAt,
+                 sourceTool, parsedGateId, status, reviewedAt, misconceptionId
+follow-up: failureCaptureId, misconceptionId, scheduledFor, observedAt
+```
+
+adapter は raw `sourceContext` を既存 `parseGateSourceContext` で照合するためだけに
+読んでよいが、pure input / result / CLI JSON へ渡さない。ID と hash も aggregate の
+検証だけに使い、result には個別の ID、source revision hash、問題文を出さない。
+
+pure function は以下を fail-loud に検証する。
+
+- period は JST 月曜 00:00 から次の月曜 00:00 までの厳密な `[start, end)`、
+  `asOf === end`、かつ全時刻が有効であること。
+- identity / Gate / Capture / Misconception の参照は一意で、event ordinal は
+  Gate ごとに連続していること。origin 前の event、failed でない event に結ぶ
+  failure capture、capture / follow-up の時刻逆転、duplicate mapping は integrity error。
+- Gate の as-of state は origin と StateEvent のみから再構成する。現在の Gate row は
+  relation の存在確認以外に使わない。`passed` / `failed` だけが verified terminal、
+  `self_graded_*` / `dismissed` / `parked` / `grading_failed` / 未完了は成功でも失敗率の
+  0%でもなく `incomplete` である。
+- Capture の as-of terminal は `accepted` / `ignored` と `reviewedAt < asOf` のときだけ
+  確定する。`pending` / `expired` / reviewedAt 欠損 / direct mapping 欠損は
+  `incomplete`。failed Gate が dedupe 等で Capture を新規作成しなかった場合は
+  `missing_gate_capture` のままにする。
+- follow-up は `TextbookCheckGateFollowupObservation` があり、同じ direct Capture と
+  Misconception を指し、`observedAt < asOf`、`scheduledFor` が non-null のときだけ
+  measured success とする。現在の `Misconception.nextReviewAt` は使用しない。
+
+率は既存の `EvidenceRate` union を維持する。`incomplete` には一つの代表 reason を
+入れ、別に reason ごとの count を持つ immutable diagnostics を必ず返す。従って、
+分母が 0 なら `not_applicable`、必要な履歴が無い / pending / integrity error なら
+`incomplete` であり、どちらも 0% ではない。
+
+| metric | denominator | measured numerator | incomplete になる例 |
+|---|---|---|---|
+| selfAssessmentRate | period 内 `firstObservedAt` の revision | as-of までに有効な MasteryEvent がある revision | event chronology / mastery enum 不正 |
+| actionableCheckCount | rateではなく as-of snapshot | latest event が `partial` / `stuck` の revision数 | event order / identity 不正 |
+| explicitPromotionRate | as-of actionable revision | 同一identityの origin が `createdAt < asOf` | origin identity/hash mismatch |
+| answeredPromotedGateRate | period 内 origin Gate | as-of state が `answered` 以降へ到達した Gate | pending / event欠損 / state transition不正 |
+| gradedPromotedGateRate | period 内 origin Gate | as-of state が verified `passed` / `failed` の Gate | pending / grading failure / self-grade / dismiss |
+| failedTriageRate | as-of verified failed StateEvent | direct Capture が1件以上あり全件 terminal | missing_gate_capture / pending / malformed mapping |
+| scheduledFollowupRate | as-of accepted direct Capture | matching FollowupObservation がある Capture | observation欠損 / relation / chronology不正 |
+| evidenceClosureRate | period 内 origin Gate | verified pass、又は failed attempt の direct Capture に accepted follow-up がある Gate | 未完了、missing capture、follow-up未観測 |
+
+`explicitPromotionRate` は as-of snapshot conversion、`answeredPromotedGateRate` /
+`gradedPromotedGateRate` / `evidenceClosureRate` は period 内 origin の outcome cohort、
+`failedTriageRate` は verified failed attempt cohort、`scheduledFollowupRate` は accepted
+direct Capture cohortである。結果の JSON には `cohortKind`、`period`、`asOf`、
+`policyVersion`、各 denominator、diagnostics を明示し、異なる cohort を暗黙に割り算しない。
+
+### B-3. 二週 policy の eligibility と判定順序を固定する
+
+policy は `h_cycle_evidence_v1` のまま、古い週から順に並ぶ completed window だけを受ける。
+隣接は `previous.end === current.start` で判定し、二つの任意の週を飛び越えて結論を出さない。
+
+1. window が二つ未満、または隣接二週をまだ集められない場合は
+   `baseline_collecting`。これは成功でも反証でもない。
+2. 隣接二週があっても、各週の origin cohort が 0、任意の必須 metric が
+   `incomplete`、または integrity error が 1 件以上なら `inconclusive`。
+   分母 0 の `not_applicable` はその metric の適格な非適用であり、0%へ変換しない。
+   pre-A7-B history に StateEvent / FollowupObservation が無い場合もここへ入り、
+   current row から補完しない。
+3. 二週とも eligible のときだけ判定する。二週とも
+   `gradedPromotedGateRate >= 0.5`、failed cohort があれば
+   `failedTriageRate = 1`、accepted direct Capture cohort があれば
+   `scheduledFollowupRate = 1` なら `supported`。いずれかの measured threshold を
+   満たさなければ `rejected`。`evidenceClosureRate` は必ず併記する観測値であり、
+   自動介入のトリガーではない。
+
+この順序により、usage unavailable、pending、self-grade、dedupe、low precision、
+follow-up未観測が競合しても、先に `incomplete` / integrity を返し、成功・反証へ
+丸めない。
+
+### B-4. A7-B implementation の受入証拠
+
+1. Pure fixtures が同一 Gate の `failed → answered → passed` を ordinal で再構成し、
+   現在行の `status` / `gradedAt` を変えても過去週 projection が変わらないこと。
+2. `failed → pending Capture`、`failed → ignored Capture`、`failed → accepted →
+   FollowupObservation`、dedupe による `missing_gate_capture`、malformed sourceContext、
+   duplicate / time-reversed event を個別に固定すること。
+3. `Misconception.nextReviewAt` を後日上書き・null化しても、過去の scheduled follow-up
+   metric が observation に基づき不変なこと。
+4. `[start,end)` の両端、JST年跨ぎ、同一時刻の ordinal、二週非隣接、二週不足、
+   zero denominator、self-grade / dismiss / grading_failed を固定すること。
+5. StateEvent / FailureCapture / FollowupObservation writer は temporary SQLite で
+   transaction rollback、unique race、answer / question / diff / prompt本文非保存を検証すること。
+6. projection module / tests は DB、clock、LLM、worker、scheduler、queue、CLI writeを
+   import / invoke しない。manual read-only preview は pure contract とadapterがGREENに
+   なった後の A7-C とする。
+
 ## Rollout
 
-1. A6 merge後のmainをread-onlyで再観測し、ADR-0026のsource identityとrelationを再照合する。
-2. A7のpure contractとtemporary SQLite fixturesを別sliceで実装する。最初はmanual previewだけとする。
-3. 一つ目と二つ目のcompleted weekはbaselineとしてread-onlyに観測し、supported/rejectedを出さない。
-4. 二週を越えても`inconclusive`なら、分母・pending・missing linkageを表示して設計へ戻る。
-   数字を埋めるためのauto promotion、LLM評価、scheduler起動はしない。
+1. PR #36（A7-A evidence ledger）が本人により merge された後だけ、新 main をread-onlyで
+   再観測する。A7-B は別 worktree / branch でこの追補の StateEvent / FailureCapture /
+   FollowupObservation とpure fixtureをTDD実装する。
+2. pre-A7-B history は current Gate / Misconception stateでbackfillしない。必要な event が
+   無い週は `inconclusive` として表示する。
+3. 一つ目と二つ目の隣接 completed weekはbaselineとしてread-onlyに観測し、supported/rejectedを出さない。
+4. 二週を越えても`inconclusive`なら、分母・pending・missing linkage・missing observationを
+   表示して設計へ戻る。数字を埋めるためのauto promotion、LLM評価、scheduler起動はしない。
