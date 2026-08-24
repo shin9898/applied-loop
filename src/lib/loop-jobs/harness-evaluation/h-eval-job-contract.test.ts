@@ -263,6 +263,18 @@ const A8C0_NON_ACTIVATION_PRODUCTION_PATHS = [
 const A8C0_IMMUTABLE_CONTENT_SHA256: Readonly<Record<string, string>> = {
   "docs/adr/0032-h-cycle-activation-readiness-contract.md": "ae08fe18478fd3aaf5404482c230190ab6b7b253a9e70abe03877718044a66b9",
 };
+// The activation packet is an operator-facing, docs-only deliverable. Keep it
+// separate from the immutable A8-C0 readiness contract so future unclassified
+// tracked paths still fail this historical scope guard.
+const A8C_PACKET_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/h-cycle-activation-packet-v1.md",
+] as const;
+const A8C_PACKET_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/h-cycle-activation-packet-v1.md",
+] as const;
+const A8C_PACKET_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "docs/h-cycle-activation-packet-v1.md": "4797d0a2ca01f1ae35759c86e2fb2fd940a7b93485ebcfa98c1d2a7cfb9923d7",
+};
 // This mainline-only ADR arrived after A8-B1. Keep it classified separately
 // from A8-B2 so the historical scope guard remains exact without claiming the
 // unrelated global-layer decision as part of this implementation slice.
@@ -1245,6 +1257,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A8B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8B2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C0_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A8C_PACKET_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1274,6 +1287,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A8B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8B2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C0_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A8C_PACKET_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
@@ -1343,6 +1357,19 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .sort();
   assert.deepEqual(discoveredA8C0Paths, [...A8C0_ALLOWED_NON_H_EVAL_PATHS].sort());
   for (const [path, expectedSha256] of Object.entries(A8C0_IMMUTABLE_CONTENT_SHA256)) {
+    assert.equal(contentSha256(join(root, path)), expectedSha256, path);
+  }
+  const discoveredA8CPacketPaths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A8C_PACKET_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(
+    discoveredA8CPacketPaths,
+    [...A8C_PACKET_ALLOWED_NON_H_EVAL_PATHS].sort(),
+  );
+  for (const [path, expectedSha256] of Object.entries(A8C_PACKET_CONTENT_SHA256)) {
     assert.equal(contentSha256(join(root, path)), expectedSha256, path);
   }
   const discoveredPostA8B1MainlinePaths = [
