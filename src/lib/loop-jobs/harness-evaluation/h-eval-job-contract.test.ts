@@ -246,6 +246,23 @@ const A8B2_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.ts",
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.ts",
 ] as const;
+const A8C0_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0032-h-cycle-activation-readiness-contract.md",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.ts",
+] as const;
+const A8C0_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0032-h-cycle-activation-readiness-contract.md",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.ts",
+] as const;
+const A8C0_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.ts",
+] as const;
+const A8C0_IMMUTABLE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "docs/adr/0032-h-cycle-activation-readiness-contract.md": "ae08fe18478fd3aaf5404482c230190ab6b7b253a9e70abe03877718044a66b9",
+};
 // This mainline-only ADR arrived after A8-B1. Keep it classified separately
 // from A8-B2 so the historical scope guard remains exact without claiming the
 // unrelated global-layer decision as part of this implementation slice.
@@ -1227,6 +1244,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A8A_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8B2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A8C0_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1255,6 +1273,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A8A_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8B2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A8C0_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
@@ -1316,6 +1335,16 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A8B2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA8B2Paths, [...A8B2_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredA8C0Paths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A8C0_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA8C0Paths, [...A8C0_ALLOWED_NON_H_EVAL_PATHS].sort());
+  for (const [path, expectedSha256] of Object.entries(A8C0_IMMUTABLE_CONTENT_SHA256)) {
+    assert.equal(contentSha256(join(root, path)), expectedSha256, path);
+  }
   const discoveredPostA8B1MainlinePaths = [
     ...gitLines(root, ["ls-files"]),
     ...untracked,
@@ -1405,6 +1434,14 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     assert.doesNotMatch(
       source,
       /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli|queryReadonlyHCycleEvidencePreviewSnapshotV1|createReadonlyHCycleEvidencePreviewClient|DATABASE_URL|PrismaClient|PrismaBetterSqlite3|launchd)/,
+      path,
+    );
+  }
+  for (const path of A8C0_NON_ACTIVATION_PRODUCTION_PATHS) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(
+      source,
+      /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli|buildHCycleEvidencePreviewV1|queryHCycleEvidencePreviewSnapshotV1|queryReadonlyHCycleEvidencePreviewSnapshotV1|createReadonlyHCycleEvidencePreviewClient|deriveHCycleEvaluateTimingV1|planHCycleEvaluateV1|createHCycleEvaluateDormantHandlerV1|DATABASE_URL|PrismaClient|PrismaBetterSqlite3|launchd)/,
       path,
     );
   }
