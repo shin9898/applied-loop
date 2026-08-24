@@ -189,6 +189,19 @@ const A8C0_ADDITIVE_SRC_PATHS = [
 const A8C0_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.ts",
 ] as const;
+const A8C1_ALLOWED_SRC_PATHS = [
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.ts",
+  "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+] as const;
+const A8C1_ADDITIVE_SRC_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.ts",
+] as const;
+const A8C1_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.ts",
+] as const;
 const workerEntry = join(process.cwd(), "src/lib/loop-jobs/worker.mjs");
 
 function sha256(bytes: Buffer | string): string {
@@ -550,6 +563,7 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => !(A8B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .filter((path) => !(A8B2_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .filter((path) => !(A8C0_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
+        .filter((path) => !(A8C1_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.equal(trackedSourcePaths.length, 258);
       const currentBaseAggregate = trackedSourcePaths.map((path) => {
@@ -585,6 +599,7 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
                 && !(A8B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
                 && !(A8B2_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
                 && !(A8C0_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
+                && !(A8C1_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
               );
           });
         assert.equal(tree.length, 258);
@@ -638,7 +653,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
             || (A7C_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A8B_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A8B2_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
-            || (A8C0_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
+            || (A8C0_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
+            || (A8C1_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
         ),
         true,
       );
@@ -706,6 +722,14 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => (A8C0_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.deepEqual(discoveredA8C0Sources, [...A8C0_ALLOWED_SRC_PATHS].sort());
+      const discoveredA8C1Sources = [
+        ...execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" })
+          .trim().split("\n").filter(Boolean),
+        ...untrackedSource,
+      ]
+        .filter((path) => (A8C1_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .sort();
+      assert.deepEqual(discoveredA8C1Sources, [...A8C1_ALLOWED_SRC_PATHS].sort());
       for (const path of A5_ALLOWED_SRC_PATHS.filter((path) => !path.endsWith(".test.ts"))) {
         const source = await readFile(join(process.cwd(), path), "utf8");
         assert.doesNotMatch(
@@ -778,6 +802,14 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         assert.doesNotMatch(
           source,
           /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli|buildHCycleEvidencePreviewV1|queryHCycleEvidencePreviewSnapshotV1|queryReadonlyHCycleEvidencePreviewSnapshotV1|createReadonlyHCycleEvidencePreviewClient|deriveHCycleEvaluateTimingV1|planHCycleEvaluateV1|createHCycleEvaluateDormantHandlerV1|DATABASE_URL|PrismaClient|PrismaBetterSqlite3|launchd)/,
+          path,
+        );
+      }
+      for (const path of A8C1_NON_ACTIVATION_PRODUCTION_PATHS) {
+        const source = await readFile(join(process.cwd(), path), "utf8");
+        assert.doesNotMatch(
+          source,
+          /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli|buildHCycleEvidencePreviewV1|queryHCycleEvidencePreviewSnapshotV1|queryReadonlyHCycleEvidencePreviewSnapshotV1|createReadonlyHCycleEvidencePreviewClient|deriveHCycleEvaluateTimingV1|planHCycleEvaluateV1|createHCycleEvaluateDormantHandlerV1|createLoopJobQueue|defineLoopJobRegistry|DATABASE_URL|DOTENV_CONFIG_PATH|PrismaBetterSqlite3|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive)/,
           path,
         );
       }

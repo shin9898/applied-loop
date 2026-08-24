@@ -275,6 +275,24 @@ const A8C_PACKET_ADDITIVE_NON_H_EVAL_PATHS = [
 const A8C_PACKET_CONTENT_SHA256: Readonly<Record<string, string>> = {
   "docs/h-cycle-activation-packet-v1.md": "4797d0a2ca01f1ae35759c86e2fb2fd940a7b93485ebcfa98c1d2a7cfb9923d7",
 };
+const A8C1_ALLOWED_NON_H_EVAL_PATHS = [
+  "prisma/migrations/20260824160000_h_cycle_activation_control_ledger/migration.sql",
+  "prisma/schema.prisma",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.ts",
+] as const;
+const A8C1_ADDITIVE_NON_H_EVAL_PATHS = [
+  "prisma/migrations/20260824160000_h_cycle_activation_control_ledger/migration.sql",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.ts",
+] as const;
+const A8C1_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.ts",
+] as const;
+const A8C1_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "prisma/schema.prisma": "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
+};
 // This mainline-only ADR arrived after A8-B1. Keep it classified separately
 // from A8-B2 so the historical scope guard remains exact without claiming the
 // unrelated global-layer decision as part of this implementation slice.
@@ -1258,6 +1276,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A8B2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C0_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C_PACKET_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A8C1_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1288,6 +1307,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A8B2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C0_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C_PACKET_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A8C1_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
@@ -1371,6 +1391,24 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
   );
   for (const [path, expectedSha256] of Object.entries(A8C_PACKET_CONTENT_SHA256)) {
     assert.equal(contentSha256(join(root, path)), expectedSha256, path);
+  }
+  const discoveredA8C1Paths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A8C1_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA8C1Paths, [...A8C1_ALLOWED_NON_H_EVAL_PATHS].sort());
+  for (const [path, expectedSha256] of Object.entries(A8C1_MODIFIED_BASE_CONTENT_SHA256)) {
+    const source = readFileSync(join(root, path), "utf8");
+    const additionStart = source.indexOf("// A8-C1: redacted control facts only.");
+    const additionEnd = source.indexOf("// 学び", additionStart);
+    assert.ok(additionStart >= 0 && additionEnd > additionStart, "A8-C1 Prisma addition must remain self-contained");
+    assert.equal(
+      createHash("sha256").update(source.slice(0, additionStart) + source.slice(additionEnd), "utf8").digest("hex"),
+      expectedSha256,
+      path,
+    );
   }
   const discoveredPostA8B1MainlinePaths = [
     ...gitLines(root, ["ls-files"]),
@@ -1469,6 +1507,14 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     assert.doesNotMatch(
       source,
       /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli|buildHCycleEvidencePreviewV1|queryHCycleEvidencePreviewSnapshotV1|queryReadonlyHCycleEvidencePreviewSnapshotV1|createReadonlyHCycleEvidencePreviewClient|deriveHCycleEvaluateTimingV1|planHCycleEvaluateV1|createHCycleEvaluateDormantHandlerV1|DATABASE_URL|PrismaClient|PrismaBetterSqlite3|launchd)/,
+      path,
+    );
+  }
+  for (const path of A8C1_NON_ACTIVATION_PRODUCTION_PATHS) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(
+      source,
+      /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli|buildHCycleEvidencePreviewV1|queryHCycleEvidencePreviewSnapshotV1|queryReadonlyHCycleEvidencePreviewSnapshotV1|createReadonlyHCycleEvidencePreviewClient|deriveHCycleEvaluateTimingV1|planHCycleEvaluateV1|createHCycleEvaluateDormantHandlerV1|createLoopJobQueue|defineLoopJobRegistry|DATABASE_URL|DOTENV_CONFIG_PATH|PrismaBetterSqlite3|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive)/,
       path,
     );
   }
