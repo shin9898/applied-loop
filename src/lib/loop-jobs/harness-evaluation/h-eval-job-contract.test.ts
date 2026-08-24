@@ -200,6 +200,12 @@ const A7C_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/h-cycle-evidence-preview.ts",
   "src/lib/h-cycle-evidence-preview-query.ts",
 ] as const;
+const A8A_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0029-h-cycle-periodic-evaluation-contract.md",
+] as const;
+const A8A_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0029-h-cycle-periodic-evaluation-contract.md",
+] as const;
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
   "h-eval-job-contract-v1.ts": "25a6bbc3bfd0ef30c70ee063c227e0352c6b0b76a2241e6fb206d61e1c6318ba",
@@ -1161,7 +1167,8 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A6_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A7_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A7B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        && !(A7C_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        && !(A7C_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A8A_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
   assert.equal(
@@ -1185,10 +1192,11 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A6_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A7_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A7B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
-        || (A7C_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+        || (A7C_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A8A_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
-    "unexpected untracked path outside the A3/A4/A5/A6/A7/A7B allowlist",
+    "unexpected untracked path outside the A3/A4/A5/A6/A7/A7B/A7C/A8A allowlist",
   );
   const discoveredA5Paths = [
     ...gitLines(root, ["ls-files"]),
@@ -1225,6 +1233,13 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A7C_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA7CPaths, [...A7C_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredA8APaths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A8A_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA8APaths, [...A8A_ALLOWED_NON_H_EVAL_PATHS].sort());
   assert.deepEqual(
     Object.keys(A6_MODIFIED_BASE_CONTENT_SHA256).sort(),
     A6_ALLOWED_NON_H_EVAL_PATHS.filter(
