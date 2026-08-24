@@ -58,6 +58,48 @@ model HCycleEvaluationRecord {
   @@index([targetWeekKey, createdAt])
 }
 
+// A8-C1: redacted control facts only. This is not a selected database binding,
+// scheduler installation, worker registration, or activation authority.
+model HCycleActivationEvent {
+  sequence                 Int      @id @default(autoincrement())
+  eventSchema              String
+  eventKind                String
+  generationSequence       Int?
+  packetSchema             String?
+  packetStatus             String?
+  targetClass              String?
+  activationFloorWeekKey   String?
+  schedulerClass           String?
+  schedulerOwnership       String?
+  stopRouteClass           String?
+  recordedAt               DateTime
+  createdAt                DateTime @default(now())
+  generationRoot           HCycleActivationEvent? @relation("HCycleActivationEventGeneration", fields: [generationSequence], references: [sequence], onDelete: Restrict, onUpdate: Restrict)
+  disabledEvents           HCycleActivationEvent[] @relation("HCycleActivationEventGeneration")
+  operationEvidence        HCycleActivationEvidence[]
+
+  @@index([eventKind, sequence])
+}
+
+// A8-C1: redacted factual observations scoped to one activation generation.
+// This table cannot make the feature operative; only disposable SQLite fixtures
+// exercise it until a separately approved operation exists.
+model HCycleActivationEvidence {
+  sequence           Int      @id @default(autoincrement())
+  evidenceSchema     String
+  generationSequence Int
+  generation         HCycleActivationEvent @relation(fields: [generationSequence], references: [sequence], onDelete: Restrict, onUpdate: Restrict)
+  evidenceKind       String
+  targetWeekKey      String?
+  policyOutcome      String?
+  observedAt         DateTime
+  createdAt          DateTime @default(now())
+
+  @@unique([generationSequence, evidenceKind, observedAt])
+  @@index([generationSequence, evidenceKind, observedAt])
+  @@index([generationSequence, sequence])
+}
+
 // 学び (pm-learn の kind: material 相当)
 // kind: book / article / course / magazine / other / insight (会話由来の原子的な学び)
 model Entry {
