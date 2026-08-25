@@ -1273,6 +1273,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
   test("A8C2-CG3-T1 scoped one-shot capability remains unreachable by default", async () => {
     const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba";
+    const protectedTreeEntryCount = 607;
+    const protectedTreeSha256 = "70cf77d98561641c8340a957b6cee97a11191eb04b7218fb6db5d24d9baa8ede";
     const allowedPaths = [
       "src/lib/loop-jobs/raw-state-adapter.ts",
       "src/lib/loop-jobs/state-machine.ts",
@@ -1283,21 +1285,151 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
     ].sort();
-    const gitLines = (args: readonly string[]): string[] => {
-      const result = spawnSync("git", [...args], { cwd: process.cwd(), encoding: "utf8" });
-      assert.equal(result.status, 0, result.stderr);
-      return result.stdout.split("\n").filter(Boolean);
+    const allowedPathSet = new Set(allowedPaths);
+    const allowedPathBuffers = allowedPaths.map((path) => Buffer.from(path, "utf8"));
+    const runGit = (args: readonly string[], encoding: "buffer" | "utf8" = "utf8") => {
+      const result = spawnSync("git", [...args], { cwd: process.cwd(), encoding });
+      assert.equal(result.error, undefined, `git ${args[0]} must start`);
+      assert.equal(result.signal, null, `git ${args[0]} must not be signalled`);
+      return result;
     };
-    const trackedChanges = gitLines(["diff", "--name-only", baseSha, "--"]);
-    const untrackedImplementation = gitLines(["ls-files", "--others", "--exclude-standard"])
-      .filter((path) => path.startsWith("src/") || path.startsWith("scripts/") ||
-        path.startsWith("prisma/") || path === "package.json" || path.endsWith(".plist") ||
-        path.endsWith(".env"));
-    const implementationChanges = [...new Set([...trackedChanges, ...untrackedImplementation])].sort();
+    const splitNulRecords = (output: Buffer): Buffer[] => {
+      const records: Buffer[] = [];
+      let cursor = 0;
+      for (let index = 0; index < output.length; index += 1) {
+        if (output[index] !== 0) continue;
+        if (index > cursor) records.push(output.subarray(cursor, index));
+        cursor = index + 1;
+      }
+      assert.equal(cursor, output.length, "Git -z output must end with NUL");
+      return records;
+    };
+    const decodeGitPath = (rawPath: Buffer): string => {
+      const decoded = rawPath.toString("utf8");
+      assert.equal(
+        Buffer.from(decoded, "utf8").equals(rawPath),
+        true,
+        `non-UTF8 Git path forbidden: ${rawPath.toString("hex")}`,
+      );
+      return decoded;
+    };
+    const gitNulPathRecords = (args: readonly string[]): Buffer[] => {
+      const result = runGit(args, "buffer");
+      assert.equal(result.status, 0, String(result.stderr));
+      return splitNulRecords(result.stdout as Buffer);
+    };
+    const gitNulPaths = (args: readonly string[]): string[] => {
+      return gitNulPathRecords(args).map(decodeGitPath);
+    };
+    const untrackedPaths = gitNulPaths(["ls-files", "--others", "--exclude-standard", "-z"]);
+    const exactNonImplementationSupportPaths = new Set([
+      "docs/plans/2026-08-24-a8-c2-one-shot-observability.md",
+    ]);
     assert.deepEqual(
-      implementationChanges,
-      allowedPaths,
-      "intentional RED: all four narrow historical/static compatibility paths must be classified",
+      untrackedPaths.filter((path) => !allowedPathSet.has(path) && !exactNonImplementationSupportPaths.has(path)),
+      [],
+      "untracked paths must be an exact allowed implementation path or the exact frozen design support path",
+    );
+    const untrackedImplementation = untrackedPaths.filter((path) => allowedPathSet.has(path));
+
+    type ProtectedTreeEvidence = Readonly<{
+      mode: "protected_tree_digest";
+      entryCount: number;
+      sha256: string;
+    }>;
+    const inspectProtectedTree = (): ProtectedTreeEvidence => {
+      const unstagedPaths = gitNulPaths(["diff", "--name-only", "-z", "--"]);
+      assert.deepEqual(
+        unstagedPaths.filter((path) => !allowedPathSet.has(path)),
+        [],
+        "fallback must reject unstaged changes outside the exact allowed surface",
+      );
+
+      const indexResult = runGit(["ls-files", "--stage", "-z"], "buffer");
+      assert.equal(indexResult.status, 0, String(indexResult.stderr));
+      const protectedEntries = splitNulRecords(indexResult.stdout as Buffer)
+        .map((record) => {
+          const firstSpace = record.indexOf(0x20);
+          const secondSpace = record.indexOf(0x20, firstSpace + 1);
+          const tab = record.indexOf(0x09, secondSpace + 1);
+          assert.equal(firstSpace, 6, `unexpected index mode field: ${record.toString("hex")}`);
+          assert.ok(secondSpace > firstSpace && tab === secondSpace + 2, `unexpected index metadata: ${record.toString("hex")}`);
+          const mode = record.subarray(0, firstSpace);
+          const oid = record.subarray(firstSpace + 1, secondSpace);
+          const stage = record.subarray(secondSpace + 1, tab);
+          const path = record.subarray(tab + 1);
+          assert.match(mode.toString("ascii"), /^\d{6}$/);
+          assert.match(oid.toString("ascii"), /^[0-9a-f]{40,64}$/);
+          assert.equal(stage.equals(Buffer.from("0", "ascii")), true, `unmerged index entry forbidden: ${decodeGitPath(path)}`);
+          decodeGitPath(path);
+          return { mode, oid, path };
+        })
+        .filter((entry) => !allowedPathBuffers.some((allowedPath) => allowedPath.equals(entry.path)));
+      const normalized = Buffer.concat(protectedEntries.map((entry) =>
+        Buffer.concat([entry.mode, Buffer.from(" "), entry.oid, Buffer.from("\t"), entry.path, Buffer.from("\0")])));
+      const evidence = Object.freeze({
+        mode: "protected_tree_digest" as const,
+        entryCount: protectedEntries.length,
+        sha256: createHash("sha256").update(normalized).digest("hex"),
+      });
+      assert.deepEqual(evidence, {
+        mode: "protected_tree_digest",
+        entryCount: protectedTreeEntryCount,
+        sha256: protectedTreeSha256,
+      });
+      return evidence;
+    };
+    type BaseCommitAvailability = "available" | "unavailable";
+    const probeBaseCommitAvailability = (): BaseCommitAvailability => {
+      const baseProbe = runGit(["cat-file", "-e", `${baseSha}^{commit}`]);
+      const stderr = String(baseProbe.stderr);
+      if (baseProbe.status === 0) {
+        assert.equal(stderr, "", "available base probe must not emit stderr");
+        return "available";
+      }
+      assert.equal(baseProbe.status, 128, stderr);
+      assert.match(
+        stderr,
+        new RegExp(`^fatal: Not a valid object name ${baseSha}\\^\\{commit\\}\\r?\\n?$`),
+        "fallback is allowed only for the exact unavailable base object",
+      );
+      return "unavailable";
+    };
+    const inspectImplementationScope = (simulateBaseUnavailable = false) => {
+      const baseAvailability: BaseCommitAvailability = simulateBaseUnavailable
+        ? "unavailable"
+        : probeBaseCommitAvailability();
+
+      if (baseAvailability === "available") {
+        const trackedChanges = gitNulPaths(["diff", "--name-only", "-z", baseSha, "--"]);
+        const implementationChanges = [...new Set([...trackedChanges, ...untrackedImplementation])].sort();
+        assert.deepEqual(
+          implementationChanges,
+          allowedPaths,
+          "all four narrow historical/static compatibility paths must be classified",
+        );
+        return Object.freeze({ mode: "base_diff" as const, baseSha, paths: implementationChanges });
+      }
+      return inspectProtectedTree();
+    };
+
+    const independentBaseAvailability = probeBaseCommitAvailability();
+    const scopeEvidence = inspectImplementationScope();
+    assert.deepEqual(
+      scopeEvidence,
+      independentBaseAvailability === "available"
+        ? { mode: "base_diff", baseSha, paths: allowedPaths }
+        : { mode: "protected_tree_digest", entryCount: protectedTreeEntryCount, sha256: protectedTreeSha256 },
+      "normal checkout must select exactly the independently observed scope proof",
+    );
+    assert.deepEqual(
+      inspectImplementationScope(true),
+      {
+        mode: "protected_tree_digest",
+        entryCount: protectedTreeEntryCount,
+        sha256: protectedTreeSha256,
+      },
+      "simulated shallow checkout must execute the pinned protected-tree proof",
     );
 
     type SnippetSpec = Readonly<{
@@ -1418,6 +1550,115 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     const dedicatedTestSource = readFileSync(
       join(process.cwd(), "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts"),
       "utf8",
+    );
+    for (const pinnedScopeLiteral of [
+      'const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba"',
+      "const protectedTreeEntryCount = 607",
+      'const protectedTreeSha256 = "70cf77d98561641c8340a957b6cee97a11191eb04b7218fb6db5d24d9baa8ede"',
+      'gitNulPaths(["diff", "--name-only", "-z", baseSha, "--"])',
+      'runGit(["ls-files", "--stage", "-z"], "buffer")',
+      "splitNulRecords(indexResult.stdout as Buffer)",
+      '.filter((entry) => !allowedPathBuffers.some((allowedPath) => allowedPath.equals(entry.path)))',
+      'Buffer.concat([entry.mode, Buffer.from(" "), entry.oid, Buffer.from("\\t"), entry.path, Buffer.from("\\0")])',
+      'Buffer.from(decoded, "utf8").equals(rawPath)',
+      'const independentBaseAvailability = probeBaseCommitAvailability()',
+      "inspectImplementationScope(true)",
+    ]) {
+      assert.equal(
+        dedicatedTestSource.includes(pinnedScopeLiteral),
+        true,
+        `missing shallow-checkout scope proof: ${pinnedScopeLiteral}`,
+      );
+    }
+    const scopeProofFile = ts.createSourceFile(
+      "h-cycle-one-shot-kind-isolation-v1.scope-proof.ts",
+      dedicatedTestSource,
+      ts.ScriptTarget.ESNext,
+      true,
+      ts.ScriptKind.TS,
+    );
+    let cg3Callback: ts.ArrowFunction | ts.FunctionExpression | undefined;
+    const visitForCg3 = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "test" &&
+          ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text.startsWith("A8C2-CG3-T1") &&
+          node.arguments[1] && (ts.isArrowFunction(node.arguments[1]) || ts.isFunctionExpression(node.arguments[1]))) {
+        cg3Callback = node.arguments[1];
+      }
+      ts.forEachChild(node, visitForCg3);
+    };
+    visitForCg3(scopeProofFile);
+    assert.ok(cg3Callback && ts.isBlock(cg3Callback.body), "CG3 scope proof must remain an executed test callback");
+    const cg3Text = cg3Callback.body.getText(scopeProofFile);
+    for (const criticalModeSelection of [
+      "const independentBaseAvailability = probeBaseCommitAvailability();",
+      "const scopeEvidence = inspectImplementationScope();",
+      'independentBaseAvailability === "available"',
+      '? { mode: "base_diff", baseSha, paths: allowedPaths }',
+      ': { mode: "protected_tree_digest", entryCount: protectedTreeEntryCount, sha256: protectedTreeSha256 }',
+      'assert.equal(baseProbe.status, 128, stderr);',
+      'return "unavailable";',
+      'return inspectProtectedTree();',
+    ]) {
+      assert.equal(cg3Text.includes(criticalModeSelection), true, `missing live mode-selection edge: ${criticalModeSelection}`);
+    }
+    const gitCommands: string[] = [];
+    let directGitSpawnCount = 0;
+    let localeDependentPathOperationCount = 0;
+    let baseProbeFunction: ts.ArrowFunction | undefined;
+    const visitScopeProof = (node: ts.Node): void => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) &&
+          node.name.text === "probeBaseCommitAvailability" && node.initializer && ts.isArrowFunction(node.initializer)) {
+        baseProbeFunction = node.initializer;
+      }
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "spawnSync" &&
+          ts.isStringLiteral(node.arguments[0]) && node.arguments[0].text === "git") {
+        directGitSpawnCount += 1;
+      }
+      if (ts.isNewExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+          node.expression.expression.getText(scopeProofFile) === "Intl" && node.expression.name.text === "Collator") {
+        localeDependentPathOperationCount += 1;
+      }
+      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) &&
+          node.expression.name.text === "localeCompare") {
+        localeDependentPathOperationCount += 1;
+      }
+      if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) &&
+          ["runGit", "gitNulPathRecords", "gitNulPaths"].includes(node.expression.text) &&
+          node.arguments[0] && ts.isArrayLiteralExpression(node.arguments[0])) {
+        const command = node.arguments[0].elements[0];
+        if (command && ts.isStringLiteral(command)) gitCommands.push(command.text);
+      }
+      ts.forEachChild(node, visitScopeProof);
+    };
+    visitScopeProof(cg3Callback.body);
+    assert.equal(directGitSpawnCount, 1, "all CG3 Git commands must remain routed through the checked runner");
+    assert.equal(localeDependentPathOperationCount, 0, "protected-tree path order and hashing must be byte-canonical");
+    assert.equal(gitCommands.includes("fetch"), false, "scope proof must never network-fetch a missing base");
+    assert.deepEqual(
+      gitCommands.filter((command) => command === "cat-file"),
+      ["cat-file"],
+      "base availability must have one narrow probe definition reused by both independent observations",
+    );
+    assert.ok(baseProbeFunction && ts.isBlock(baseProbeFunction.body), "base probe must remain a block-bodied checked function");
+    const baseProbeText = baseProbeFunction.body.getText(scopeProofFile);
+    const status128Check = baseProbeText.indexOf("assert.equal(baseProbe.status, 128, stderr)");
+    const exactUnavailableCheck = baseProbeText.indexOf("new RegExp(`^fatal: Not a valid object name");
+    const unavailableReturn = baseProbeText.indexOf('return "unavailable"');
+    assert.ok(status128Check >= 0 && exactUnavailableCheck > status128Check && unavailableReturn > exactUnavailableCheck,
+      "unavailable mode must remain dominated by exact status and object-name checks");
+    assert.deepEqual(
+      [...allowedPathSet],
+      [
+        "src/lib/loop-jobs/delivery.ts",
+        "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+        "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
+        "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
+        "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+        "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+        "src/lib/loop-jobs/raw-state-adapter.ts",
+        "src/lib/loop-jobs/state-machine.ts",
+      ],
+      "fallback exclusion set must remain the exact eight-path surface",
     );
     assert.equal(
       (dedicatedTestSource.match(/mkdtempSync\(join\(tmpdir\(\), "applied-loop-a8c2-cg[12]-"\)\)/g) ?? []).length,
@@ -1696,15 +1937,19 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "src/lib/h-cycle-evidence-preview-query.ts",
       "scripts/preview-h-cycle-evidence.ts",
     ] as const;
-    for (const path of unchangedRuntimePaths) {
-      const current = readFileSync(join(process.cwd(), path));
-      const base = spawnSync("git", ["show", `${baseSha}:${path}`], {
-        cwd: process.cwd(),
-        encoding: null,
-        maxBuffer: 10 * 1024 * 1024,
-      });
-      assert.equal(base.status, 0, String(base.stderr));
-      assert.equal(createHash("sha256").update(current).digest("hex"), createHash("sha256").update(base.stdout).digest("hex"), `${path} byte drift`);
+    if (independentBaseAvailability === "available") {
+      for (const path of unchangedRuntimePaths) {
+        const current = readFileSync(join(process.cwd(), path));
+        const base = runGit(["show", `${baseSha}:${path}`], "buffer");
+        assert.equal(base.status, 0, String(base.stderr));
+        assert.equal(createHash("sha256").update(current).digest("hex"), createHash("sha256").update(base.stdout as Buffer).digest("hex"), `${path} byte drift`);
+      }
+    } else {
+      assert.equal(
+        scopeEvidence.mode,
+        "protected_tree_digest",
+        "base-unavailable runtime immutability must be covered by the pinned protected-tree proof",
+      );
     }
 
     const workerPath = join(process.cwd(), "src/lib/loop-jobs/worker-phase2.ts");
