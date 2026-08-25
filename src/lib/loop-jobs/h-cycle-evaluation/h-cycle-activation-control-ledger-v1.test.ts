@@ -1100,8 +1100,45 @@ test("A8C1-CG4-T1 keeps the control ledger type-only, feature-off, and isolated 
     "prisma/migrations/20260824110000_h_cycle_gate_history/migration.sql": "551f5aa5106c4d3a1811a5435d3329d448ec443a442f68041f83c4cd60fd444d",
     "prisma/migrations/20260824140000_h_cycle_evaluation_record/migration.sql": "6a7a7e2943fd710299b8aed0042fd0dd10e1faf627bf1ec9c375c69e0872dce3",
   };
+  const deliveryA8C2Snippets = [
+    {
+      begin: "// A8-C2 BEGIN: scoped capability snapshot helpers",
+      end: "// A8-C2 END: scoped capability snapshot helpers",
+      leading: "",
+      trailing: "\n\n",
+    },
+    {
+      begin: "// A8-C2 BEGIN: runOneKindDelivery",
+      end: "// A8-C2 END: runOneKindDelivery",
+      leading: "\n",
+      trailing: "\n",
+    },
+  ] as const;
+  const protectedRuntimeBytes = (path: string): Buffer | string => {
+    const bytes = readFileSync(join(root, path));
+    if (path !== "src/lib/loop-jobs/delivery.ts") return bytes;
+    const source = bytes.toString("utf8");
+    let cursor = 0;
+    let reconstructed = "";
+    for (const snippet of deliveryA8C2Snippets) {
+      assert.equal(source.split(snippet.begin).length - 1, 1, `delivery: ${snippet.begin} count`);
+      assert.equal(source.split(snippet.end).length - 1, 1, `delivery: ${snippet.end} count`);
+      const markerStart = source.indexOf(snippet.begin);
+      const snippetStart = markerStart - snippet.leading.length;
+      assert.ok(snippetStart >= cursor, "delivery: A8-C2 marker order/non-overlap");
+      assert.equal(source.slice(snippetStart, markerStart), snippet.leading, "delivery: A8-C2 leading delimiter");
+      const endMarkerStart = source.indexOf(snippet.end, markerStart + snippet.begin.length);
+      assert.ok(endMarkerStart > markerStart, "delivery: A8-C2 marker order");
+      const endMarkerEnd = endMarkerStart + snippet.end.length;
+      const snippetEnd = endMarkerEnd + snippet.trailing.length;
+      assert.equal(source.slice(endMarkerEnd, snippetEnd), snippet.trailing, "delivery: A8-C2 trailing delimiter");
+      reconstructed += source.slice(cursor, snippetStart);
+      cursor = snippetEnd;
+    }
+    return reconstructed + source.slice(cursor);
+  };
   for (const [path, expected] of Object.entries(protectedRuntimeSha256)) {
-    assert.equal(sha256(readFileSync(join(root, path))), expected, path);
+    assert.equal(sha256(protectedRuntimeBytes(path)), expected, path);
   }
 
   const schemaPath = join(root, "prisma/schema.prisma");

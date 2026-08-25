@@ -1,5 +1,11 @@
 import { createHash, randomBytes as secureRandomBytes } from "node:crypto";
 
+// A8-C2 BEGIN: single-kind raw claim import
+import { types as nodeTypes } from "node:util";
+
+import { claimOneKindRaw } from "./raw-state-adapter";
+// A8-C2 END: single-kind raw claim import
+
 import type { LoopJob, PrismaClient } from "../../generated/prisma/client";
 import type { LastErrorCode } from "./closed-codes";
 import {
@@ -398,6 +404,60 @@ export function createLoopJobQueue(input: {
         return { code: "storage_failure" };
       }
     },
+
+    // A8-C2 BEGIN: queue claimKind method
+    async claimKind(rawInput: unknown): Promise<ClaimResult> {
+      let kind: string;
+      let leaseDurationMs: number;
+      try {
+        if (rawInput === null || typeof rawInput !== "object" || Array.isArray(rawInput) || nodeTypes.isProxy(rawInput)) {
+          return { code: "storage_failure" };
+        }
+        const prototype = Object.getPrototypeOf(rawInput);
+        if (prototype !== Object.prototype && prototype !== null) return { code: "storage_failure" };
+        const keys = Reflect.ownKeys(rawInput);
+        if (keys.length !== 2 || keys[0] !== "kind" || keys[1] !== "leaseDurationMs") {
+          return { code: "storage_failure" };
+        }
+        const kindDescriptor = Object.getOwnPropertyDescriptor(rawInput, "kind");
+        const leaseDescriptor = Object.getOwnPropertyDescriptor(rawInput, "leaseDurationMs");
+        if (!kindDescriptor || !kindDescriptor.enumerable || !("value" in kindDescriptor) ||
+            !leaseDescriptor || !leaseDescriptor.enumerable || !("value" in leaseDescriptor)) {
+          return { code: "storage_failure" };
+        }
+        const snapshottedKind = kindDescriptor.value;
+        const snapshottedLeaseDurationMs = leaseDescriptor.value;
+        if (typeof snapshottedKind !== "string" || !KIND_PATTERN.test(snapshottedKind) ||
+            !Number.isSafeInteger(snapshottedLeaseDurationMs) || snapshottedLeaseDurationMs <= 0) {
+          return { code: "storage_failure" };
+        }
+        kind = snapshottedKind;
+        leaseDurationMs = snapshottedLeaseDurationMs;
+      } catch {
+        return { code: "storage_failure" };
+      }
+
+      try {
+        const now = clock.now();
+        const leaseExpiresAt = clock.addMilliseconds(now, leaseDurationMs);
+        const lockedBy = `worker_${bytesToHex(randomBytes(16), 16)}`;
+        const leaseToken = bytesToHex(randomBytes(32), 32);
+        const result = await claimOneKindRaw({
+          client,
+          kind,
+          now,
+          leaseExpiresAt,
+          lockedBy,
+          leaseToken,
+          fromStorage: clock.fromStorage,
+        });
+        if (!result.ok) return { code: result.code };
+        return result.rows.length === 0 ? { code: "no_job" } : { code: "claimed", job: result.rows[0] };
+      } catch {
+        return { code: "storage_failure" };
+      }
+    },
+    // A8-C2 END: queue claimKind method
 
     async renew(options: {
       jobId: string;

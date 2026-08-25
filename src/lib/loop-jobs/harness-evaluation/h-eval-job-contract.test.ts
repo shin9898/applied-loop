@@ -293,6 +293,73 @@ const A8C1_NON_ACTIVATION_PRODUCTION_PATHS = [
 const A8C1_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
   "prisma/schema.prisma": "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
 };
+const A8C2_ALLOWED_NON_H_EVAL_PATHS = [
+  "src/lib/loop-jobs/raw-state-adapter.ts",
+  "src/lib/loop-jobs/state-machine.ts",
+  "src/lib/loop-jobs/delivery.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
+] as const;
+const A8C2_ADDITIVE_NON_H_EVAL_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+] as const;
+const A8C2_REVIEW_ARTIFACT_PATH = "docs/plans/2026-08-24-a8-c2-one-shot-observability.md";
+const A8C2_RUNTIME_SNIPPETS: Readonly<Record<string, Readonly<{
+  baseSha256: string;
+  snippets: ReadonlyArray<Readonly<{
+    begin: string;
+    end: string;
+    leading: string;
+    trailing: string;
+  }>>;
+}>>> = {
+  "src/lib/loop-jobs/raw-state-adapter.ts": {
+    baseSha256: "a4e0d301647e61a639af7b4ab110d06af91d596bc4ecf35a29f87a0c33ddc5ff",
+    snippets: [{
+      begin: "// A8-C2 BEGIN: single-kind raw claim",
+      end: "// A8-C2 END: single-kind raw claim",
+      leading: "",
+      trailing: "\n\n",
+    }],
+  },
+  "src/lib/loop-jobs/state-machine.ts": {
+    baseSha256: "b682d057d2c7617434229cba0eb5cad555cbc07fcba4071b930a546b4ab73001",
+    snippets: [
+      {
+        begin: "// A8-C2 BEGIN: single-kind raw claim import",
+        end: "// A8-C2 END: single-kind raw claim import",
+        leading: "",
+        trailing: "\n\n",
+      },
+      {
+        begin: "    // A8-C2 BEGIN: queue claimKind method",
+        end: "    // A8-C2 END: queue claimKind method",
+        leading: "",
+        trailing: "\n\n",
+      },
+    ],
+  },
+  "src/lib/loop-jobs/delivery.ts": {
+    baseSha256: "4062126950275118d7ee2d5f772e9a05926c2fda67ec8e48d94142ad3e80bc67",
+    snippets: [
+      {
+        begin: "// A8-C2 BEGIN: scoped capability snapshot helpers",
+        end: "// A8-C2 END: scoped capability snapshot helpers",
+        leading: "",
+        trailing: "\n\n",
+      },
+      {
+        begin: "// A8-C2 BEGIN: runOneKindDelivery",
+        end: "// A8-C2 END: runOneKindDelivery",
+        leading: "\n",
+        trailing: "\n",
+      },
+    ],
+  },
+};
 // This mainline-only ADR arrived after A8-B1. Keep it classified separately
 // from A8-B2 so the historical scope guard remains exact without claiming the
 // unrelated global-layer decision as part of this implementation slice.
@@ -972,6 +1039,33 @@ function contentSha256(path: string): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+function preA8C2ContentSha256(root: string, path: string): string | undefined {
+  const contract = A8C2_RUNTIME_SNIPPETS[path];
+  if (!contract) return undefined;
+  const source = readFileSync(join(root, path), "utf8");
+  let cursor = 0;
+  let reconstructed = "";
+  for (const snippet of contract.snippets) {
+    assert.equal(source.split(snippet.begin).length - 1, 1, `${path}: A8-C2 begin marker count`);
+    assert.equal(source.split(snippet.end).length - 1, 1, `${path}: A8-C2 end marker count`);
+    const markerStart = source.indexOf(snippet.begin);
+    const snippetStart = markerStart - snippet.leading.length;
+    assert.ok(snippetStart >= cursor, `${path}: A8-C2 marker order/non-overlap`);
+    assert.equal(source.slice(snippetStart, markerStart), snippet.leading, `${path}: A8-C2 leading delimiter`);
+    const endMarkerStart = source.indexOf(snippet.end, markerStart + snippet.begin.length);
+    assert.ok(endMarkerStart > markerStart, `${path}: A8-C2 marker order`);
+    const endMarkerEnd = endMarkerStart + snippet.end.length;
+    const snippetEnd = endMarkerEnd + snippet.trailing.length;
+    assert.equal(source.slice(endMarkerEnd, snippetEnd), snippet.trailing, `${path}: A8-C2 trailing delimiter`);
+    reconstructed += source.slice(cursor, snippetStart);
+    cursor = snippetEnd;
+  }
+  reconstructed += source.slice(cursor);
+  const sha256 = createHash("sha256").update(reconstructed, "utf8").digest("hex");
+  assert.equal(sha256, contract.baseSha256, `${path}: pre-A8-C2 byte reconstruction`);
+  return sha256;
+}
+
 type JsonDataRecord = Record<string, unknown>;
 
 function isOrdinaryDataObject(value: unknown): value is JsonDataRecord {
@@ -1277,6 +1371,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A8C0_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C_PACKET_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C1_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A8C2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1285,8 +1380,9 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     NON_A4_A5_A6_TRACKED_PATH_COUNT,
     "unexpected non-A4/A5/A6/A7/A7B tracked path count",
   );
+  for (const path of Object.keys(A8C2_RUNTIME_SNIPPETS)) preA8C2ContentSha256(root, path);
   const aggregate = nonA4A5A6Tracked
-    .map((path) => `${path}\t${A7_MODIFIED_BASE_CONTENT_SHA256[path] ?? A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7B_MODIFIED_BASE_CONTENT_SHA256[path] ?? A8B_MODIFIED_BASE_CONTENT_SHA256[path] ?? contentSha256(join(root, path))}\n`)
+    .map((path) => `${path}\t${A7_MODIFIED_BASE_CONTENT_SHA256[path] ?? A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7B_MODIFIED_BASE_CONTENT_SHA256[path] ?? A8B_MODIFIED_BASE_CONTENT_SHA256[path] ?? preA8C2ContentSha256(root, path) ?? contentSha256(join(root, path))}\n`)
     .join("");
   assert.equal(
     createHash("sha256").update(aggregate, "utf8").digest("hex"),
@@ -1308,6 +1404,8 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A8C0_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C_PACKET_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C1_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A8C2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || path === A8C2_REVIEW_ARTIFACT_PATH
         || (POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
@@ -1410,6 +1508,13 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
       path,
     );
   }
+  const discoveredA8C2Paths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A8C2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA8C2Paths, [...A8C2_ALLOWED_NON_H_EVAL_PATHS].sort());
   const discoveredPostA8B1MainlinePaths = [
     ...gitLines(root, ["ls-files"]),
     ...untracked,

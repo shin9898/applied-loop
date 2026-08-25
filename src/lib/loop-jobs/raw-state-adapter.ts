@@ -68,6 +68,48 @@ export async function claimOneRaw(input: {
     : result;
 }
 
+// A8-C2 BEGIN: single-kind raw claim
+export async function claimOneKindRaw(input: {
+  client: RawLoopJobClient;
+  kind: string;
+  now: Date;
+  leaseExpiresAt: Date;
+  lockedBy: string;
+  leaseToken: string;
+  fromStorage: (value: string) => Date;
+}): Promise<RawResult<LoopJob>> {
+  const { client, kind, now, leaseExpiresAt, lockedBy, leaseToken, fromStorage } = input;
+  const result = await executeOnce(() => client.$queryRaw<LoopJob[]>`
+    UPDATE "LoopJob"
+    SET "status" = 'running',
+        "attempts" = "attempts" + 1,
+        "lockedAt" = ${now},
+        "leaseExpiresAt" = ${leaseExpiresAt},
+        "lockedBy" = ${lockedBy},
+        "leaseToken" = ${leaseToken},
+        "updatedAt" = ${now},
+        "finishedAt" = NULL
+    WHERE "id" = (
+      SELECT "id" FROM "LoopJob"
+      WHERE "status" IN ('queued', 'retry_wait')
+        AND "kind" = ${kind}
+        AND "availableAt" <= ${now}
+        AND "attempts" < "maxAttempts"
+      ORDER BY "availableAt", "createdAt", "id"
+      LIMIT 1
+    )
+      AND "status" IN ('queued', 'retry_wait')
+      AND "kind" = ${kind}
+      AND "availableAt" <= ${now}
+      AND "attempts" < "maxAttempts"
+    RETURNING *
+  `);
+  return result.ok
+    ? { ok: true, rows: result.rows.map((job) => normalizeJob(job, fromStorage)) }
+    : result;
+}
+// A8-C2 END: single-kind raw claim
+
 export async function renewOwnedRaw(input: {
   client: RawLoopJobClient;
   jobId: string;
