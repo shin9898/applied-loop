@@ -38,6 +38,8 @@ const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/h-eval-preview-v1.test.ts",
   "src/lib/loop-jobs/harness-evaluation/h-eval-preview-cli.test.ts",
   "src/lib/loop-jobs/harness-evaluation/h-eval-preview-dormancy.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.ts",
 ] as const;
 const H_EVAL_DIRECTORY_PREFIX = "src/lib/loop-jobs/harness-evaluation/";
 const A5_ALLOWED_NON_H_EVAL_PATHS = [
