@@ -236,3 +236,4 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 | 2026-08-26 | A9-B の main反映・CI成功を確認。A9-D1 の opaque window identity と二つの隣接 completed window による feature-off classifier を追加 |
 | 2026-08-26 | A9-D2 の manual report → 単一 cohort window adapter を追加。integrity stop / invalid aggregate は fail-closed、DB・scheduler・writerは追加しない |
 | 2026-08-26 | A9-D3 の source evidence → report → 単一 window manual caller を追加。stdin-only・65,536 byte上限・feature-off / non-authoritative fenceを維持 |
+| 2026-08-26 | collector-v3 の metadata-only contextFingerprint と normalized usage の canonical dashboard projection を追加。legacy/raw-only 行は rate denominator から除外し、read-only backfill計画と実窓観測は未開始のまま保持 |

@@ -3,6 +3,10 @@
 <!--
   Applied Loop ハーネス観測の定期収集 (1時間ごと)
 
+  任意の prefix 介入比較: APPLIED_LOOP_CONTEXT_FINGERPRINT=sha256:<64hex> を
+  harness-collect.sh の環境へ明示すると、その値を新規sessionのcohort identityに使う。
+  未指定時は会話本文を読まず harness/model/repo からmetadata-derived hashを作る。
+
   インストール手順:
     1. このファイルを編集し、YOUR_USER を実際のユーザ名に置換する
        (ProgramArguments のパスもリポジトリ実パスに合わせる)

@@ -1093,7 +1093,7 @@ test("A8C1-CG4-T1 keeps the control ledger type-only, feature-off, and isolated 
     "src/lib/loop-jobs/delivery-no-echo-helper.ts": "e40df38bee18b316dd2b8d98a60f1a9233393a71efb9135d114dc6771ec1b6eb",
     "package.json": "86db43976991b0dfe027f323fc8c464d35704d70b4ad571a72896b936db4b57a",
     "scripts/com.applied-loop.dev.plist": "56e77066a353bec5c27eaa4bc8eec1f090c87741a74016b13701654c5ddbf432",
-    "scripts/com.applied-loop.harness-collect.plist": "8034650241edde128eb4bb6e99f6e5e8ed3afa9b4b7cfd0f561269bd130e75a1",
+    "scripts/com.applied-loop.harness-collect.plist": "70a3f3872369575d8903756873a62811ea7ab6bc4d71743b8bb5c6f9dd123e12",
     "scripts/com.applied-loop.weekly-textbook.plist": "33dcbce39fef4d4698c611eae2b9b4a65e16e28d62a40606a87d9af9d2083824",
     "prisma/migrations/20260822090000_loop_job_substrate/migration.sql": "bb8eee045aa18e131ebd27c6fc6aab8eb93ba99ad85b216434b40d3138e6bd8a",
     "prisma/migrations/20260824003236_h_cycle_evidence_ledger/migration.sql": "48f64f0a48c4bbb1f7ae6b0f672a28480b479bebc530e076a6e0bd10ee192db3",

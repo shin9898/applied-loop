@@ -1276,8 +1276,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
   test("A8C2-CG3-T1 scoped one-shot capability remains unreachable by default", async () => {
     const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba";
-    const protectedTreeEntryCount = 602;
-    const protectedTreeSha256 = "6f030b690a3e6f0f5dc1ed06820b973d22efeb9858b4157d3865ea9cbffa5617";
+    const protectedTreeEntryCount = 595;
+    const protectedTreeSha256 = "19bb1a589f938350e52236ca70109218521d3eae9979dd75e5a2dfbaf1c4562c";
     const allowedPaths = [
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
@@ -1285,11 +1285,21 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "docs/adr/0036-harness-evaluation-durable-run-record.md",
       "docs/adr/0037-harness-evaluation-manual-window-adapter.md",
       "docs/adr/0038-harness-evaluation-manual-window-preview-caller.md",
+      "docs/adr/0039-harness-measurement-canonicalization.md",
       "docs/phase-progress.md",
       "package.json",
       "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
       "prisma/schema.prisma",
+      "scripts/collect-harness.mjs",
+      "scripts/com.applied-loop.harness-collect.plist",
+      "scripts/harness-context-fingerprint.mjs",
+      "src/components/living-atlas/load-atlas-data.ts",
       "src/lib/h-cycle-evaluation-record.ts",
+      "src/lib/harness-context-fingerprint.test.ts",
+      "src/lib/harness-run-ingestion.test.ts",
+      "src/lib/harness-stats.ts",
+      "src/lib/harness-usage-evidence.test.ts",
+      "src/lib/harness-usage-evidence.ts",
       "src/lib/loop-jobs/raw-state-adapter.ts",
       "src/lib/loop-jobs/state-machine.ts",
       "src/lib/loop-jobs/delivery.ts",
@@ -1915,8 +1925,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     );
     for (const pinnedScopeLiteral of [
       'const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba"',
-      "const protectedTreeEntryCount = 602",
-      'const protectedTreeSha256 = "6f030b690a3e6f0f5dc1ed06820b973d22efeb9858b4157d3865ea9cbffa5617"',
+      "const protectedTreeEntryCount = 595",
+      'const protectedTreeSha256 = "19bb1a589f938350e52236ca70109218521d3eae9979dd75e5a2dfbaf1c4562c"',
       'gitNulPaths(["diff", "--name-only", "-z", baseSha, "--"])',
       'runGit(["ls-files", "--stage", "-z"], "buffer")',
       "splitNulRecords(indexResult.stdout as Buffer)",
@@ -2025,14 +2035,24 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "docs/adr/0036-harness-evaluation-durable-run-record.md",
         "docs/adr/0037-harness-evaluation-manual-window-adapter.md",
         "docs/adr/0038-harness-evaluation-manual-window-preview-caller.md",
+        "docs/adr/0039-harness-measurement-canonicalization.md",
         "docs/phase-progress.md",
         "package.json",
         "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
         "prisma/migrations/20260826123000_harness_evaluation_run/migration.sql",
         "prisma/schema.prisma",
+        "scripts/collect-harness.mjs",
+        "scripts/com.applied-loop.harness-collect.plist",
+        "scripts/harness-context-fingerprint.mjs",
+        "src/components/living-atlas/load-atlas-data.ts",
         "src/lib/h-cycle-evaluation-record.ts",
+        "src/lib/harness-context-fingerprint.test.ts",
         "src/lib/harness-evaluation-run-v1.test.ts",
         "src/lib/harness-evaluation-run-v1.ts",
+        "src/lib/harness-run-ingestion.test.ts",
+        "src/lib/harness-stats.ts",
+        "src/lib/harness-usage-evidence.test.ts",
+        "src/lib/harness-usage-evidence.ts",
         "src/lib/loop-jobs/delivery.ts",
         "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
