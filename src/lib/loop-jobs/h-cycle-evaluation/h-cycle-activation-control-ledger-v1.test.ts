@@ -1081,7 +1081,7 @@ test("A8C1-CG4-T1 keeps the control ledger type-only, feature-off, and isolated 
     "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-job-contract-v1.ts": "f2429180b8286a98425b25ce8772206ab129f80c5bfe865795fb72c2a8468dbc",
     "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.ts": "a7f542b0101df367cca7dcfc7f90321d15c885b8bae4f8ed9a33899b6da86d51",
     "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.ts": "dd0cba88d498d95adb51d5efbcae46eeffeaf32b0073c130b74ee40caac7440f",
-    "src/lib/h-cycle-evaluation-record.ts": "9f8103d23f037a50bb53483bbd1e2e8acf85a43091a43b8bf7044ff0464378ee",
+    "src/lib/h-cycle-evaluation-record.ts": "7361228c143d47da8e77834dd571240c6e5db9a62be9b44f6d45d2c790ed3973",
     "src/lib/h-cycle-evidence-preview.ts": "3257b9c0954befd86d3b410c366974a87dfe43ffa88aafab3f2a38289e96b47f",
     "src/lib/h-cycle-evidence-preview-query.ts": "c5be617f652a186c7076867ad24b05fe5b35a195c7e5f5d0783d4a7ca5d76b3e",
     "scripts/preview-h-cycle-evidence.ts": "d03552e9458caf8cf3a26f562c5747c31fcbc29ee21bb2d6742ea8ed4c3b0c7d",
@@ -1114,10 +1114,44 @@ test("A8C1-CG4-T1 keeps the control ledger type-only, feature-off, and isolated 
       trailing: "\n",
     },
   ] as const;
+  const deliveryA8C3Regions = [
+    {
+      begin: "// A8-C3 BEGIN: generic delivery reserved-kind post-claim fence",
+      end: "// A8-C3 END: generic delivery reserved-kind post-claim fence",
+      leading: "  ",
+      trailing: "\n",
+    },
+    {
+      begin: "// A8-C3 BEGIN: kind-isolated delivery reserved-kind pre-claim fence",
+      end: "// A8-C3 END: kind-isolated delivery reserved-kind pre-claim fence",
+      leading: "    ",
+      trailing: "\n",
+    },
+  ] as const;
+  const projectDeliveryBeforeA8C3 = (source: string): string => {
+    const intervals = deliveryA8C3Regions.map((region) => {
+      assert.equal(source.split(region.begin).length - 1, 1, `delivery: ${region.begin} count`);
+      assert.equal(source.split(region.end).length - 1, 1, `delivery: ${region.end} count`);
+      const beginStart = source.indexOf(region.begin);
+      const endStart = source.indexOf(region.end, beginStart + region.begin.length);
+      const start = beginStart - region.leading.length;
+      const end = endStart + region.end.length + region.trailing.length;
+      assert.ok(beginStart >= 0 && endStart > beginStart && start >= 0, `delivery: ${region.begin} order`);
+      assert.equal(source.slice(start, beginStart), region.leading, `delivery: ${region.begin} leading`);
+      assert.equal(source.slice(endStart + region.end.length, end), region.trailing, `delivery: ${region.end} trailing`);
+      return { start, end };
+    }).sort((left, right) => right.start - left.start);
+    for (let index = 1; index < intervals.length; index += 1) {
+      assert.ok(intervals[index - 1].start >= intervals[index].end, "delivery: A8-C3 regions must not overlap");
+    }
+    let projected = source;
+    for (const interval of intervals) projected = projected.slice(0, interval.start) + projected.slice(interval.end);
+    return projected;
+  };
   const protectedRuntimeBytes = (path: string): Buffer | string => {
     const bytes = readFileSync(join(root, path));
     if (path !== "src/lib/loop-jobs/delivery.ts") return bytes;
-    const source = bytes.toString("utf8");
+    const source = projectDeliveryBeforeA8C3(bytes.toString("utf8"));
     let cursor = 0;
     let reconstructed = "";
     for (const snippet of deliveryA8C2Snippets) {
@@ -1143,11 +1177,48 @@ test("A8C1-CG4-T1 keeps the control ledger type-only, feature-off, and isolated 
 
   const schemaPath = join(root, "prisma/schema.prisma");
   const schemaSource = readFileSync(schemaPath, "utf8");
-  const addedSchemaStart = schemaSource.indexOf("// A8-C1: redacted control facts only.");
-  const addedSchemaEnd = schemaSource.indexOf("// 学び", addedSchemaStart);
+  const schemaA8C3Regions = [
+    {
+      begin: "// A8-C3 BEGIN: LoopJob execution generation metadata",
+      end: "// A8-C3 END: LoopJob execution generation metadata",
+      leading: "  ",
+      trailing: "\n",
+    },
+    {
+      begin: "// A8-C3 BEGIN: LoopJob execution generation indexes",
+      end: "// A8-C3 END: LoopJob execution generation indexes",
+      leading: "  ",
+      trailing: "\n",
+    },
+    {
+      begin: "// A8-C3 BEGIN: HCycle activation execution jobs relation",
+      end: "// A8-C3 END: HCycle activation execution jobs relation",
+      leading: "  ",
+      trailing: "\n",
+    },
+  ] as const;
+  const projectedSchemaSource = (() => {
+    const intervals = schemaA8C3Regions.map((region) => {
+      assert.equal(schemaSource.split(region.begin).length - 1, 1, `schema: ${region.begin} count`);
+      assert.equal(schemaSource.split(region.end).length - 1, 1, `schema: ${region.end} count`);
+      const beginStart = schemaSource.indexOf(region.begin);
+      const endStart = schemaSource.indexOf(region.end, beginStart + region.begin.length);
+      const start = beginStart - region.leading.length;
+      const end = endStart + region.end.length + region.trailing.length;
+      assert.ok(beginStart >= 0 && endStart > beginStart && start >= 0, `schema: ${region.begin} order`);
+      assert.equal(schemaSource.slice(start, beginStart), region.leading, `schema: ${region.begin} leading`);
+      assert.equal(schemaSource.slice(endStart + region.end.length, end), region.trailing, `schema: ${region.end} trailing`);
+      return { start, end };
+    }).sort((left, right) => right.start - left.start);
+    let projected = schemaSource;
+    for (const interval of intervals) projected = projected.slice(0, interval.start) + projected.slice(interval.end);
+    return projected;
+  })();
+  const addedSchemaStart = projectedSchemaSource.indexOf("// A8-C1: redacted control facts only.");
+  const addedSchemaEnd = projectedSchemaSource.indexOf("// 学び", addedSchemaStart);
   assert.ok(addedSchemaStart >= 0 && addedSchemaEnd > addedSchemaStart, "A8-C1 schema block must remain self-contained");
   assert.equal(
-    sha256(schemaSource.slice(0, addedSchemaStart) + schemaSource.slice(addedSchemaEnd)),
+    sha256(projectedSchemaSource.slice(0, addedSchemaStart) + projectedSchemaSource.slice(addedSchemaEnd)),
     "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
     "unexpected pre-existing Prisma schema change",
   );
@@ -1178,6 +1249,11 @@ test("A8C1-CG4-T1 keeps the control ledger type-only, feature-off, and isolated 
   assert.doesNotMatch(
     activationMigration,
     /(?:DATABASE_URL|DOTENV_CONFIG_PATH|file:|launchctl|\.plist|HCycleEvaluationRecord|INSERT\s+INTO\s+"LoopJob")/i,
+  );
+  assert.equal(
+    sha256(readFileSync(join(root, "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql"))),
+    "9b77d5414d1363d7edc53844b865f15f152f83913a69ccd48784e2bb80ebb624",
+    "C3b migration bytes must remain frozen",
   );
 
   const phaseTwoPath = join(root, "src/lib/loop-jobs/worker-phase2.ts");

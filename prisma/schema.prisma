@@ -28,9 +28,17 @@ model LoopJob {
   createdAt      DateTime
   updatedAt      DateTime
   finishedAt     DateTime?
+  // A8-C3 BEGIN: LoopJob execution generation metadata
+  executionGenerationSequence Int?
+  executionGeneration         HCycleActivationEvent? @relation("HCycleExecutionGeneration", fields: [executionGenerationSequence], references: [sequence], onDelete: Restrict, onUpdate: Restrict)
+  // A8-C3 END: LoopJob execution generation metadata
 
   @@index([status, availableAt])
   @@index([status, leaseExpiresAt])
+  // A8-C3 BEGIN: LoopJob execution generation indexes
+  @@index([kind, executionGenerationSequence, status, availableAt])
+  @@index([kind, executionGenerationSequence, status, leaseExpiresAt])
+  // A8-C3 END: LoopJob execution generation indexes
 }
 
 // A8-B1: aggregate-only output from one completed H-CYCLE evaluation.
@@ -77,6 +85,9 @@ model HCycleActivationEvent {
   generationRoot           HCycleActivationEvent? @relation("HCycleActivationEventGeneration", fields: [generationSequence], references: [sequence], onDelete: Restrict, onUpdate: Restrict)
   disabledEvents           HCycleActivationEvent[] @relation("HCycleActivationEventGeneration")
   operationEvidence        HCycleActivationEvidence[]
+  // A8-C3 BEGIN: HCycle activation execution jobs relation
+  executionJobs            LoopJob[] @relation("HCycleExecutionGeneration")
+  // A8-C3 END: HCycle activation execution jobs relation
 
   @@index([eventKind, sequence])
 }

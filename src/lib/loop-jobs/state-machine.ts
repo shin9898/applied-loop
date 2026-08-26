@@ -241,6 +241,9 @@ function unexpiredOwnership(jobId: string, leaseToken: string, now: Date) {
   return {
     id: jobId,
     status: "running" as const,
+    // A8-C3 BEGIN: generic owned mutation reserved-kind fence
+    kind: { not: "h_cycle_evaluate" },
+    // A8-C3 END: generic owned mutation reserved-kind fence
     leaseToken,
     leaseExpiresAt: { gt: now },
   };
@@ -328,6 +331,9 @@ export function createLoopJobQueue(input: {
     async enqueue(rawInput: EnqueueInput): Promise<EnqueueResult> {
       if (!isExactEnqueueInput(rawInput)) return { ok: false, code: "invalid_payload" };
       const { kind, payload, maxAttempts } = rawInput;
+      // A8-C3 BEGIN: generic queue enqueue reserved-kind fence
+      if (kind === "h_cycle_evaluate") return { ok: false, code: "invalid_payload" };
+      // A8-C3 END: generic queue enqueue reserved-kind fence
       const definition = Object.hasOwn(registry, kind) ? registry[kind] : undefined;
       if (!definition || !Number.isInteger(maxAttempts) || maxAttempts < 1 || !validatePayload(definition, payload)) {
         return { ok: false, code: "invalid_payload" };
@@ -432,6 +438,9 @@ export function createLoopJobQueue(input: {
           return { code: "storage_failure" };
         }
         kind = snapshottedKind;
+        // A8-C3 BEGIN: generic queue claimKind reserved-kind fence
+        if (kind === "h_cycle_evaluate") return { code: "storage_failure" };
+        // A8-C3 END: generic queue claimKind reserved-kind fence
         leaseDurationMs = snapshottedLeaseDurationMs;
       } catch {
         return { code: "storage_failure" };

@@ -231,6 +231,23 @@ const A8C3P_ADR_PATH = "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive
 const A8C3P_ADR_SHA256 = "8a7b7836d6b54d1168cf0cfc26bbb9b9f9133f17463ad82e15698bc0572bbfae";
 const A8C3P_REVIEW_ARTIFACT_PATH = "docs/plans/2026-08-26-a8-c3p-sqlite-transaction-primitive.md";
 const A8C3P_REVIEW_ARTIFACT_SHA256 = "95fa7af479d56b9000cd42a5676f1f8b3207633ab60ab84ea819ba308d6866de";
+const A8C3B_ALLOWED_SRC_PATHS = [
+  "src/lib/loop-jobs/raw-state-adapter.ts",
+  "src/lib/loop-jobs/state-machine.ts",
+  "src/lib/loop-jobs/delivery.ts",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+] as const;
+const A8C3B_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.ts",
+] as const;
 const workerEntry = join(process.cwd(), "src/lib/loop-jobs/worker.mjs");
 
 function sha256(bytes: Buffer | string): string {
@@ -461,10 +478,12 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='LoopJob' AND name NOT LIKE 'sqlite_autoindex%' ORDER BY name",
       ).all().map((row) => row.name);
       database.close();
-      assert.equal((tableSql.match(/CHECK/g) ?? []).length, 9);
+      assert.equal((tableSql.match(/CHECK/g) ?? []).length, 10);
       assert.equal(tableSql.includes("CURRENT_TIMESTAMP"), false);
       assert.deepEqual(indexes, [
         "LoopJob_dedupeKey_key",
+        "LoopJob_kind_executionGenerationSequence_status_availableAt_idx",
+        "LoopJob_kind_executionGenerationSequence_status_leaseExpiresAt_idx",
         "LoopJob_status_availableAt_idx",
         "LoopJob_status_leaseExpiresAt_idx",
       ]);
@@ -786,6 +805,14 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => (A8C3P_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.deepEqual(discoveredA8C3PSources, [...A8C3P_ALLOWED_SRC_PATHS].sort());
+      const discoveredA8C3BSources = [
+        ...execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" })
+          .trim().split("\n").filter(Boolean),
+        ...untrackedSource,
+      ]
+        .filter((path) => (A8C3B_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .sort();
+      assert.deepEqual(discoveredA8C3BSources, [...A8C3B_ALLOWED_SRC_PATHS].sort());
       assert.equal(
         sha256(await readFile(join(process.cwd(), A8C3_ADR_PATH))),
         A8C3_ADR_SHA256,
@@ -818,8 +845,9 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         "utf8",
       );
       for (const requiredLiteral of [
-        "const c3RegionManifest: readonly C3RegionSpec[] = [];",
+        "const c3RegionManifest: readonly C3RegionSpec[] = [",
         "ts.SyntaxKind.SingleLineCommentTrivia",
+        "const lineMarker =",
         "const projectC3Regions = (",
       ]) {
         assert.equal(c3StaticFenceSource.includes(requiredLiteral), true, `missing C3 projection fence: ${requiredLiteral}`);
@@ -829,6 +857,7 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         "A8C3_REVIEW_ARTIFACT_SHA256",
         "A8C3P_IMMUTABLE_CONTENT_SHA256",
         "A8C3P_REVIEW_ARTIFACT_SHA256",
+        "A8C3B_ALLOWED_NON_H_EVAL_PATHS",
         "const c3StaticFenceSource = readFileSync(",
       ]) {
         assert.equal(hEvalStaticGuardSource.includes(requiredLiteral), true, `missing independent C3 cross-check: ${requiredLiteral}`);
@@ -913,6 +942,15 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         assert.doesNotMatch(
           source,
           /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli|buildHCycleEvidencePreviewV1|queryHCycleEvidencePreviewSnapshotV1|queryReadonlyHCycleEvidencePreviewSnapshotV1|createReadonlyHCycleEvidencePreviewClient|deriveHCycleEvaluateTimingV1|planHCycleEvaluateV1|createHCycleEvaluateDormantHandlerV1|createLoopJobQueue|defineLoopJobRegistry|DATABASE_URL|DOTENV_CONFIG_PATH|PrismaBetterSqlite3|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive)/,
+          path,
+        );
+      }
+      for (const path of A8C3B_NON_ACTIVATION_PRODUCTION_PATHS) {
+        const source = await readFile(join(process.cwd(), path), "utf8");
+        assert.match(source, /runImmediate/);
+        assert.doesNotMatch(
+          source,
+          /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runOneKindDelivery|PrismaClient|PrismaBetterSqlite3|better-sqlite3|DATABASE_URL|DOTENV_CONFIG_PATH|process\.env|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive)/,
           path,
         );
       }
