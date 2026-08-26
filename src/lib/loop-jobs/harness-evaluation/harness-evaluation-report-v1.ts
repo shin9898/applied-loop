@@ -484,6 +484,19 @@ function validateInput(value: unknown): Input | undefined {
   return comparison ? { integrity, hCycle, hEval, hCache: { comparison } } : undefined;
 }
 
+/**
+ * Returns whether a value is a closed, aggregate-only report input. This is
+ * intentionally a boolean boundary: callers can reject bad manual input
+ * without reflecting any of it back to stdout, logs, or a durable record.
+ */
+export function isHarnessEvaluationEvidenceV1(value: unknown): boolean {
+  try {
+    return validateInput(value) !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 function proposalPriority(kind: HarnessEvaluationProposalKindV1): 1 | 2 | 3 | 4 | 5 | 6 | 7 {
   switch (kind) {
     case "pause_and_investigate": return 1;

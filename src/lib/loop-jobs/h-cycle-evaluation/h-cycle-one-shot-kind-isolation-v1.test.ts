@@ -1273,13 +1273,14 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
   test("A8C2-CG3-T1 scoped one-shot capability remains unreachable by default", async () => {
     const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba";
-    const protectedTreeEntryCount = 606;
-    const protectedTreeSha256 = "00f661b4e63512145ec022a094ca947c20fc9cb39799fba5515631b88399ab1a";
+    const protectedTreeEntryCount = 605;
+    const protectedTreeSha256 = "07151250399a90729c5d84b6436378d8b3c8d0829a6b2e99267bcd4bdcb110ca";
     const allowedPaths = [
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
       "docs/adr/0035-harness-evaluation-next-action-proposals.md",
       "docs/phase-progress.md",
+      "package.json",
       "src/lib/loop-jobs/raw-state-adapter.ts",
       "src/lib/loop-jobs/state-machine.ts",
       "src/lib/loop-jobs/delivery.ts",
@@ -1289,6 +1290,10 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
       "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
       "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.test.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-dormancy.test.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-main.ts",
       "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.test.ts",
       "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
@@ -1710,8 +1715,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     );
     for (const pinnedScopeLiteral of [
       'const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba"',
-      "const protectedTreeEntryCount = 606",
-      'const protectedTreeSha256 = "00f661b4e63512145ec022a094ca947c20fc9cb39799fba5515631b88399ab1a"',
+      "const protectedTreeEntryCount = 605",
+      'const protectedTreeSha256 = "07151250399a90729c5d84b6436378d8b3c8d0829a6b2e99267bcd4bdcb110ca"',
       'gitNulPaths(["diff", "--name-only", "-z", baseSha, "--"])',
       'runGit(["ls-files", "--stage", "-z"], "buffer")',
       "splitNulRecords(indexResult.stdout as Buffer)",
@@ -1818,6 +1823,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
         "docs/adr/0035-harness-evaluation-next-action-proposals.md",
         "docs/phase-progress.md",
+        "package.json",
         "src/lib/loop-jobs/delivery.ts",
         "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
@@ -1827,6 +1833,10 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
         "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.test.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-dormancy.test.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-main.ts",
         "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.test.ts",
         "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.ts",
         "src/lib/loop-jobs/raw-state-adapter.ts",
