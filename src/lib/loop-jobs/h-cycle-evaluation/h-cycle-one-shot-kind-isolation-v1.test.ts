@@ -1277,10 +1277,14 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     const protectedTreeSha256 = "70cf77d98561641c8340a957b6cee97a11191eb04b7218fb6db5d24d9baa8ede";
     const allowedPaths = [
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
+      "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
       "src/lib/loop-jobs/raw-state-adapter.ts",
       "src/lib/loop-jobs/state-machine.ts",
       "src/lib/loop-jobs/delivery.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+      "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts",
+      "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
+      "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
       "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
       "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
@@ -1327,6 +1331,10 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       [
         "docs/plans/2026-08-26-a8-c3-generation-fenced-execution.md",
         "077242bf56f1549b2df47c8b5a9a733da75641f8958b48a15282bcf7542b5eb0",
+      ],
+      [
+        "docs/plans/2026-08-26-a8-c3p-sqlite-transaction-primitive.md",
+        "95fa7af479d56b9000cd42a5676f1f8b3207633ab60ab84ea819ba308d6866de",
       ],
     ]);
     const exactNonImplementationSupportPaths = new Set([
@@ -1422,7 +1430,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         assert.deepEqual(
           implementationChanges,
           allowedPaths,
-          "all historical and C3a static compatibility paths must be classified",
+          "all historical and C3a/C3p static compatibility paths must be classified",
         );
         return Object.freeze({ mode: "base_diff" as const, baseSha, paths: implementationChanges });
       }
@@ -1803,16 +1811,20 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       [...allowedPathSet],
       [
         "docs/adr/0033-h-cycle-generation-fenced-execution.md",
+        "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
         "src/lib/loop-jobs/delivery.ts",
         "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+        "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts",
+        "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
+        "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
         "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
         "src/lib/loop-jobs/raw-state-adapter.ts",
         "src/lib/loop-jobs/state-machine.ts",
       ],
-      "fallback exclusion set must remain the exact C2-plus-C3a surface",
+      "fallback exclusion set must remain the exact C2-plus-C3a/C3p surface",
     );
     assert.equal(
       (dedicatedTestSource.match(/mkdtempSync\(join\(tmpdir\(\), "applied-loop-a8c2-cg[12]-"\)\)/g) ?? []).length,
