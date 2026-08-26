@@ -66,6 +66,24 @@ model HCycleEvaluationRecord {
   @@index([targetWeekKey, createdAt])
 }
 
+// A9-B: append-only aggregate-only result of one deterministic harness
+// evaluation report. The evaluation key is already opaque; no raw source key,
+// prompt, answer, path, token usage row, or execution authority is stored here.
+model HarnessEvaluationRun {
+  id                    String   @id @default(cuid())
+  recordSchema          String
+  reportSchema          String
+  evaluationKeyHash     String
+  evaluatedAt           DateTime
+  reportEnvelopeJson    String
+  reportEnvelopeSha256  String
+  recordSha256          String
+  createdAt             DateTime @default(now())
+
+  @@unique([recordSchema, reportSchema, evaluationKeyHash])
+  @@index([evaluatedAt, createdAt])
+}
+
 // A8-C1: redacted control facts only. This is not a selected database binding,
 // scheduler installation, worker registration, or activation authority.
 model HCycleActivationEvent {

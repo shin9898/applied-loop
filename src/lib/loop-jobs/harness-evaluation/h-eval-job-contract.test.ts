@@ -23,8 +23,8 @@ import {
 
 const hash = (character: string) => character.repeat(64);
 const policyVersion = "v1";
-const NON_A4_A5_A6_TRACKED_PATH_COUNT = 544;
-const NON_A4_A5_A6_TRACKED_CONTENT_AGGREGATE_SHA256 = "81b3ac37e47227279fdfc064ff1bf51bcf1a3fd6203b3c2724f8d18c68ec57d2";
+const NON_A4_A5_A6_TRACKED_PATH_COUNT = 543;
+const NON_A4_A5_A6_TRACKED_CONTENT_AGGREGATE_SHA256 = "39ba80d8fa7ab4b128d04ee26c4649287f445a4314f7194213b9426f4f2da006";
 const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract-v1.ts",
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
@@ -307,7 +307,7 @@ const A8C1_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.ts",
 ] as const;
 const A8C1_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
-  "prisma/schema.prisma": "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
+  "prisma/schema.prisma": "10eb43f9a3c4f30632ecd9d7f7b838910f6f22ddd6da39261e58f93b2b428d78",
 };
 const A8C2_ALLOWED_NON_H_EVAL_PATHS = [
   "src/lib/loop-jobs/raw-state-adapter.ts",
@@ -389,7 +389,7 @@ const A8C3B_IMMUTABLE_CONTENT_SHA256: Readonly<Record<string, string>> = {
     "9b77d5414d1363d7edc53844b865f15f152f83913a69ccd48784e2bb80ebb624",
 };
 const A8C3B_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
-  "prisma/schema.prisma": "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
+  "prisma/schema.prisma": "10eb43f9a3c4f30632ecd9d7f7b838910f6f22ddd6da39261e58f93b2b428d78",
 };
 const A8C2_RUNTIME_SNIPPETS: Readonly<Record<string, Readonly<{
   baseSha256: string;
@@ -554,9 +554,28 @@ const POST_A8B1_MAINLINE_CONTENT_SHA256: Readonly<Record<string, string>> = {
   "docs/adr/0030-global-layer-entry-criteria.md": "5650449519cd86b2272649954e9ac463d8825edf1e3ca0885729ec968fb38112",
   "docs/adr/0031-dogfooding-charter-repurposed-to-cs-handson.md":
     "4d214ac100b371d9047e352fd6cf82fcdb10ecfe039c5be2a9cf20a25a792c7e",
-  "docs/adr/0035-harness-evaluation-next-action-proposals.md":
+    "docs/adr/0035-harness-evaluation-next-action-proposals.md":
     "9e1e49a0d020285526e30ee1a59ccf957cb48f8337ccf0aa0b0bf8e40c2a6bd6",
 };
+const A9B_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0036-harness-evaluation-durable-run-record.md",
+  "docs/phase-progress.md",
+  "prisma/migrations/20260826123000_harness_evaluation_run/migration.sql",
+  "prisma/schema.prisma",
+  "src/lib/harness-evaluation-run-v1.test.ts",
+  "src/lib/harness-evaluation-run-v1.ts",
+] as const;
+const A9B_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0036-harness-evaluation-durable-run-record.md",
+  "docs/phase-progress.md",
+  "prisma/migrations/20260826123000_harness_evaluation_run/migration.sql",
+  "prisma/schema.prisma",
+  "src/lib/harness-evaluation-run-v1.test.ts",
+  "src/lib/harness-evaluation-run-v1.ts",
+] as const;
+const A9B_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/lib/harness-evaluation-run-v1.ts",
+] as const;
 const A3_PRODUCTION_SOURCE_SHA256 = {
   "h-eval-policy-v1.ts": "0528199d975ecb0f3b405ea80b1891cdb978a010594d8c7f7603af5cb9808000",
   "h-eval-job-contract-v1.ts": "25a6bbc3bfd0ef30c70ee063c227e0352c6b0b76a2241e6fb206d61e1c6318ba",
@@ -1147,13 +1166,18 @@ function classifyLiteralExternalRuntimeEdge(
   importer: string,
   importerRelative: string,
   edge: LiteralRuntimeModuleEdge,
-): "node_builtin" | "typescript_resolved" | "baseline_css_asset" | "baseline_absent_external_package" {
+): "node_builtin" | "typescript_resolved" | "a9b_report_kernel" | "baseline_css_asset" | "baseline_absent_external_package" {
   if (edge.specifier.startsWith("node:")) {
     assert.equal(NODE_BUILTINS.has(edge.specifier.slice("node:".length)), true, `unknown node builtin: ${edge.specifier}`);
     return "node_builtin";
   }
   const resolved = canonicalResolvedRuntimeModule(edge.specifier, importer, compilerOptions);
   if (resolved) {
+    if (importerRelative === "src/lib/harness-evaluation-run-v1.ts"
+      && edge.specifier === "./loop-jobs/harness-evaluation/harness-evaluation-report-v1") {
+      assert.equal(isAtOrBelow(a4Root, resolved), true, "A9-B writer must use the closed A9-A report kernel");
+      return "a9b_report_kernel";
+    }
     assert.equal(isAtOrBelow(a4Root, resolved), false, `${importerRelative} resolves into A4 via ${edge.kind}`);
     return "typescript_resolved";
   }
@@ -1629,6 +1653,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A8C3_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C3P_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C3B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A9B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1666,6 +1691,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A8C3_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C3P_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C3B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A9B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || path === A8C2_REVIEW_ARTIFACT_PATH
         || path === A8C3_REVIEW_ARTIFACT_PATH
         || path === A8C3P_REVIEW_ARTIFACT_PATH
@@ -1822,6 +1848,13 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
   for (const [path, expectedSha256] of Object.entries(A8C3B_IMMUTABLE_CONTENT_SHA256)) {
     assert.equal(contentSha256(join(root, path)), expectedSha256, path);
   }
+  const discoveredA9BPaths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A9B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA9BPaths, [...A9B_ALLOWED_NON_H_EVAL_PATHS].sort());
   const c3StaticFenceSource = readFileSync(
     join(root, "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts"),
     "utf8",
@@ -1963,6 +1996,14 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     assert.doesNotMatch(
       source,
       /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runOneKindDelivery|PrismaClient|PrismaBetterSqlite3|better-sqlite3|DATABASE_URL|DOTENV_CONFIG_PATH|process\.env|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive)/,
+      path,
+    );
+  }
+  for (const path of A9B_NON_ACTIVATION_PRODUCTION_PATHS) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.doesNotMatch(
+      source,
+      /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runOneKindDelivery|DATABASE_URL|DOTENV_CONFIG_PATH|PrismaBetterSqlite3|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive|setInterval|setTimeout|fetch\()/,
       path,
     );
   }

@@ -1219,7 +1219,7 @@ test("A8C1-CG4-T1 keeps the control ledger type-only, feature-off, and isolated 
   assert.ok(addedSchemaStart >= 0 && addedSchemaEnd > addedSchemaStart, "A8-C1 schema block must remain self-contained");
   assert.equal(
     sha256(projectedSchemaSource.slice(0, addedSchemaStart) + projectedSchemaSource.slice(addedSchemaEnd)),
-    "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
+    "10eb43f9a3c4f30632ecd9d7f7b838910f6f22ddd6da39261e58f93b2b428d78",
     "unexpected pre-existing Prisma schema change",
   );
   for (const expectedSchemaFragment of [
