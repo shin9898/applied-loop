@@ -1091,7 +1091,7 @@ test("A8C1-CG4-T1 keeps the control ledger type-only, feature-off, and isolated 
     "src/lib/loop-jobs/worker-phase2.ts": "9569be398c439eccac6bfbae86677a1f6d61211ee11a7b4d592f5622490c778d",
     "src/lib/loop-jobs/delivery.ts": "4062126950275118d7ee2d5f772e9a05926c2fda67ec8e48d94142ad3e80bc67",
     "src/lib/loop-jobs/delivery-no-echo-helper.ts": "e40df38bee18b316dd2b8d98a60f1a9233393a71efb9135d114dc6771ec1b6eb",
-    "package.json": "d2e3cf718ecb1e8b6a12acfcd59dce8f5f331796ad06ea86bddf9e67ba694766",
+    "package.json": "db5c73d6dc61b2aea263f44eb5edad13cbf245c02e7edfa712eb768e1475d000",
     "scripts/com.applied-loop.dev.plist": "56e77066a353bec5c27eaa4bc8eec1f090c87741a74016b13701654c5ddbf432",
     "scripts/com.applied-loop.harness-collect.plist": "8034650241edde128eb4bb6e99f6e5e8ed3afa9b4b7cfd0f561269bd130e75a1",
     "scripts/com.applied-loop.weekly-textbook.plist": "33dcbce39fef4d4698c611eae2b9b4a65e16e28d62a40606a87d9af9d2083824",

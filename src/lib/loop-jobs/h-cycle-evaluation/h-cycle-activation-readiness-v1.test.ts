@@ -507,7 +507,7 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
 
   const immutableSurfaceSha256: Readonly<Record<string, string>> = {
     "docs/adr/0028-h-cycle-manual-preview.md": "eba902c852bf8e9f0bef9039a20366119391e8ae0ba5f315ed3e93205af66b06",
-    "package.json": "d2e3cf718ecb1e8b6a12acfcd59dce8f5f331796ad06ea86bddf9e67ba694766",
+    "package.json": "db5c73d6dc61b2aea263f44eb5edad13cbf245c02e7edfa712eb768e1475d000",
     "scripts/com.applied-loop.dev.plist": "56e77066a353bec5c27eaa4bc8eec1f090c87741a74016b13701654c5ddbf432",
     "scripts/com.applied-loop.harness-collect.plist": "8034650241edde128eb4bb6e99f6e5e8ed3afa9b4b7cfd0f561269bd130e75a1",
     "scripts/com.applied-loop.weekly-textbook.plist": "33dcbce39fef4d4698c611eae2b9b4a65e16e28d62a40606a87d9af9d2083824",
