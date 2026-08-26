@@ -14,6 +14,8 @@ import {
   type HCacheEvaluationSourceQueryClientV1,
   type HCacheEvaluationSourceRowV1,
 } from "./harness-evaluation-cache-source-adapter-v1";
+import { buildHarnessEvaluationEvidenceV1 } from "./harness-evaluation-evidence-v1";
+import { buildHarnessEvaluationReportV1 } from "./harness-evaluation-report-v1";
 
 const hash = (character: string) => character.repeat(64);
 const beforeFingerprint = `sha256:${hash("b")}`;
@@ -134,6 +136,42 @@ test("A9A-CACHE-SOURCE-CG1 reads two exact half-open cohorts and emits only a ma
   ]);
   assert.equal(disconnectCount, 1);
   assert.equal(result.comparison.status, "matched");
+  const assembled = buildHarnessEvaluationEvidenceV1({
+    schema: "harness_evaluation_source_evidence_v1",
+    integrity: {
+      schema: "harness_evaluation_integrity_v1",
+      privacyViolationCount: 0,
+      dataLossDetected: false,
+      duplicateDurableEffectCount: 0,
+      recordIntegrityFailureCount: 0,
+    },
+    hCycle: {
+      schema: "h_cycle_evaluation_source_v1",
+      policy: {
+        schema: "h_cycle_evidence_policy_v1",
+        policyVersion: "h_cycle_evidence_v1",
+        status: "supported",
+        requiredAdjacentWindows: 2,
+        evaluatedWeekKeys: ["2026-W33", "2026-W34"],
+      },
+      executionFence: "complete",
+      recordReconcileFence: "complete",
+    },
+    hEval: {
+      schema: "h_eval_policy_cohort_input_v1",
+      policyVersion: "v1",
+      verdict: "supported",
+      decisionStage: "final",
+      reasonCode: "eligible_window",
+    },
+    hCache: result,
+  });
+  assert.equal(assembled.ok, true);
+  if (assembled.ok) {
+    const report = buildHarnessEvaluationReportV1(assembled.evidence);
+    assert.equal(report.verdict, "healthy");
+    assert.deepEqual(report.proposals, []);
+  }
   if (result.comparison.status !== "matched") return;
   assert.equal(result.comparison.before.cacheReadRateBps, 9_000);
   assert.equal(result.comparison.after.cacheReadRateBps, 9_500);
