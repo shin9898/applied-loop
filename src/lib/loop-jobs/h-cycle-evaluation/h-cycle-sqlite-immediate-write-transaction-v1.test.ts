@@ -438,7 +438,7 @@ function assertC3pStaticSourceGraph(): void {
   assert.match(c3bExecutionSource, /runImmediate/);
   assert.doesNotMatch(
     c3bExecutionSource,
-    /(?:process\.env|DATABASE_URL|DOTENV_CONFIG_PATH|Prisma|createRequire|better-sqlite3|new\s+Worker|launchd|scheduler|worker-phase|runOneDelivery|runOneKindDelivery)/,
+    /(?:process\.env|DATABASE_URL|DOTENV_CONFIG_PATH|Prisma|createRequire|better-sqlite3|new\s+Worker|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive|\bscheduler\b|worker-phase|runOneDelivery|runOneKindDelivery)/,
   );
 
   const childSource = readFileSync(join(root, C3P_CHILD_PATH), "utf8");
