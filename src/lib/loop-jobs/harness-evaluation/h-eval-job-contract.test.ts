@@ -38,6 +38,22 @@ const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/h-eval-preview-v1.test.ts",
   "src/lib/loop-jobs/harness-evaluation/h-eval-preview-cli.test.ts",
   "src/lib/loop-jobs/harness-evaluation/h-eval-preview-dormancy.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-cache-cohort-v1.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-cache-cohort-v1.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-cache-source-adapter-v1.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-cache-source-adapter-v1.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-evidence-v1.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-evidence-v1.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-dormancy.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-main.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-cli.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-cli.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-dormancy.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-main.ts",
 ] as const;
 const H_EVAL_DIRECTORY_PREFIX = "src/lib/loop-jobs/harness-evaluation/";
 const A5_ALLOWED_NON_H_EVAL_PATHS = [
@@ -1520,6 +1536,8 @@ function packageBaselineSha256(packageJson: JsonDataRecord): string {
   const scripts = baseline.scripts;
   if (!isOrdinaryDataObject(scripts)) throw new Error("package JSON scripts must be an object");
   delete scripts["harness:evaluate-preview"];
+  delete scripts["harness:evaluate-report-preview"];
+  delete scripts["harness:evaluate-source-preview"];
   delete scripts["harness:preview-cycle-evidence"];
   delete scripts["harness:plan-usage-backfill"];
   return createHash("sha256").update(canonicalJson(baseline), "utf8").digest("hex");
@@ -1544,6 +1562,26 @@ function assertExactPreviewPackageException(rawBytes: Uint8Array): void {
     Object.keys(scripts).filter((key) => key.includes("evaluate-preview")).length,
     1,
     "unexpected preview-script alias",
+  );
+  assert.equal(
+    scripts["harness:evaluate-report-preview"],
+    "tsx src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-main.ts",
+    "unexpected report-preview script value",
+  );
+  assert.equal(
+    Object.keys(scripts).filter((key) => key.includes("evaluate-report-preview")).length,
+    1,
+    "unexpected report-preview script alias",
+  );
+  assert.equal(
+    scripts["harness:evaluate-source-preview"],
+    "tsx src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-main.ts",
+    "unexpected source-preview script value",
+  );
+  assert.equal(
+    Object.keys(scripts).filter((key) => key.includes("evaluate-source-preview")).length,
+    1,
+    "unexpected source-preview script alias",
   );
   assert.equal(
     scripts["harness:preview-cycle-evidence"],
