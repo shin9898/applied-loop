@@ -95,6 +95,27 @@ periodic execution は、この record の存在だけでは有効化されな�
 3. **upsert で最新 report に置換する**: 改変を隠し、最初の証拠を失うため採らない。
 4. **record の保存と periodic scheduler を同時に入れる**: operation approval と評価結果の contract が混ざるため分離する。
 
+## A9-D1: baseline / eligible window の決定論的境界
+
+A9-B の record key を caller が raw week key や repo/path から直接組み立てると、同じ評価窓の
+retry が別 identity になり、後続の cache / H-EVAL 比較で cohort が混ざる。そこで A9-D1 は、
+completed window の aggregate outcome だけを受け取る feature-off の pure classifier を追加する。
+
+- source は `cohort`、`policyVersion`、opaque `scopeHash`、cadence、数値の period bounds、
+  `supported / rejected / inconclusive`、decision stage の closed shape に限定する。
+- period hash と A9-B `evaluationKeyHash` は canonical identity から deterministic に導出し、
+  raw week key、repo/path、本文、usage row は入力・出力・recordへ渡さない。
+- 同一 cohort / policy / scope の completed window だけを順序化し、最新の隣接2窓を選ぶ。
+  1窓または非隣接なら `baseline_collecting`、欠損・結果変更・current provisional は
+  `inconclusive`、同じ non-inconclusive outcome の隣接2窓だけを `eligible` とする。
+- classifier は clock、DB、scheduler、worker、launchd、LLM、automatic intervention を持たず、
+  結果の `automaticInterventionAllowed` は常に `false`。A9-B writer へ渡す key を作るだけで、
+  実窓の収集や periodic activation は開始しない。
+
+この境界により、通常の window 判定は token を消費せず、同じ window の report retry は A9-B の
+digest integrity fence へ収束する。実観測での outcome 記録と A9-C の periodic execution は、
+user-owned operational evidence と別の承認が揃うまで未開始とする。
+
 ## Rollout
 
 1. この ADR と writer/schema/migration の focused proof を review する。
