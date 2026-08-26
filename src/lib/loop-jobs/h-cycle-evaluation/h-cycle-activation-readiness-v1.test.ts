@@ -690,21 +690,24 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
   assert.ok(a8c1SchemaStart >= 0 && a8c1SchemaEnd > a8c1SchemaStart, "A8-C1 schema addition must remain self-contained");
   assert.equal(
     createHash("sha256").update(schemaSource.slice(0, a8c1SchemaStart) + schemaSource.slice(a8c1SchemaEnd), "utf8").digest("hex"),
-    "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
+    "10eb43f9a3c4f30632ecd9d7f7b838910f6f22ddd6da39261e58f93b2b428d78",
     "prisma/schema.prisma outside the explicit A8-C1 block",
   );
 
   const a8c1MigrationPath = "prisma/migrations/20260824160000_h_cycle_activation_control_ledger/migration.sql";
   const a8c3bMigrationPath = "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql";
+  const a9bMigrationPath = "prisma/migrations/20260826123000_harness_evaluation_run/migration.sql";
   const migrationPaths = [...new Set([
     ...lines(["ls-files", "prisma/migrations/*/migration.sql"]),
     ...lines(["ls-files", "--others", "--exclude-standard", "prisma/migrations/*/migration.sql"]),
   ])].sort();
-  assert.equal(migrationPaths.length, 18, "migration path surface must contain only the explicit A8-C1 and C3b additions");
+  assert.equal(migrationPaths.length, 19, "migration path surface must contain only the explicit A8-C1, C3b, and A9-B additions");
   assert.deepEqual(migrationPaths.filter((path) => path === a8c1MigrationPath), [a8c1MigrationPath]);
   assert.deepEqual(migrationPaths.filter((path) => path === a8c3bMigrationPath), [a8c3bMigrationPath]);
+  assert.deepEqual(migrationPaths.filter((path) => path === a9bMigrationPath), [a9bMigrationPath]);
   assert.equal(sha256(a8c3bMigrationPath), "9b77d5414d1363d7edc53844b865f15f152f83913a69ccd48784e2bb80ebb624");
-  const preA8C1MigrationPaths = migrationPaths.filter((path) => path !== a8c1MigrationPath && path !== a8c3bMigrationPath);
+  assert.equal(sha256(a9bMigrationPath), "bcef1a899d9187030574f00fd9fd36e94ec76a5caf5cbef11d9165b9b52c6d82");
+  const preA8C1MigrationPaths = migrationPaths.filter((path) => path !== a8c1MigrationPath && path !== a8c3bMigrationPath && path !== a9bMigrationPath);
   assert.equal(preA8C1MigrationPaths.length, 16, "pre-A8-C1 migration path surface must remain exact");
   const migrationAggregate = preA8C1MigrationPaths.sort()
     .map((path) => `${path}\t${sha256(path)}\n`)

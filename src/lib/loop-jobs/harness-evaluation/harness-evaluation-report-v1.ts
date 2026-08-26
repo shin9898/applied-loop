@@ -94,6 +94,95 @@ const CACHE_COMPARISON_STATUSES = [
 ] as const;
 const CACHE_WRITE_TELEMETRY = ["observed", "unavailable"] as const;
 
+const REPORT_ROOT_KEYS = [
+  "schema",
+  "mode",
+  "automaticInterventionAllowed",
+  "verdict",
+  "integrity",
+  "cohorts",
+  "proposals",
+] as const;
+const REPORT_INTEGRITY_KEYS = ["stopCondition"] as const;
+const REPORT_COHORTS_KEYS = ["hCycle", "hEval", "hCache"] as const;
+const REPORT_H_CYCLE_KEYS = [
+  "policyVersion",
+  "verdict",
+  "reasonCode",
+  "eligibleWindowCount",
+  "requiredAdjacentWindows",
+] as const;
+const REPORT_H_EVAL_KEYS = ["policyVersion", "verdict", "reasonCode", "decisionStage"] as const;
+const REPORT_H_CACHE_KEYS = ["usageSemanticsVersion", "verdict", "reasonCode", "metrics"] as const;
+const REPORT_CACHE_METRICS_KEYS = [
+  "beforeSampleCount",
+  "afterSampleCount",
+  "cacheReadRateDeltaBps",
+  "freshInputPerTurnDeltaBps",
+  "cacheWriteTelemetry",
+] as const;
+const REPORT_PROPOSAL_KEYS = ["kind", "priority", "reasonCode"] as const;
+const REPORT_H_CYCLE_REASONS = [
+  "supported",
+  "rejected",
+  "baseline_collecting",
+  "inconclusive",
+  "execution_fence_pending",
+  "execution_fence_invalid",
+  "record_reconcile_pending",
+  "invalid_aggregate",
+] as const;
+const REPORT_H_EVAL_REASONS = [...H_EVAL_REASONS, "invalid_aggregate"] as const;
+const REPORT_H_CACHE_REASONS = [
+  "no_cache_samples",
+  "usage_unavailable",
+  "mixed_cohort",
+  "invalid_normalization",
+  "baseline_only",
+  "intervention_pending",
+  "sample_insufficient",
+  "guardrail_regressed",
+  "no_observed_improvement",
+  "within_guardrail",
+  "invalid_aggregate",
+] as const;
+const REPORT_STOP_CONDITIONS = [
+  "none",
+  "privacy_violation",
+  "data_loss",
+  "duplicate_durable_effect",
+  "record_integrity_failure",
+] as const;
+const REPORT_PROPOSAL_KINDS = [
+  "pause_and_investigate",
+  "complete_h_cycle_execution_fence",
+  "collect_h_cycle_observation",
+  "collect_cache_baseline",
+  "review_stable_prefix",
+  "record_and_reobserve",
+  "continue_observation",
+] as const;
+const REPORT_PROPOSAL_REASONS = [
+  "invalid_aggregate",
+  "privacy_violation",
+  "data_loss",
+  "duplicate_durable_effect",
+  "record_integrity_failure",
+  "h_cycle_rejected",
+  "h_eval_rejected",
+  "execution_fence_pending",
+  "execution_fence_invalid",
+  "record_reconcile_pending",
+  "h_cycle_baseline_missing",
+  "h_cycle_inconclusive",
+  "cache_unavailable",
+  "cache_baseline_only",
+  "cache_sample_insufficient",
+  "cache_guardrail_regressed",
+  "intervention_window_pending",
+  "provisional_or_inconclusive",
+] as const;
+
 type DataRecord = Record<string, unknown>;
 type HCycleStatus = (typeof H_CYCLE_STATUSES)[number];
 type HEvalVerdict = (typeof H_EVAL_VERDICTS)[number];
@@ -259,8 +348,9 @@ function deepFreeze<T>(value: T): Readonly<T> {
   return value as Readonly<T>;
 }
 
-function isOneOf<const T extends readonly string[]>(values: T, value: unknown): value is T[number] {
-  return typeof value === "string" && (values as readonly string[]).includes(value);
+function isOneOf<const T extends readonly (string | number)[]>(values: T, value: unknown): value is T[number] {
+  return (typeof value === "string" || typeof value === "number")
+    && (values as readonly (string | number)[]).includes(value);
 }
 
 function safeCount(value: unknown): value is number {
@@ -687,4 +777,148 @@ export function buildHarnessEvaluationReportV1(value: unknown): HarnessEvaluatio
   } catch {
     return invalidReport();
   }
+}
+
+function nullableCount(value: unknown): value is number | null {
+  return value === null || safeCount(value);
+}
+
+function nullableDelta(value: unknown): value is number | null {
+  return value === null
+    || (typeof value === "number" && Number.isSafeInteger(value) && !Object.is(value, -0));
+}
+
+function normalizeReportValue(value: unknown): HarnessEvaluationReportV1 | null {
+  const clone = cloneClosedInput(value);
+  const root = readDataObject(clone);
+  if (!root
+    || !hasExactKeys(root, REPORT_ROOT_KEYS)
+    || root.schema !== "harness_evaluation_report_v1"
+    || root.mode !== "manual_preview_only"
+    || root.automaticInterventionAllowed !== false
+    || !isOneOf(["healthy", "needs_attention", "insufficient_evidence"] as const, root.verdict)) {
+    return null;
+  }
+
+  const integrity = readDataObject(root.integrity);
+  if (!integrity
+    || !hasExactKeys(integrity, REPORT_INTEGRITY_KEYS)
+    || !isOneOf(REPORT_STOP_CONDITIONS, integrity.stopCondition)) {
+    return null;
+  }
+
+  const cohorts = readDataObject(root.cohorts);
+  if (!cohorts || !hasExactKeys(cohorts, REPORT_COHORTS_KEYS)) return null;
+
+  const hCycle = readDataObject(cohorts.hCycle);
+  if (!hCycle
+    || !hasExactKeys(hCycle, REPORT_H_CYCLE_KEYS)
+    || hCycle.policyVersion !== H_CYCLE_POLICY_VERSION
+    || !isOneOf(["healthy", "needs_attention", "insufficient_evidence"] as const, hCycle.verdict)
+    || !isOneOf(REPORT_H_CYCLE_REASONS, hCycle.reasonCode)
+    || !nullableCount(hCycle.eligibleWindowCount)
+    || !nullableCount(hCycle.requiredAdjacentWindows)) {
+    return null;
+  }
+
+  const hEval = readDataObject(cohorts.hEval);
+  if (!hEval
+    || !hasExactKeys(hEval, REPORT_H_EVAL_KEYS)
+    || hEval.policyVersion !== H_EVAL_POLICY_VERSION
+    || !isOneOf(["healthy", "needs_attention", "insufficient_evidence"] as const, hEval.verdict)
+    || !isOneOf(REPORT_H_EVAL_REASONS, hEval.reasonCode)
+    || !(hEval.decisionStage === null || isOneOf(H_EVAL_STAGES, hEval.decisionStage))) {
+    return null;
+  }
+
+  const hCache = readDataObject(cohorts.hCache);
+  const metrics = hCache ? readDataObject(hCache.metrics) : undefined;
+  if (!hCache
+    || !hasExactKeys(hCache, REPORT_H_CACHE_KEYS)
+    || hCache.usageSemanticsVersion !== USAGE_SEMANTICS_VERSION
+    || !isOneOf(["healthy", "needs_attention", "insufficient_evidence"] as const, hCache.verdict)
+    || !isOneOf(REPORT_H_CACHE_REASONS, hCache.reasonCode)
+    || !metrics
+    || !hasExactKeys(metrics, REPORT_CACHE_METRICS_KEYS)
+    || !nullableCount(metrics.beforeSampleCount)
+    || !nullableCount(metrics.afterSampleCount)
+    || !nullableDelta(metrics.cacheReadRateDeltaBps)
+    || !nullableDelta(metrics.freshInputPerTurnDeltaBps)
+    || !(metrics.cacheWriteTelemetry === null || isOneOf(CACHE_WRITE_TELEMETRY, metrics.cacheWriteTelemetry))) {
+    return null;
+  }
+
+  if (!Array.isArray(root.proposals) || root.proposals.length > MAX_PROPOSALS) return null;
+  const proposals: HarnessEvaluationProposalV1[] = [];
+  const kinds = new Set<string>();
+  let previousPriority = 0;
+  for (const candidate of root.proposals) {
+    const proposal = readDataObject(candidate);
+    if (!proposal
+      || !hasExactKeys(proposal, REPORT_PROPOSAL_KEYS)
+      || !isOneOf(REPORT_PROPOSAL_KINDS, proposal.kind)
+      || !isOneOf([1, 2, 3, 4, 5, 6, 7] as const, proposal.priority)
+      || proposal.priority !== proposalPriority(proposal.kind)
+      || !isOneOf(REPORT_PROPOSAL_REASONS, proposal.reasonCode)
+      || kinds.has(proposal.kind)
+      || proposal.priority <= previousPriority) {
+      return null;
+    }
+    kinds.add(proposal.kind);
+    previousPriority = proposal.priority;
+    proposals.push({ kind: proposal.kind, priority: proposal.priority, reasonCode: proposal.reasonCode });
+  }
+
+  return deepFreeze({
+    schema: "harness_evaluation_report_v1" as const,
+    mode: "manual_preview_only" as const,
+    automaticInterventionAllowed: false as const,
+    verdict: root.verdict,
+    integrity: { stopCondition: integrity.stopCondition },
+    cohorts: {
+      hCycle: {
+        policyVersion: H_CYCLE_POLICY_VERSION,
+        verdict: hCycle.verdict,
+        reasonCode: hCycle.reasonCode,
+        eligibleWindowCount: hCycle.eligibleWindowCount,
+        requiredAdjacentWindows: hCycle.requiredAdjacentWindows,
+      },
+      hEval: {
+        policyVersion: H_EVAL_POLICY_VERSION,
+        verdict: hEval.verdict,
+        reasonCode: hEval.reasonCode,
+        decisionStage: hEval.decisionStage,
+      },
+      hCache: {
+        usageSemanticsVersion: USAGE_SEMANTICS_VERSION,
+        verdict: hCache.verdict,
+        reasonCode: hCache.reasonCode,
+        metrics: {
+          beforeSampleCount: metrics.beforeSampleCount,
+          afterSampleCount: metrics.afterSampleCount,
+          cacheReadRateDeltaBps: metrics.cacheReadRateDeltaBps,
+          freshInputPerTurnDeltaBps: metrics.freshInputPerTurnDeltaBps,
+          cacheWriteTelemetry: metrics.cacheWriteTelemetry,
+        },
+      },
+    },
+    proposals,
+  });
+}
+
+/**
+ * Validates and copies a report at the durable boundary. The returned value
+ * contains only the closed aggregate schema and is detached from caller-owned
+ * objects, so persistence cannot retain accessors, proxies, or later mutations.
+ */
+export function normalizeHarnessEvaluationReportV1(value: unknown): HarnessEvaluationReportV1 | null {
+  try {
+    return normalizeReportValue(value);
+  } catch {
+    return null;
+  }
+}
+
+export function isHarnessEvaluationReportV1(value: unknown): value is HarnessEvaluationReportV1 {
+  return normalizeHarnessEvaluationReportV1(value) !== null;
 }

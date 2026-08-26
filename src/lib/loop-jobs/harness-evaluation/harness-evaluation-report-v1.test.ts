@@ -4,7 +4,9 @@ import test from "node:test";
 
 import {
   buildHarnessEvaluationReportV1,
+  isHarnessEvaluationReportV1,
   isHarnessEvaluationEvidenceV1,
+  normalizeHarnessEvaluationReportV1,
 } from "./harness-evaluation-report-v1";
 
 const hash = (character: string) => character.repeat(64);
@@ -284,6 +286,35 @@ test("A9A-CG5b exposes only a closed-schema validation bit for manual adapters",
   assert.equal(isHarnessEvaluationEvidenceV1({ ...evidence(), unexpected: true }), false);
   assert.equal(isHarnessEvaluationEvidenceV1(accessor), false);
   assert.equal(isHarnessEvaluationEvidenceV1(new Proxy(evidence(), {})), false);
+});
+
+test("A9B-CG1 normalizes a report into a detached closed aggregate envelope", () => {
+  const report = buildHarnessEvaluationReportV1(evidence());
+  const normalized = normalizeHarnessEvaluationReportV1(report);
+  assert.ok(normalized);
+  assert.equal(isHarnessEvaluationReportV1(report), true);
+  assert.deepEqual(normalized, report);
+  assert.notEqual(normalized, report);
+  assert.notEqual(normalized.cohorts, report.cohorts);
+  assertFrozenDeeply(normalized);
+
+  const mutableReport = structuredClone(report) as Record<string, unknown>;
+  const mutableNormalized = normalizeHarnessEvaluationReportV1(mutableReport);
+  assert.ok(mutableNormalized);
+  (mutableReport.cohorts as Record<string, unknown>).hCycle = null;
+  assert.equal(mutableNormalized.cohorts.hCycle.verdict, "healthy");
+
+  const extra = { ...structuredClone(report), unexpected: "must-not-persist" };
+  assert.equal(normalizeHarnessEvaluationReportV1(extra), null);
+  const accessor = structuredClone(report) as Record<string, unknown>;
+  Object.defineProperty(accessor, "cohorts", {
+    enumerable: true,
+    get() {
+      throw new Error("must-not-read");
+    },
+  });
+  assert.equal(normalizeHarnessEvaluationReportV1(accessor), null);
+  assert.equal(normalizeHarnessEvaluationReportV1(new Proxy(report, {})), null);
 });
 
 test("A9A-CG6 remains a pure manual report kernel", () => {

@@ -1282,6 +1282,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
       "docs/adr/0035-harness-evaluation-next-action-proposals.md",
+      "docs/adr/0036-harness-evaluation-durable-run-record.md",
       "docs/phase-progress.md",
       "package.json",
       "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
@@ -1297,7 +1298,10 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
+      "src/lib/harness-evaluation-run-v1.test.ts",
+      "src/lib/harness-evaluation-run-v1.ts",
       "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+      "prisma/migrations/20260826123000_harness_evaluation_run/migration.sql",
       "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
       "src/lib/loop-jobs/harness-evaluation/harness-evaluation-cache-cohort-v1.test.ts",
       "src/lib/loop-jobs/harness-evaluation/harness-evaluation-cache-cohort-v1.ts",
@@ -1844,7 +1848,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       createHash("sha256")
         .update(c3ProjectedSchema.slice(0, a8c1SchemaStart) + c3ProjectedSchema.slice(a8c1SchemaEnd), "utf8")
         .digest("hex"),
-      "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
+      "10eb43f9a3c4f30632ecd9d7f7b838910f6f22ddd6da39261e58f93b2b428d78",
       "C3 schema projection must reconstruct the pre-A8-C1 schema bytes",
     );
 
@@ -2010,11 +2014,15 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "docs/adr/0033-h-cycle-generation-fenced-execution.md",
         "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
         "docs/adr/0035-harness-evaluation-next-action-proposals.md",
+        "docs/adr/0036-harness-evaluation-durable-run-record.md",
         "docs/phase-progress.md",
         "package.json",
         "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
+        "prisma/migrations/20260826123000_harness_evaluation_run/migration.sql",
         "prisma/schema.prisma",
         "src/lib/h-cycle-evaluation-record.ts",
+        "src/lib/harness-evaluation-run-v1.test.ts",
+        "src/lib/harness-evaluation-run-v1.ts",
         "src/lib/loop-jobs/delivery.ts",
         "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
