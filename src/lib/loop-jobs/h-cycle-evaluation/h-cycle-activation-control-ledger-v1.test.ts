@@ -1081,7 +1081,7 @@ test("A8C1-CG4-T1 keeps the control ledger type-only, feature-off, and isolated 
     "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-job-contract-v1.ts": "f2429180b8286a98425b25ce8772206ab129f80c5bfe865795fb72c2a8468dbc",
     "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.ts": "a7f542b0101df367cca7dcfc7f90321d15c885b8bae4f8ed9a33899b6da86d51",
     "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.ts": "dd0cba88d498d95adb51d5efbcae46eeffeaf32b0073c130b74ee40caac7440f",
-    "src/lib/h-cycle-evaluation-record.ts": "9f8103d23f037a50bb53483bbd1e2e8acf85a43091a43b8bf7044ff0464378ee",
+    "src/lib/h-cycle-evaluation-record.ts": "7361228c143d47da8e77834dd571240c6e5db9a62be9b44f6d45d2c790ed3973",
     "src/lib/h-cycle-evidence-preview.ts": "3257b9c0954befd86d3b410c366974a87dfe43ffa88aafab3f2a38289e96b47f",
     "src/lib/h-cycle-evidence-preview-query.ts": "c5be617f652a186c7076867ad24b05fe5b35a195c7e5f5d0783d4a7ca5d76b3e",
     "scripts/preview-h-cycle-evidence.ts": "d03552e9458caf8cf3a26f562c5747c31fcbc29ee21bb2d6742ea8ed4c3b0c7d",

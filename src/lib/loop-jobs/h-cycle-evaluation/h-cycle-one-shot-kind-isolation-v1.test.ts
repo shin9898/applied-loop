@@ -1276,8 +1276,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
   test("A8C2-CG3-T1 scoped one-shot capability remains unreachable by default", async () => {
     const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba";
-    const protectedTreeEntryCount = 604;
-    const protectedTreeSha256 = "c3f26a74a3c88f9533243fc56f4e01b6be9a58f6c705a407d28055d093103ab1";
+    const protectedTreeEntryCount = 603;
+    const protectedTreeSha256 = "20fed7356656c4a2ded1080fe6b3455fdbe547f23d0ae328c1927b474de9eb1c";
     const allowedPaths = [
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
@@ -1285,6 +1285,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "docs/phase-progress.md",
       "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
       "prisma/schema.prisma",
+      "src/lib/h-cycle-evaluation-record.ts",
       "src/lib/loop-jobs/raw-state-adapter.ts",
       "src/lib/loop-jobs/state-machine.ts",
       "src/lib/loop-jobs/delivery.ts",
@@ -1440,7 +1441,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         assert.deepEqual(
           implementationChanges,
           allowedPaths,
-          "all historical and C3a/C3p/C3b/evaluation-contract static compatibility paths must be classified",
+          "all historical and C3a/C3p/C3b/C3c/evaluation-contract static compatibility paths must be classified",
         );
         return Object.freeze({ mode: "base_diff" as const, baseSha, paths: implementationChanges });
       }
@@ -1885,8 +1886,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     );
     for (const pinnedScopeLiteral of [
       'const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba"',
-      "const protectedTreeEntryCount = 604",
-      'const protectedTreeSha256 = "c3f26a74a3c88f9533243fc56f4e01b6be9a58f6c705a407d28055d093103ab1"',
+      "const protectedTreeEntryCount = 603",
+      'const protectedTreeSha256 = "20fed7356656c4a2ded1080fe6b3455fdbe547f23d0ae328c1927b474de9eb1c"',
       'gitNulPaths(["diff", "--name-only", "-z", baseSha, "--"])',
       'runGit(["ls-files", "--stage", "-z"], "buffer")',
       "splitNulRecords(indexResult.stdout as Buffer)",
@@ -1995,6 +1996,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "docs/phase-progress.md",
         "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
         "prisma/schema.prisma",
+        "src/lib/h-cycle-evaluation-record.ts",
         "src/lib/loop-jobs/delivery.ts",
         "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
@@ -2010,7 +2012,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "src/lib/loop-jobs/raw-state-adapter.ts",
         "src/lib/loop-jobs/state-machine.ts",
       ],
-      "fallback exclusion set must remain the exact C2-plus-C3a/C3p/C3b/evaluation-contract surface",
+      "fallback exclusion set must remain the exact C2-plus-C3a/C3p/C3b/C3c/evaluation-contract surface",
     );
     assert.equal(
       (dedicatedTestSource.match(/mkdtempSync\(join\(tmpdir\(\), "applied-loop-a8c2-cg[12]-"\)\)/g) ?? []).length,
@@ -2284,7 +2286,6 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.ts",
-      "src/lib/h-cycle-evaluation-record.ts",
       "src/lib/h-cycle-evidence-preview.ts",
       "src/lib/h-cycle-evidence-preview-query.ts",
       "scripts/preview-h-cycle-evidence.ts",
