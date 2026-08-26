@@ -322,6 +322,29 @@ const A8C3_IMMUTABLE_CONTENT_SHA256: Readonly<Record<string, string>> = {
 };
 const A8C3_REVIEW_ARTIFACT_PATH = "docs/plans/2026-08-26-a8-c3-generation-fenced-execution.md";
 const A8C3_REVIEW_ARTIFACT_SHA256 = "077242bf56f1549b2df47c8b5a9a733da75641f8958b48a15282bcf7542b5eb0";
+const A8C3P_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
+] as const;
+const A8C3P_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
+] as const;
+const A8C3P_IMMUTABLE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md": "eb6013e687aeb1b1c6bd036cac2989fb01ff54fc172829686d7f728f4c0978d4",
+};
+const A8C3P_REVIEW_ARTIFACT_PATH = "docs/plans/2026-08-26-a8-c3p-sqlite-transaction-primitive.md";
+const A8C3P_REVIEW_ARTIFACT_SHA256 = "95fa7af479d56b9000cd42a5676f1f8b3207633ab60ab84ea819ba308d6866de";
+const A8C3P_TEST_SUPPORT_CHILD_SOURCE_PATH =
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts";
 const A8C2_RUNTIME_SNIPPETS: Readonly<Record<string, Readonly<{
   baseSha256: string;
   snippets: ReadonlyArray<Readonly<{
@@ -1000,8 +1023,23 @@ function classifyLiteralExternalRuntimeEdge(
 
 async function assertExternalRuntimeEdgesFailClosed(root: string, sourceRoot: string, a4Root: string): Promise<void> {
   const compilerOptions = runtimeCompilerOptions(root);
+  const allSourceFiles = await sourceFiles(sourceRoot);
+  const c3pTestSupportChild = join(root, A8C3P_TEST_SUPPORT_CHILD_SOURCE_PATH);
+  assert.equal(
+    (A8C3P_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(A8C3P_TEST_SUPPORT_CHILD_SOURCE_PATH),
+    true,
+    "C3p test-support child must remain an explicitly classified source path",
+  );
+  assert.deepEqual(
+    allSourceFiles
+      .filter((path) => path === c3pTestSupportChild)
+      .map((path) => relative(root, path).split(sep).join("/")),
+    [A8C3P_TEST_SUPPORT_CHILD_SOURCE_PATH],
+    "only the exact C3p test-support child may be excluded from production runtime-edge scanning",
+  );
   const sources = [
-    ...(await sourceFiles(sourceRoot)).filter((path) => !path.endsWith(".test.ts") && !isAtOrBelow(a4Root, path)),
+    ...allSourceFiles.filter((path) =>
+      path !== c3pTestSupportChild && !path.endsWith(".test.ts") && !isAtOrBelow(a4Root, path)),
     ...(await sourceFiles(join(root, "scripts"))),
   ];
   const observedCss: string[] = [];
@@ -1388,6 +1426,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A8C1_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C3_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A8C3P_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1422,8 +1461,10 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A8C1_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C3_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A8C3P_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || path === A8C2_REVIEW_ARTIFACT_PATH
         || path === A8C3_REVIEW_ARTIFACT_PATH
+        || path === A8C3P_REVIEW_ARTIFACT_PATH
         || (POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
@@ -1548,6 +1589,23 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
       contentSha256(join(root, A8C3_REVIEW_ARTIFACT_PATH)),
       A8C3_REVIEW_ARTIFACT_SHA256,
       "A8-C3 local-only review artifact must retain its approved bytes",
+    );
+  }
+  const discoveredA8C3PPaths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A8C3P_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA8C3PPaths, [...A8C3P_ALLOWED_NON_H_EVAL_PATHS].sort());
+  for (const [path, expectedSha256] of Object.entries(A8C3P_IMMUTABLE_CONTENT_SHA256)) {
+    assert.equal(contentSha256(join(root, path)), expectedSha256, path);
+  }
+  if (untracked.includes(A8C3P_REVIEW_ARTIFACT_PATH)) {
+    assert.equal(
+      contentSha256(join(root, A8C3P_REVIEW_ARTIFACT_PATH)),
+      A8C3P_REVIEW_ARTIFACT_SHA256,
+      "A8-C3p local-only review artifact must retain its approved bytes",
     );
   }
   const c3StaticFenceSource = readFileSync(

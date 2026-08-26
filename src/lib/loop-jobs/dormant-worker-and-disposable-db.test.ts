@@ -219,6 +219,18 @@ const A8C3_ALLOWED_SRC_PATHS = [
 ] as const;
 const A8C3_ADR_PATH = "docs/adr/0033-h-cycle-generation-fenced-execution.md";
 const A8C3_ADR_SHA256 = "0f352cdebc117959ae5fe160c0c9a75c6379d2b78a96d18a5a979bb82c06da56";
+const A8C3P_ALLOWED_SRC_PATHS = [
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
+  "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+] as const;
+const A8C3P_ADR_PATH = "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md";
+const A8C3P_ADR_SHA256 = "eb6013e687aeb1b1c6bd036cac2989fb01ff54fc172829686d7f728f4c0978d4";
+const A8C3P_REVIEW_ARTIFACT_PATH = "docs/plans/2026-08-26-a8-c3p-sqlite-transaction-primitive.md";
+const A8C3P_REVIEW_ARTIFACT_SHA256 = "95fa7af479d56b9000cd42a5676f1f8b3207633ab60ab84ea819ba308d6866de";
 const workerEntry = join(process.cwd(), "src/lib/loop-jobs/worker.mjs");
 
 function sha256(bytes: Buffer | string): string {
@@ -673,7 +685,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
             || (A8C0_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A8C1_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A8C2_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
-            || (A8C3_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
+            || (A8C3_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
+            || (A8C3P_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
         ),
         true,
       );
@@ -765,11 +778,37 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => (A8C3_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.deepEqual(discoveredA8C3Sources, [...A8C3_ALLOWED_SRC_PATHS].sort());
+      const discoveredA8C3PSources = [
+        ...execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" })
+          .trim().split("\n").filter(Boolean),
+        ...untrackedSource,
+      ]
+        .filter((path) => (A8C3P_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .sort();
+      assert.deepEqual(discoveredA8C3PSources, [...A8C3P_ALLOWED_SRC_PATHS].sort());
       assert.equal(
         sha256(await readFile(join(process.cwd(), A8C3_ADR_PATH))),
         A8C3_ADR_SHA256,
         "A8-C3 ADR bytes must remain independently pinned",
       );
+      assert.equal(
+        sha256(await readFile(join(process.cwd(), A8C3P_ADR_PATH))),
+        A8C3P_ADR_SHA256,
+        "A8-C3p ADR bytes must remain independently pinned",
+      );
+      try {
+        assert.equal(
+          sha256(await readFile(join(process.cwd(), A8C3P_REVIEW_ARTIFACT_PATH))),
+          A8C3P_REVIEW_ARTIFACT_SHA256,
+          "A8-C3p local-only review artifact must retain its approved bytes",
+        );
+      } catch (error) {
+        assert.equal(
+          (error as NodeJS.ErrnoException).code,
+          "ENOENT",
+          "A8-C3p review artifact may be absent only in a clean implementation worktree",
+        );
+      }
       const c3StaticFenceSource = await readFile(
         join(process.cwd(), "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts"),
         "utf8",
@@ -788,6 +827,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
       for (const requiredLiteral of [
         "A8C3_IMMUTABLE_CONTENT_SHA256",
         "A8C3_REVIEW_ARTIFACT_SHA256",
+        "A8C3P_IMMUTABLE_CONTENT_SHA256",
+        "A8C3P_REVIEW_ARTIFACT_SHA256",
         "const c3StaticFenceSource = readFileSync(",
       ]) {
         assert.equal(hEvalStaticGuardSource.includes(requiredLiteral), true, `missing independent C3 cross-check: ${requiredLiteral}`);
