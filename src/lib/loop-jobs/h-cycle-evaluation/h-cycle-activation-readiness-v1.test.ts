@@ -519,7 +519,6 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
     "src/lib/h-cycle-evidence-preview.ts": "3257b9c0954befd86d3b410c366974a87dfe43ffa88aafab3f2a38289e96b47f",
     "src/lib/loop-jobs/delivery-no-echo-helper.ts": "e40df38bee18b316dd2b8d98a60f1a9233393a71efb9135d114dc6771ec1b6eb",
     "src/lib/loop-jobs/delivery.ts": "4062126950275118d7ee2d5f772e9a05926c2fda67ec8e48d94142ad3e80bc67",
-    "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.test.ts": "cbb3323e8c68385e85c5239fa36b952cd0573c0f3b94fdc321f05511876dbb51",
     "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.ts": "dd0cba88d498d95adb51d5efbcae46eeffeaf32b0073c130b74ee40caac7440f",
     "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-job-contract-v1.ts": "f2429180b8286a98425b25ce8772206ab129f80c5bfe865795fb72c2a8468dbc",
     "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-planner-v1.test.ts": "cbab8cf5f96f5a5ffc8b837db57c2f65e76201f044c54ed21f006c186ba563e7",
@@ -528,6 +527,10 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
     "src/lib/loop-jobs/worker-phase1.mjs": "89cfc559cb1b386d3adf504be5322d317caf076abd6c1dadf16f1d87c4d667d4",
     "src/lib/loop-jobs/worker-phase2.ts": "9569be398c439eccac6bfbae86677a1f6d61211ee11a7b4d592f5622490c778d",
     "src/lib/loop-jobs/worker.mjs": "25a09e3c904ef4feb85839ef1821209432d14842665cf36cd197d7bdbd1a6e49",
+  };
+  const c3bCompatibilitySurfaceSha256: Readonly<Record<string, string>> = {
+    "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.test.ts":
+      "97d8e8eee79d167c989244bd06cf0500c0503005295fed54ebcdde9f2ae30662",
   };
   const sha256 = (path: string): string => createHash("sha256")
     .update(readFileSync(join(root, path)))
@@ -567,10 +570,92 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
       },
     ],
   };
+  const a8c3Regions: Readonly<Record<string, ReadonlyArray<Readonly<{
+    begin: string;
+    end: string;
+    leading: string;
+    trailing: string;
+  }>>>> = {
+    "prisma/schema.prisma": [
+      {
+        begin: "// A8-C3 BEGIN: LoopJob execution generation metadata",
+        end: "// A8-C3 END: LoopJob execution generation metadata",
+        leading: "  ",
+        trailing: "\n",
+      },
+      {
+        begin: "// A8-C3 BEGIN: LoopJob execution generation indexes",
+        end: "// A8-C3 END: LoopJob execution generation indexes",
+        leading: "  ",
+        trailing: "\n",
+      },
+      {
+        begin: "// A8-C3 BEGIN: HCycle activation execution jobs relation",
+        end: "// A8-C3 END: HCycle activation execution jobs relation",
+        leading: "  ",
+        trailing: "\n",
+      },
+    ],
+    "src/lib/loop-jobs/state-machine.ts": [
+      {
+        begin: "// A8-C3 BEGIN: generic owned mutation reserved-kind fence",
+        end: "// A8-C3 END: generic owned mutation reserved-kind fence",
+        leading: "    ",
+        trailing: "\n",
+      },
+      {
+        begin: "// A8-C3 BEGIN: generic queue enqueue reserved-kind fence",
+        end: "// A8-C3 END: generic queue enqueue reserved-kind fence",
+        leading: "      ",
+        trailing: "\n",
+      },
+      {
+        begin: "// A8-C3 BEGIN: generic queue claimKind reserved-kind fence",
+        end: "// A8-C3 END: generic queue claimKind reserved-kind fence",
+        leading: "        ",
+        trailing: "\n",
+      },
+    ],
+    "src/lib/loop-jobs/delivery.ts": [
+      {
+        begin: "// A8-C3 BEGIN: generic delivery reserved-kind post-claim fence",
+        end: "// A8-C3 END: generic delivery reserved-kind post-claim fence",
+        leading: "  ",
+        trailing: "\n",
+      },
+      {
+        begin: "// A8-C3 BEGIN: kind-isolated delivery reserved-kind pre-claim fence",
+        end: "// A8-C3 END: kind-isolated delivery reserved-kind pre-claim fence",
+        leading: "    ",
+        trailing: "\n",
+      },
+    ],
+  };
+  const projectBeforeA8C3 = (path: string, source: string): string => {
+    const regions = a8c3Regions[path] ?? [];
+    const intervals = regions.map((region) => {
+      assert.equal(source.split(region.begin).length - 1, 1, `${path}: A8-C3 begin marker count`);
+      assert.equal(source.split(region.end).length - 1, 1, `${path}: A8-C3 end marker count`);
+      const beginStart = source.indexOf(region.begin);
+      const endStart = source.indexOf(region.end, beginStart + region.begin.length);
+      const start = beginStart - region.leading.length;
+      const end = endStart + region.end.length + region.trailing.length;
+      assert.ok(beginStart >= 0 && endStart > beginStart && start >= 0, `${path}: A8-C3 marker order`);
+      assert.equal(source.slice(start, beginStart), region.leading, `${path}: A8-C3 leading delimiter`);
+      assert.equal(source.slice(endStart + region.end.length, end), region.trailing, `${path}: A8-C3 trailing delimiter`);
+      return { start, end };
+    }).sort((left, right) => right.start - left.start);
+    for (let index = 1; index < intervals.length; index += 1) {
+      assert.ok(intervals[index - 1].start >= intervals[index].end, `${path}: A8-C3 regions must not overlap`);
+    }
+    let projected = source;
+    for (const interval of intervals) projected = projected.slice(0, interval.start) + projected.slice(interval.end);
+    return projected;
+  };
   const sha256BeforeA8C2 = (path: string): string => {
     const snippets = a8c2Snippets[path];
     if (!snippets) return sha256(path);
-    const source = readFileSync(join(root, path), "utf8");
+    const source = projectBeforeA8C3(path, readFileSync(join(root, path), "utf8"));
     let cursor = 0;
     let reconstructed = "";
     for (const snippet of snippets) {
@@ -594,9 +679,12 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
   for (const [path, expectedSha256] of Object.entries(immutableSurfaceSha256)) {
     assert.equal(sha256BeforeA8C2(path), expectedSha256, path);
   }
+  for (const [path, expectedSha256] of Object.entries(c3bCompatibilitySurfaceSha256)) {
+    assert.equal(sha256(path), expectedSha256, path);
+  }
 
   const schemaPath = join(root, "prisma/schema.prisma");
-  const schemaSource = readFileSync(schemaPath, "utf8");
+  const schemaSource = projectBeforeA8C3("prisma/schema.prisma", readFileSync(schemaPath, "utf8"));
   const a8c1SchemaStart = schemaSource.indexOf("// A8-C1: redacted control facts only.");
   const a8c1SchemaEnd = schemaSource.indexOf("// 学び", a8c1SchemaStart);
   assert.ok(a8c1SchemaStart >= 0 && a8c1SchemaEnd > a8c1SchemaStart, "A8-C1 schema addition must remain self-contained");
@@ -607,10 +695,16 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
   );
 
   const a8c1MigrationPath = "prisma/migrations/20260824160000_h_cycle_activation_control_ledger/migration.sql";
-  const migrationPaths = lines(["ls-files", "prisma/migrations/*/migration.sql"]);
-  assert.equal(migrationPaths.length, 17, "migration path surface must contain only the explicit A8-C1 addition");
+  const a8c3bMigrationPath = "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql";
+  const migrationPaths = [...new Set([
+    ...lines(["ls-files", "prisma/migrations/*/migration.sql"]),
+    ...lines(["ls-files", "--others", "--exclude-standard", "prisma/migrations/*/migration.sql"]),
+  ])].sort();
+  assert.equal(migrationPaths.length, 18, "migration path surface must contain only the explicit A8-C1 and C3b additions");
   assert.deepEqual(migrationPaths.filter((path) => path === a8c1MigrationPath), [a8c1MigrationPath]);
-  const preA8C1MigrationPaths = migrationPaths.filter((path) => path !== a8c1MigrationPath);
+  assert.deepEqual(migrationPaths.filter((path) => path === a8c3bMigrationPath), [a8c3bMigrationPath]);
+  assert.equal(sha256(a8c3bMigrationPath), "9b77d5414d1363d7edc53844b865f15f152f83913a69ccd48784e2bb80ebb624");
+  const preA8C1MigrationPaths = migrationPaths.filter((path) => path !== a8c1MigrationPath && path !== a8c3bMigrationPath);
   assert.equal(preA8C1MigrationPaths.length, 16, "pre-A8-C1 migration path surface must remain exact");
   const migrationAggregate = preA8C1MigrationPaths.sort()
     .map((path) => `${path}\t${sha256(path)}\n`)
