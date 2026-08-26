@@ -12,7 +12,13 @@ import {
   buildHarnessEvaluationReportV1,
   normalizeHarnessEvaluationReportV1,
 } from "./loop-jobs/harness-evaluation/harness-evaluation-report-v1";
-import { persistHarnessEvaluationRunV1 } from "./harness-evaluation-run-v1";
+import {
+  deriveHarnessEvaluationWindowKeyHashV1,
+  evaluateHarnessEvaluationWindowsV1,
+  isHarnessEvaluationWindowV1,
+  normalizeHarnessEvaluationWindowV1,
+  persistHarnessEvaluationRunV1,
+} from "./harness-evaluation-run-v1";
 
 const hash = (character: string) => character.repeat(64);
 
@@ -210,4 +216,155 @@ test("A9B-CG3 enforces append-only rows and keeps the writer detached from execu
     assert.doesNotMatch(writerSource, /(?:DATABASE_URL|launchd|launchctl|setInterval|setTimeout|fetch\(|process\.env|rawToken|prompt|answer)/i);
     assert.doesNotMatch(writerSource, /(?:h-eval-preview-cli|harness-evaluation-report-preview-main|createLoopJobQueue|runOneDelivery)/);
   });
+});
+
+function windowSource(overrides: Record<string, unknown> = {}) {
+  return {
+    schema: "harness_evaluation_window_source_v1",
+    cohort: "h_eval",
+    policyVersion: "v1",
+    scopeHash: hash("a"),
+    cadence: "weekly",
+    periodOrdinal: 1,
+    periodStartEpochMs: 1_000,
+    periodEndEpochMs: 2_000,
+    outcome: "supported",
+    decisionStage: "provisional",
+    ...overrides,
+  };
+}
+
+function windowSet(...windows: readonly unknown[]) {
+  return { schema: "harness_evaluation_window_set_v1", windows };
+}
+
+test("A9D1-CG1 normalizes an opaque window and derives a stable durable identity", () => {
+  const normalized = normalizeHarnessEvaluationWindowV1(windowSource());
+  assert.ok(normalized);
+  assert.equal(normalized.schema, "harness_evaluation_window_v1");
+  assert.match(normalized.periodHash, /^[0-9a-f]{64}$/);
+  assert.match(deriveHarnessEvaluationWindowKeyHashV1(normalized), /^[0-9a-f]{64}$/);
+  assert.equal(isHarnessEvaluationWindowV1(windowSource()), true);
+  assert.equal(isHarnessEvaluationWindowV1({ ...windowSource(), scopeHash: "raw-repo-path" }), false);
+  assert.equal(JSON.stringify(normalized).includes("raw-repo-path"), false);
+  assert.equal(Object.isFrozen(normalized), true);
+});
+
+test("A9D1-CG1 keeps one completed window in baseline collection", () => {
+  const result = evaluateHarnessEvaluationWindowsV1(windowSet(windowSource()));
+  assert.equal(result.status, "baseline_collecting");
+  assert.equal(result.reasonCode, "fewer_than_two_completed_windows");
+  assert.equal(result.outcome, "inconclusive");
+  assert.equal(result.observedWindowCount, 1);
+  assert.equal(result.adjacentWindowCount, 0);
+  assert.match(result.evaluationKeyHash ?? "", /^[0-9a-f]{64}$/);
+  assert.equal(result.automaticInterventionAllowed, false);
+  assert.equal(Object.isFrozen(result), true);
+});
+
+test("A9D1-CG2 selects only same-scope adjacent windows and promotes a stable final outcome", () => {
+  const first = windowSource();
+  const second = windowSource({
+    periodOrdinal: 2,
+    periodStartEpochMs: 2_000,
+    periodEndEpochMs: 3_000,
+    decisionStage: "final",
+  });
+  const result = evaluateHarnessEvaluationWindowsV1(windowSet(second, first));
+  assert.deepEqual(
+    {
+      status: result.status,
+      outcome: result.outcome,
+      decisionStage: result.decisionStage,
+      reasonCode: result.reasonCode,
+      observedWindowCount: result.observedWindowCount,
+      adjacentWindowCount: result.adjacentWindowCount,
+    },
+    {
+      status: "eligible",
+      outcome: "supported",
+      decisionStage: "final",
+      reasonCode: "eligible_window",
+      observedWindowCount: 2,
+      adjacentWindowCount: 2,
+    },
+  );
+  assert.notEqual(result.currentPeriodHash, result.previousPeriodHash);
+  assert.equal(result.currentPeriodHash, normalizeHarnessEvaluationWindowV1(second)?.periodHash);
+});
+
+test("A9D1-CG2 keeps gaps, changed outcomes, and provisional windows from becoming eligible", () => {
+  const first = windowSource();
+  const gap = windowSource({
+    periodOrdinal: 3,
+    periodStartEpochMs: 3_000,
+    periodEndEpochMs: 4_000,
+    decisionStage: "final",
+  });
+  assert.equal(evaluateHarnessEvaluationWindowsV1(windowSet(first, gap)).reasonCode, "no_adjacent_completed_windows");
+
+  const changed = windowSource({
+    periodOrdinal: 2,
+    periodStartEpochMs: 2_000,
+    periodEndEpochMs: 3_000,
+    outcome: "rejected",
+    decisionStage: "final",
+  });
+  assert.equal(evaluateHarnessEvaluationWindowsV1(windowSet(first, changed)).reasonCode, "outcome_changed");
+
+  const provisional = windowSource({
+    periodOrdinal: 2,
+    periodStartEpochMs: 2_000,
+    periodEndEpochMs: 3_000,
+  });
+  assert.equal(evaluateHarnessEvaluationWindowsV1(windowSet(first, provisional)).reasonCode, "current_window_provisional");
+
+  const inconclusive = windowSource({
+    periodOrdinal: 2,
+    periodStartEpochMs: 2_000,
+    periodEndEpochMs: 3_000,
+    outcome: "inconclusive",
+  });
+  assert.equal(evaluateHarnessEvaluationWindowsV1(windowSet(first, inconclusive)).reasonCode, "inconclusive_window");
+});
+
+test("A9D1-CG3 fails closed for mixed cohorts, tampered windows, proxies, and raw-looking input", () => {
+  const mixed = evaluateHarnessEvaluationWindowsV1(windowSet(
+    windowSource(),
+    windowSource({
+      periodOrdinal: 2,
+      periodStartEpochMs: 2_000,
+      periodEndEpochMs: 3_000,
+      cohort: "h_cache",
+      policyVersion: "harness-usage-v1",
+      decisionStage: "final",
+    }),
+  ));
+  assert.deepEqual(
+    {
+      status: mixed.status,
+      reasonCode: mixed.reasonCode,
+      evaluationKeyHash: mixed.evaluationKeyHash,
+      observedWindowCount: mixed.observedWindowCount,
+    },
+    { status: "inconclusive", reasonCode: "invalid_window", evaluationKeyHash: null, observedWindowCount: 0 },
+  );
+
+  const tampered = evaluateHarnessEvaluationWindowsV1(windowSet({
+    ...windowSource(),
+    periodHash: hash("x"),
+  }));
+  assert.equal(tampered.reasonCode, "invalid_window");
+
+  const proxied = new Proxy(windowSet(windowSource()), {});
+  assert.equal(evaluateHarnessEvaluationWindowsV1(proxied).reasonCode, "invalid_window");
+
+  const secret = "prompt-secret /Users/private/answer-token";
+  const invalid = evaluateHarnessEvaluationWindowsV1(windowSet({
+    ...windowSource(),
+    scopeHash: secret,
+    unexpected: secret,
+  }));
+  assert.equal(invalid.reasonCode, "invalid_window");
+  assert.doesNotMatch(JSON.stringify(invalid), /prompt-secret|\/Users\/private|answer-token/);
 });
