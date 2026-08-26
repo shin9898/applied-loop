@@ -478,10 +478,12 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='LoopJob' AND name NOT LIKE 'sqlite_autoindex%' ORDER BY name",
       ).all().map((row) => row.name);
       database.close();
-      assert.equal((tableSql.match(/CHECK/g) ?? []).length, 9);
+      assert.equal((tableSql.match(/CHECK/g) ?? []).length, 10);
       assert.equal(tableSql.includes("CURRENT_TIMESTAMP"), false);
       assert.deepEqual(indexes, [
         "LoopJob_dedupeKey_key",
+        "LoopJob_kind_executionGenerationSequence_status_availableAt_idx",
+        "LoopJob_kind_executionGenerationSequence_status_leaseExpiresAt_idx",
         "LoopJob_status_availableAt_idx",
         "LoopJob_status_leaseExpiresAt_idx",
       ]);

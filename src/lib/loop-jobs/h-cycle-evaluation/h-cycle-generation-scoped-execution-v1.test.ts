@@ -236,7 +236,9 @@ test("A8C3B-CG1-T1 keeps H-CYCLE generation-scoped and generic queue paths inert
     assert.match(loopJobSql?.sql as string, /LoopJob_executionGenerationSequence_fkey/);
     assert.match(loopJobSql?.sql as string, /LoopJob_execution_generation_shape_check/);
     const indexRows = directStatement(direct, `
-      SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'LoopJob' ORDER BY name
+      SELECT name FROM sqlite_master
+      WHERE type = 'index' AND tbl_name = 'LoopJob' AND name NOT LIKE 'sqlite_autoindex%'
+      ORDER BY name
     `).all().map((row) => row.name);
     assert.deepEqual(indexRows, [
       "LoopJob_dedupeKey_key",
