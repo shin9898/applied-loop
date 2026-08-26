@@ -30,6 +30,8 @@ const PARENT_WAIT_TIMEOUT_MS = 1_000;
 const C3P_HELPER_PATH = "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts";
 const C3P_TEST_PATH = "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts";
 const C3P_CHILD_PATH = "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts";
+const C3B_EXECUTION_PATH = "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.ts";
+const C3B_TEST_PATH = "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.test.ts";
 const resolveFromTest = createRequire(import.meta.url);
 
 type DataRecord = Record<string, unknown>;
@@ -415,7 +417,7 @@ function assertC3pStaticSourceGraph(): void {
     };
     visit(file);
   }
-  assert.deepEqual(helperImportConsumers, [C3P_TEST_PATH]);
+  assert.deepEqual(helperImportConsumers, [C3B_TEST_PATH, C3P_TEST_PATH]);
   assert.deepEqual(childImportConsumers, []);
   assert.deepEqual(helperReexportConsumers, []);
   assert.deepEqual(childReexportConsumers, []);
@@ -430,6 +432,14 @@ function assertC3pStaticSourceGraph(): void {
   );
   assert.doesNotMatch(helperSource, /(?:["'`])\s*(?:BEGIN|COMMIT|ROLLBACK|SELECT|INSERT|UPDATE|DELETE)\b/);
   assert.doesNotMatch(helperSource, /\basync\b|\bPromise\b|\.then\(/);
+
+  const c3bExecutionSource = readFileSync(join(root, C3B_EXECUTION_PATH), "utf8");
+  assert.doesNotMatch(c3bExecutionSource, /h-cycle-sqlite-immediate-write-transaction-v1/);
+  assert.match(c3bExecutionSource, /runImmediate/);
+  assert.doesNotMatch(
+    c3bExecutionSource,
+    /(?:process\.env|DATABASE_URL|DOTENV_CONFIG_PATH|Prisma|createRequire|better-sqlite3|new\s+Worker|launchd|scheduler|worker-phase|runOneDelivery|runOneKindDelivery)/,
+  );
 
   const childSource = readFileSync(join(root, C3P_CHILD_PATH), "utf8");
   assert.doesNotMatch(childSource, /process\.env|console\./);

@@ -345,6 +345,36 @@ const A8C3P_REVIEW_ARTIFACT_PATH = "docs/plans/2026-08-26-a8-c3p-sqlite-transact
 const A8C3P_REVIEW_ARTIFACT_SHA256 = "95fa7af479d56b9000cd42a5676f1f8b3207633ab60ab84ea819ba308d6866de";
 const A8C3P_TEST_SUPPORT_CHILD_SOURCE_PATH =
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts";
+const A8C3B_ALLOWED_NON_H_EVAL_PATHS = [
+  "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
+  "prisma/schema.prisma",
+  "src/lib/loop-jobs/raw-state-adapter.ts",
+  "src/lib/loop-jobs/state-machine.ts",
+  "src/lib/loop-jobs/delivery.ts",
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
+] as const;
+const A8C3B_ADDITIVE_NON_H_EVAL_PATHS = [
+  "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.ts",
+] as const;
+const A8C3B_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.ts",
+] as const;
+const A8C3B_IMMUTABLE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql":
+    "9b77d5414d1363d7edc53844b865f15f152f83913a69ccd48784e2bb80ebb624",
+};
+const A8C3B_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "prisma/schema.prisma": "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
+};
 const A8C2_RUNTIME_SNIPPETS: Readonly<Record<string, Readonly<{
   baseSha256: string;
   snippets: ReadonlyArray<Readonly<{
@@ -397,6 +427,99 @@ const A8C2_RUNTIME_SNIPPETS: Readonly<Record<string, Readonly<{
       },
     ],
   },
+};
+const A8C3B_RUNTIME_REGIONS: Readonly<Record<string, ReadonlyArray<Readonly<{
+  begin: string;
+  end: string;
+  leading: string;
+  trailing: string;
+}>>>> = {
+  "prisma/schema.prisma": [
+    {
+      begin: "// A8-C3 BEGIN: LoopJob execution generation metadata",
+      end: "// A8-C3 END: LoopJob execution generation metadata",
+      leading: "  ",
+      trailing: "\n",
+    },
+    {
+      begin: "// A8-C3 BEGIN: LoopJob execution generation indexes",
+      end: "// A8-C3 END: LoopJob execution generation indexes",
+      leading: "  ",
+      trailing: "\n",
+    },
+    {
+      begin: "// A8-C3 BEGIN: HCycle activation execution jobs relation",
+      end: "// A8-C3 END: HCycle activation execution jobs relation",
+      leading: "  ",
+      trailing: "\n",
+    },
+  ],
+  "src/lib/loop-jobs/raw-state-adapter.ts": [
+    {
+      begin: "-- A8-C3 BEGIN: generic raw claim candidate reserved-kind fence",
+      end: "-- A8-C3 END: generic raw claim candidate reserved-kind fence",
+      leading: "        ",
+      trailing: "\n",
+    },
+    {
+      begin: "-- A8-C3 BEGIN: generic raw claim outer reserved-kind fence",
+      end: "-- A8-C3 END: generic raw claim outer reserved-kind fence",
+      leading: "      ",
+      trailing: "\n",
+    },
+    {
+      begin: "-- A8-C3 BEGIN: generic renew reserved-kind fence",
+      end: "-- A8-C3 END: generic renew reserved-kind fence",
+      leading: "      ",
+      trailing: "\n",
+    },
+    {
+      begin: "-- A8-C3 BEGIN: generic recovery candidate reserved-kind fence",
+      end: "-- A8-C3 END: generic recovery candidate reserved-kind fence",
+      leading: "        ",
+      trailing: "\n",
+    },
+    {
+      begin: "-- A8-C3 BEGIN: generic recovery outer reserved-kind fence",
+      end: "-- A8-C3 END: generic recovery outer reserved-kind fence",
+      leading: "      ",
+      trailing: "\n",
+    },
+  ],
+  "src/lib/loop-jobs/state-machine.ts": [
+    {
+      begin: "// A8-C3 BEGIN: generic owned mutation reserved-kind fence",
+      end: "// A8-C3 END: generic owned mutation reserved-kind fence",
+      leading: "    ",
+      trailing: "\n",
+    },
+    {
+      begin: "// A8-C3 BEGIN: generic queue enqueue reserved-kind fence",
+      end: "// A8-C3 END: generic queue enqueue reserved-kind fence",
+      leading: "      ",
+      trailing: "\n",
+    },
+    {
+      begin: "// A8-C3 BEGIN: generic queue claimKind reserved-kind fence",
+      end: "// A8-C3 END: generic queue claimKind reserved-kind fence",
+      leading: "        ",
+      trailing: "\n",
+    },
+  ],
+  "src/lib/loop-jobs/delivery.ts": [
+    {
+      begin: "// A8-C3 BEGIN: generic delivery reserved-kind post-claim fence",
+      end: "// A8-C3 END: generic delivery reserved-kind post-claim fence",
+      leading: "  ",
+      trailing: "\n",
+    },
+    {
+      begin: "// A8-C3 BEGIN: kind-isolated delivery reserved-kind pre-claim fence",
+      end: "// A8-C3 END: kind-isolated delivery reserved-kind pre-claim fence",
+      leading: "    ",
+      trailing: "\n",
+    },
+  ],
 };
 // This mainline-only ADR arrived after A8-B1. Keep it classified separately
 // from A8-B2 so the historical scope guard remains exact without claiming the
@@ -1092,10 +1215,46 @@ function contentSha256(path: string): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+function projectBeforeA8C3Source(path: string, source: string): string {
+  const regions = A8C3B_RUNTIME_REGIONS[path] ?? [];
+  const intervals = regions.map((region) => {
+    assert.equal(source.split(region.begin).length - 1, 1, `${path}: A8-C3 begin marker count`);
+    assert.equal(source.split(region.end).length - 1, 1, `${path}: A8-C3 end marker count`);
+    const beginStart = source.indexOf(region.begin);
+    const endStart = source.indexOf(region.end, beginStart + region.begin.length);
+    const start = beginStart - region.leading.length;
+    const end = endStart + region.end.length + region.trailing.length;
+    assert.ok(beginStart >= 0 && endStart > beginStart && start >= 0, `${path}: A8-C3 marker order`);
+    assert.equal(source.slice(start, beginStart), region.leading, `${path}: A8-C3 leading delimiter`);
+    assert.equal(source.slice(endStart + region.end.length, end), region.trailing, `${path}: A8-C3 trailing delimiter`);
+    return { start, end };
+  }).sort((left, right) => right.start - left.start);
+  for (let index = 1; index < intervals.length; index += 1) {
+    assert.ok(intervals[index - 1].start >= intervals[index].end, `${path}: A8-C3 regions must not overlap`);
+  }
+  let projected = source;
+  for (const interval of intervals) projected = projected.slice(0, interval.start) + projected.slice(interval.end);
+  return projected;
+}
+
+function preA8C3ContentSha256(root: string, path: string): string | undefined {
+  const expected = A8C3B_MODIFIED_BASE_CONTENT_SHA256[path];
+  if (expected === undefined) return undefined;
+  const source = projectBeforeA8C3Source(path, readFileSync(join(root, path), "utf8"));
+  const additionStart = source.indexOf("// A8-C1: redacted control facts only.");
+  const additionEnd = source.indexOf("// 学び", additionStart);
+  assert.ok(additionStart >= 0 && additionEnd > additionStart, `${path}: A8-C1 schema block`);
+  const sha256 = createHash("sha256")
+    .update(source.slice(0, additionStart) + source.slice(additionEnd), "utf8")
+    .digest("hex");
+  assert.equal(sha256, expected, `${path}: pre-A8-C3 byte reconstruction`);
+  return sha256;
+}
+
 function preA8C2ContentSha256(root: string, path: string): string | undefined {
   const contract = A8C2_RUNTIME_SNIPPETS[path];
   if (!contract) return undefined;
-  const source = readFileSync(join(root, path), "utf8");
+  const source = projectBeforeA8C3Source(path, readFileSync(join(root, path), "utf8"));
   let cursor = 0;
   let reconstructed = "";
   for (const snippet of contract.snippets) {
@@ -1427,6 +1586,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A8C2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C3_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C3P_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A8C3B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1436,8 +1596,9 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     "unexpected non-A4/A5/A6/A7/A7B tracked path count",
   );
   for (const path of Object.keys(A8C2_RUNTIME_SNIPPETS)) preA8C2ContentSha256(root, path);
+  for (const path of Object.keys(A8C3B_MODIFIED_BASE_CONTENT_SHA256)) preA8C3ContentSha256(root, path);
   const aggregate = nonA4A5A6Tracked
-    .map((path) => `${path}\t${A7_MODIFIED_BASE_CONTENT_SHA256[path] ?? A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7B_MODIFIED_BASE_CONTENT_SHA256[path] ?? A8B_MODIFIED_BASE_CONTENT_SHA256[path] ?? preA8C2ContentSha256(root, path) ?? contentSha256(join(root, path))}\n`)
+    .map((path) => `${path}\t${A7_MODIFIED_BASE_CONTENT_SHA256[path] ?? A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7B_MODIFIED_BASE_CONTENT_SHA256[path] ?? A8B_MODIFIED_BASE_CONTENT_SHA256[path] ?? preA8C2ContentSha256(root, path) ?? preA8C3ContentSha256(root, path) ?? contentSha256(join(root, path))}\n`)
     .join("");
   assert.equal(
     createHash("sha256").update(aggregate, "utf8").digest("hex"),
@@ -1462,13 +1623,14 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A8C2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C3_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C3P_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A8C3B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || path === A8C2_REVIEW_ARTIFACT_PATH
         || path === A8C3_REVIEW_ARTIFACT_PATH
         || path === A8C3P_REVIEW_ARTIFACT_PATH
         || (POST_A8B1_MAINLINE_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ),
     true,
-    "unexpected untracked path outside the A3/A4/A5/A6/A7/A7B/A7C/A8A/A8B allowlist",
+    "unexpected untracked path outside the A3/A4/A5/A6/A7/A7B/A7C/A8A/A8B/A8C3b allowlist",
   );
   const discoveredA5Paths = [
     ...gitLines(root, ["ls-files"]),
@@ -1557,7 +1719,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .sort();
   assert.deepEqual(discoveredA8C1Paths, [...A8C1_ALLOWED_NON_H_EVAL_PATHS].sort());
   for (const [path, expectedSha256] of Object.entries(A8C1_MODIFIED_BASE_CONTENT_SHA256)) {
-    const source = readFileSync(join(root, path), "utf8");
+    const source = projectBeforeA8C3Source(path, readFileSync(join(root, path), "utf8"));
     const additionStart = source.indexOf("// A8-C1: redacted control facts only.");
     const additionEnd = source.indexOf("// 学び", additionStart);
     assert.ok(additionStart >= 0 && additionEnd > additionStart, "A8-C1 Prisma addition must remain self-contained");
@@ -1608,24 +1770,42 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
       "A8-C3p local-only review artifact must retain its approved bytes",
     );
   }
+  const discoveredA8C3BPaths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A8C3B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA8C3BPaths, [...A8C3B_ALLOWED_NON_H_EVAL_PATHS].sort());
+  for (const [path, expectedSha256] of Object.entries(A8C3B_IMMUTABLE_CONTENT_SHA256)) {
+    assert.equal(contentSha256(join(root, path)), expectedSha256, path);
+  }
   const c3StaticFenceSource = readFileSync(
     join(root, "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts"),
     "utf8",
   );
   for (const requiredLiteral of [
-    "const c3RegionManifest: readonly C3RegionSpec[] = [];",
+    "const c3RegionManifest: readonly C3RegionSpec[] = [",
     "ts.SyntaxKind.SingleLineCommentTrivia",
+    "const lineMarker =",
     "const projectC3Regions = (",
     "C3 projection must remove only declared actual-comment regions and reconstruct C2 bytes",
   ]) {
     assert.equal(c3StaticFenceSource.includes(requiredLiteral), true, `missing C3 static-fence literal: ${requiredLiteral}`);
   }
-  for (const path of Object.keys(A8C2_RUNTIME_SNIPPETS)) {
-    assert.doesNotMatch(
-      readFileSync(join(root, path), "utf8"),
-      /^\s*\/\/ A8-C3 (?:BEGIN|END):/m,
-      `${path}: C3a must not add a runtime C3 marker before a separately frozen C3b slice`,
-    );
+  assert.deepEqual(
+    Object.keys(A8C3B_RUNTIME_REGIONS).sort(),
+    [
+      "prisma/schema.prisma",
+      "src/lib/loop-jobs/delivery.ts",
+      "src/lib/loop-jobs/raw-state-adapter.ts",
+      "src/lib/loop-jobs/state-machine.ts",
+    ],
+  );
+  for (const path of Object.keys(A8C3B_RUNTIME_REGIONS)) {
+    const source = readFileSync(join(root, path), "utf8");
+    assert.match(source, /^\s*(?:\/\/|--) A8-C3 (?:BEGIN|END):/m, `${path}: C3b marker required`);
+    projectBeforeA8C3Source(path, source);
   }
   const discoveredPostA8B1MainlinePaths = [
     ...gitLines(root, ["ls-files"]),
@@ -1732,6 +1912,15 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     assert.doesNotMatch(
       source,
       /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runHCycleEvidencePreviewCli|buildHCycleEvidencePreviewV1|queryHCycleEvidencePreviewSnapshotV1|queryReadonlyHCycleEvidencePreviewSnapshotV1|createReadonlyHCycleEvidencePreviewClient|deriveHCycleEvaluateTimingV1|planHCycleEvaluateV1|createHCycleEvaluateDormantHandlerV1|createLoopJobQueue|defineLoopJobRegistry|DATABASE_URL|DOTENV_CONFIG_PATH|PrismaBetterSqlite3|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive)/,
+      path,
+    );
+  }
+  for (const path of A8C3B_NON_ACTIVATION_PRODUCTION_PATHS) {
+    const source = await readFile(join(root, path), "utf8");
+    assert.match(source, /runImmediate/);
+    assert.doesNotMatch(
+      source,
+      /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runOneKindDelivery|PrismaClient|PrismaBetterSqlite3|better-sqlite3|DATABASE_URL|DOTENV_CONFIG_PATH|process\.env|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive)/,
       path,
     );
   }

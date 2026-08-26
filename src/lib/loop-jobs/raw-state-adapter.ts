@@ -53,12 +53,18 @@ export async function claimOneRaw(input: {
     WHERE "id" = (
       SELECT "id" FROM "LoopJob"
       WHERE "status" IN ('queued', 'retry_wait')
+        -- A8-C3 BEGIN: generic raw claim candidate reserved-kind fence
+        AND "kind" != 'h_cycle_evaluate'
+        -- A8-C3 END: generic raw claim candidate reserved-kind fence
         AND "availableAt" <= ${now}
         AND "attempts" < "maxAttempts"
       ORDER BY "availableAt", "createdAt", "id"
       LIMIT 1
     )
       AND "status" IN ('queued', 'retry_wait')
+      -- A8-C3 BEGIN: generic raw claim outer reserved-kind fence
+      AND "kind" != 'h_cycle_evaluate'
+      -- A8-C3 END: generic raw claim outer reserved-kind fence
       AND "availableAt" <= ${now}
       AND "attempts" < "maxAttempts"
     RETURNING *
@@ -125,6 +131,9 @@ export async function renewOwnedRaw(input: {
         "updatedAt" = ${now}
     WHERE "id" = ${jobId}
       AND "status" = 'running'
+      -- A8-C3 BEGIN: generic renew reserved-kind fence
+      AND "kind" != 'h_cycle_evaluate'
+      -- A8-C3 END: generic renew reserved-kind fence
       AND "leaseToken" = ${leaseToken}
       AND "leaseExpiresAt" > ${now}
     RETURNING "leaseExpiresAt"
@@ -150,6 +159,9 @@ export async function recoverOneExpiredRaw(input: {
       SELECT "id", "leaseToken", "leaseExpiresAt"
       FROM "LoopJob"
       WHERE "status" = 'running'
+        -- A8-C3 BEGIN: generic recovery candidate reserved-kind fence
+        AND "kind" != 'h_cycle_evaluate'
+        -- A8-C3 END: generic recovery candidate reserved-kind fence
         AND "leaseExpiresAt" <= ${now}
       ORDER BY "leaseExpiresAt", "lockedAt", "id"
       LIMIT 1
@@ -172,6 +184,9 @@ export async function recoverOneExpiredRaw(input: {
         END
     WHERE "id" = (SELECT "id" FROM "candidate")
       AND "status" = 'running'
+      -- A8-C3 BEGIN: generic recovery outer reserved-kind fence
+      AND "kind" != 'h_cycle_evaluate'
+      -- A8-C3 END: generic recovery outer reserved-kind fence
       AND "leaseToken" = (SELECT "leaseToken" FROM "candidate")
       AND "leaseExpiresAt" = (SELECT "leaseExpiresAt" FROM "candidate")
       AND "leaseExpiresAt" <= ${now}

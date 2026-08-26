@@ -23,6 +23,7 @@ import { runOneKindDelivery, type LoopJobHandler } from "../delivery";
 
 const FIXED_NOW = new Date("2026-08-24T00:00:00.000Z");
 const A8C2_CLAIM_CHILD_FIXTURE_PREFIX = "applied-loop-a8c2-cg1-";
+const C3_SCOPED_PROBE_KIND = "c3_scoped_probe";
 const JOB_KEYS = [
   "id",
   "kind",
@@ -41,10 +42,11 @@ const JOB_KEYS = [
   "createdAt",
   "updatedAt",
   "finishedAt",
+  "executionGenerationSequence",
 ] as const;
 
 const registry = defineLoopJobRegistry({
-  h_cycle_evaluate: {
+  [C3_SCOPED_PROBE_KIND]: {
     version: "v1",
     fields: {
       hypothesis: { type: "enum", values: ["h_cycle"] as const },
@@ -180,7 +182,7 @@ function assertExactDeliveryResult(value: unknown): asserts value is Record<stri
 }
 
 function makeLoopJob(kind: string): LoopJob {
-  const payload = kind === "h_cycle_evaluate"
+  const payload = kind === C3_SCOPED_PROBE_KIND
     ? {
         hypothesis: "h_cycle",
         cadence: "weekly",
@@ -191,7 +193,7 @@ function makeLoopJob(kind: string): LoopJob {
     : { operation: "inspect" };
   const payloadJson = canonicalJson(payload);
   return {
-    id: `job_${(kind === "h_cycle_evaluate" ? "a" : "b").repeat(32)}`,
+    id: `job_${(kind === C3_SCOPED_PROBE_KIND ? "a" : "b").repeat(32)}`,
     kind,
     dedupeKey: `${kind}:v1:${"c".repeat(64)}`,
     payloadJson,
@@ -208,6 +210,7 @@ function makeLoopJob(kind: string): LoopJob {
     createdAt: new Date(FIXED_NOW),
     updatedAt: new Date(FIXED_NOW),
     finishedAt: null,
+    executionGenerationSequence: null,
   };
 }
 
@@ -222,10 +225,10 @@ function makeDeliveryInput(overrides: Record<string, unknown> = {}) {
     succeedOwned: async () => ({ ok: true as const }),
   };
   return {
-    kind: "h_cycle_evaluate",
+    kind: C3_SCOPED_PROBE_KIND,
     queue: queue as unknown as LoopJobQueue,
     registry,
-    handlers: { h_cycle_evaluate: handler },
+    handlers: { [C3_SCOPED_PROBE_KIND]: handler },
     leaseDurationMs: 60_000,
     baseDelayMs: 1_000,
     maxDelayMs: 60_000,
@@ -354,7 +357,7 @@ async function runClaimChild(): Promise<void> {
       return;
     }
     try {
-      const result = await queue.claimKind({ kind: "h_cycle_evaluate", leaseDurationMs: 60_000 });
+      const result = await queue.claimKind({ kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 60_000 });
       const closed: ChildResult = { code: result.code };
       await client.$disconnect();
       process.send?.({ type: "result", result: closed }, () => process.disconnect?.());
@@ -494,23 +497,23 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         },
       });
 
-      const inherited = Object.assign(Object.create({ kind: "h_cycle_evaluate" }), { leaseDurationMs: 1_000 });
+      const inherited = Object.assign(Object.create({ kind: C3_SCOPED_PROBE_KIND }), { leaseDurationMs: 1_000 });
       const accessor = Object.create(null) as Record<string, unknown>;
       Object.defineProperties(accessor, {
         kind: {
           enumerable: true,
           get: () => {
             accessorCalls += 1;
-            return "h_cycle_evaluate";
+            return C3_SCOPED_PROBE_KIND;
           },
         },
         leaseDurationMs: { enumerable: true, value: 1_000 },
       });
-      const nonEnumerable = { kind: "h_cycle_evaluate" } as Record<string, unknown>;
+      const nonEnumerable = { kind: C3_SCOPED_PROBE_KIND } as Record<string, unknown>;
       Object.defineProperty(nonEnumerable, "leaseDurationMs", { enumerable: false, value: 1_000 });
       const symbolKey = Symbol("must-not-echo");
       const statefulProxy = new Proxy(
-        { kind: "h_cycle_evaluate", leaseDurationMs: 1_000 },
+        { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 1_000 },
         {
           ownKeys: () => {
             proxyTrapCalls += 1;
@@ -527,7 +530,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         },
       );
       const throwingProxy = new Proxy(
-        { kind: "h_cycle_evaluate", leaseDurationMs: 1_000 },
+        { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 1_000 },
         {
           ownKeys: () => {
             proxyTrapCalls += 1;
@@ -547,13 +550,13 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         inherited,
         accessor,
         nonEnumerable,
-        { kind: "h_cycle_evaluate", leaseDurationMs: 1_000, [symbolKey]: "must-not-echo" },
-        { kind: "h_cycle_evaluate", leaseDurationMs: 1_000, extra: "must-not-echo" },
-        { kind: "h_cycle_evaluate" },
+        { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 1_000, [symbolKey]: "must-not-echo" },
+        { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 1_000, extra: "must-not-echo" },
+        { kind: C3_SCOPED_PROBE_KIND },
         { kind: "H_CYCLE_EVALUATE", leaseDurationMs: 1_000 },
-        { kind: "h_cycle_evaluate", leaseDurationMs: 0 },
-        { kind: "h_cycle_evaluate", leaseDurationMs: 1.5 },
-        { kind: "h_cycle_evaluate", leaseDurationMs: Number.MAX_SAFE_INTEGER + 1 },
+        { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 0 },
+        { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 1.5 },
+        { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: Number.MAX_SAFE_INTEGER + 1 },
         statefulProxy,
         throwingProxy,
         null,
@@ -591,7 +594,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       assert.equal(rawCalls, 0);
       assert.deepEqual(await client.loopJob.findMany({ orderBy: { id: "asc" } }), beforeInvalid);
 
-      const accepted = { kind: "h_cycle_evaluate", leaseDurationMs: 1_234 };
+      const accepted = { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 1_234 };
       const capturedRawValues: unknown[][] = [];
       const snapshotClient = {
         loopJob: client.loopJob,
@@ -624,7 +627,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       assertExactDataObject(noJob, ["code"]);
       assert.equal(noJob.code, "no_job");
       assert.equal(capturedRawValues.length, 1);
-      assert.equal(capturedRawValues[0].filter((value) => value === "h_cycle_evaluate").length, 2);
+      assert.equal(capturedRawValues[0].filter((value) => value === C3_SCOPED_PROBE_KIND).length, 2);
       assert.equal(capturedRawValues[0].includes("foreign_probe"), false);
       assert.equal(
         capturedRawValues[0].some(
@@ -644,7 +647,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         registry,
         clock: clockAt(FIXED_NOW),
         randomBytes: entropy(30),
-      }).claimKind({ kind: "h_cycle_evaluate", leaseDurationMs: 1_000 });
+      }).claimKind({ kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 1_000 });
       assertStorageFailure(failure);
 
       await client.loopJob.deleteMany();
@@ -657,7 +660,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       });
       assert.equal(foreign.ok, true);
       const hCycle = await queue.enqueue({
-        kind: "h_cycle_evaluate",
+        kind: C3_SCOPED_PROBE_KIND,
         payload: {
           hypothesis: "h_cycle",
           cadence: "weekly",
@@ -672,16 +675,16 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       const foreignBefore = await client.loopJob.findUniqueOrThrow({
         where: { id: foreign.ok ? foreign.job.id : assert.fail("foreign enqueue failed") },
       });
-      const claimed = await queue.claimKind({ kind: "h_cycle_evaluate", leaseDurationMs: 60_000 });
+      const claimed = await queue.claimKind({ kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 60_000 });
       assertExactDataObject(claimed, ["code", "job"]);
       assert.equal(claimed.code, "claimed");
       if (claimed.code !== "claimed") assert.fail("scoped row not claimed");
       assertExactDataObject(claimed.job, JOB_KEYS);
-      assert.equal(claimed.job.kind, "h_cycle_evaluate");
+      assert.equal(claimed.job.kind, C3_SCOPED_PROBE_KIND);
       assert.equal(claimed.job.id, hCycle.ok ? hCycle.job.id : "");
       const foreignAfter = await client.loopJob.findUniqueOrThrow({ where: { id: foreignBefore.id } });
       assert.deepEqual(snapshotJob(foreignAfter), snapshotJob(foreignBefore));
-      const none = await queue.claimKind({ kind: "h_cycle_evaluate", leaseDurationMs: 60_000 });
+      const none = await queue.claimKind({ kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 60_000 });
       assertExactDataObject(none, ["code"]);
       assert.equal(none.code, "no_job");
       assert.deepEqual(snapshotJob(await client.loopJob.findUniqueOrThrow({ where: { id: foreignBefore.id } })), snapshotJob(foreignBefore));
@@ -689,7 +692,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       await client.loopJob.deleteMany();
       const raceQueue = createLoopJobQueue({ client, registry, clock: clockAt(FIXED_NOW), randomBytes: entropy(80) });
       const due = await raceQueue.enqueue({
-        kind: "h_cycle_evaluate",
+        kind: C3_SCOPED_PROBE_KIND,
         payload: {
           hypothesis: "h_cycle",
           cadence: "weekly",
@@ -728,7 +731,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       queue: {
         claimKind: async (options: unknown) => {
           claimCalls += 1;
-          assert.deepEqual(options, { kind: "h_cycle_evaluate", leaseDurationMs: 60_000 });
+          assert.deepEqual(options, { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 60_000 });
           return { code: "no_job" as const };
         },
         failOwned: async () => ({ ok: false as const, code: "storage_failure" as const }),
@@ -745,16 +748,16 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       enumerable: true,
       get: () => {
         kindAccessorCalls += 1;
-        return "h_cycle_evaluate";
+        return C3_SCOPED_PROBE_KIND;
       },
     });
-    const inheritedKindInput = Object.assign(Object.create({ kind: "h_cycle_evaluate" }), makeDeliveryInput());
+    const inheritedKindInput = Object.assign(Object.create({ kind: C3_SCOPED_PROBE_KIND }), makeDeliveryInput());
     delete inheritedKindInput.kind;
     const nonEnumerableKindInput = makeDeliveryInput() as Record<string, unknown>;
-    Object.defineProperty(nonEnumerableKindInput, "kind", { enumerable: false, value: "h_cycle_evaluate" });
+    Object.defineProperty(nonEnumerableKindInput, "kind", { enumerable: false, value: C3_SCOPED_PROBE_KIND });
     const symbolKindInput = makeDeliveryInput() as Record<PropertyKey, unknown>;
     delete symbolKindInput.kind;
-    symbolKindInput[Symbol("kind-must-not-echo")] = "h_cycle_evaluate";
+    symbolKindInput[Symbol("kind-must-not-echo")] = C3_SCOPED_PROBE_KIND;
     let inputProxyTraps = 0;
     const throwingInputProxy = new Proxy(makeDeliveryInput(), {
       getOwnPropertyDescriptor: () => {
@@ -787,15 +790,15 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     let registryAccessorCalls = 0;
     const invalidRegistries: unknown[] = [
       {},
-      Object.create({ h_cycle_evaluate: registry.h_cycle_evaluate }),
-      Object.defineProperty({}, "h_cycle_evaluate", {
+      Object.create({ [C3_SCOPED_PROBE_KIND]: registry[C3_SCOPED_PROBE_KIND] }),
+      Object.defineProperty({}, C3_SCOPED_PROBE_KIND, {
         enumerable: true,
         get: () => {
           registryAccessorCalls += 1;
-          return registry.h_cycle_evaluate;
+          return registry[C3_SCOPED_PROBE_KIND];
         },
       }),
-      new Proxy({ h_cycle_evaluate: registry.h_cycle_evaluate }, {
+      new Proxy({ [C3_SCOPED_PROBE_KIND]: registry[C3_SCOPED_PROBE_KIND] }, {
         getOwnPropertyDescriptor: () => {
           throw new Error("registry-proxy-must-not-echo");
         },
@@ -803,7 +806,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     ];
     for (const invalidRegistry of invalidRegistries) {
       let handlerInteractions = 0;
-      const handlers = new Proxy({ h_cycle_evaluate: base.handlers.h_cycle_evaluate }, {
+      const handlers = new Proxy({ [C3_SCOPED_PROBE_KIND]: base.handlers[C3_SCOPED_PROBE_KIND] }, {
         get: (target, property, receiver) => {
           handlerInteractions += 1;
           return Reflect.get(target, property, receiver);
@@ -830,14 +833,14 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
     const validHandler: LoopJobHandler = { idempotencyKey: "job_id", handle: async () => undefined };
     let handlerEntryAccessorCalls = 0;
-    const handlerAccessor = Object.defineProperty({}, "h_cycle_evaluate", {
+    const handlerAccessor = Object.defineProperty({}, C3_SCOPED_PROBE_KIND, {
       enumerable: true,
       get: () => {
         handlerEntryAccessorCalls += 1;
         return validHandler;
       },
     });
-    const inheritedHandler = Object.create({ h_cycle_evaluate: validHandler });
+    const inheritedHandler = Object.create({ [C3_SCOPED_PROBE_KIND]: validHandler });
     const inheritedIdempotency = Object.create({ idempotencyKey: "job_id" }) as Record<string, unknown>;
     inheritedIdempotency.handle = async () => undefined;
     const inheritedHandle = Object.create({ handle: async () => undefined }) as Record<string, unknown>;
@@ -868,21 +871,21 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       {},
       inheritedHandler,
       handlerAccessor,
-      new Proxy({ h_cycle_evaluate: validHandler }, {
+      new Proxy({ [C3_SCOPED_PROBE_KIND]: validHandler }, {
         getOwnPropertyDescriptor: () => {
           handlerProxyTraps += 1;
           throw new Error("handler-proxy-must-not-echo");
         },
       }),
-      { h_cycle_evaluate: { handle: async () => undefined } },
-      { h_cycle_evaluate: { idempotencyKey: "other", handle: async () => undefined } },
-      { h_cycle_evaluate: inheritedIdempotency },
-      { h_cycle_evaluate: handlerIdAccessor },
-      { h_cycle_evaluate: { idempotencyKey: "job_id" } },
-      { h_cycle_evaluate: { idempotencyKey: "job_id", handle: 1 } },
-      { h_cycle_evaluate: inheritedHandle },
-      { h_cycle_evaluate: handlerHandleAccessor },
-      { h_cycle_evaluate: { idempotencyKey: "job_id", handle: proxiedHandle } },
+      { [C3_SCOPED_PROBE_KIND]: { handle: async () => undefined } },
+      { [C3_SCOPED_PROBE_KIND]: { idempotencyKey: "other", handle: async () => undefined } },
+      { [C3_SCOPED_PROBE_KIND]: inheritedIdempotency },
+      { [C3_SCOPED_PROBE_KIND]: handlerIdAccessor },
+      { [C3_SCOPED_PROBE_KIND]: { idempotencyKey: "job_id" } },
+      { [C3_SCOPED_PROBE_KIND]: { idempotencyKey: "job_id", handle: 1 } },
+      { [C3_SCOPED_PROBE_KIND]: inheritedHandle },
+      { [C3_SCOPED_PROBE_KIND]: handlerHandleAccessor },
+      { [C3_SCOPED_PROBE_KIND]: { idempotencyKey: "job_id", handle: proxiedHandle } },
     ];
     for (const handlers of invalidHandlers) {
       let invalidHandlerClaimCalls = 0;
@@ -963,7 +966,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     assert.equal(queueProxyTraps, 0);
     assert.equal(queueProxyCallableCalls, 0);
 
-    const mutableRegistry: Record<string, unknown> = { h_cycle_evaluate: registry.h_cycle_evaluate };
+    const mutableRegistry: Record<string, unknown> = { [C3_SCOPED_PROBE_KIND]: registry[C3_SCOPED_PROBE_KIND] };
     let successHandlerCalls = 0;
     const mutableHandler: Record<string, unknown> = {
       idempotencyKey: "job_id",
@@ -977,7 +980,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     const snapshotQueue: Record<string, unknown> = {
       claimKind: async function () {
         assert.equal(this, snapshotQueue);
-        mutableRegistry.h_cycle_evaluate = { version: "invalid" };
+        mutableRegistry[C3_SCOPED_PROBE_KIND] = { version: "invalid" };
         mutableHandler.handle = async () => {
           throw new Error("mutated-handler-must-not-run");
         };
@@ -985,7 +988,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
           mutatedSucceedCalls += 1;
           return { ok: false, code: "storage_failure" };
         };
-        return { code: "claimed", job: makeLoopJob("h_cycle_evaluate") };
+        return { code: "claimed", job: makeLoopJob(C3_SCOPED_PROBE_KIND) };
       },
       failOwned: async () => ({ ok: false, code: "storage_failure" }),
       succeedOwned: async function () {
@@ -996,7 +999,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     };
     const snapshottedSuccess = await runOneKindDelivery(makeDeliveryInput({
       registry: mutableRegistry,
-      handlers: { h_cycle_evaluate: mutableHandler },
+      handlers: { [C3_SCOPED_PROBE_KIND]: mutableHandler },
       queue: snapshotQueue,
     }) as never);
     exactResults.push(snapshottedSuccess);
@@ -1020,7 +1023,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
           mutatedFailCalls += 1;
           return { ok: false, code: "storage_failure" };
         };
-        return { code: "claimed", job: makeLoopJob("h_cycle_evaluate") };
+        return { code: "claimed", job: makeLoopJob(C3_SCOPED_PROBE_KIND) };
       },
       failOwned: async function () {
         assert.equal(this, failureSnapshotQueue);
@@ -1030,7 +1033,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       succeedOwned: async () => ({ ok: false, code: "storage_failure" }),
     };
     const snapshottedFailure = await runOneKindDelivery(makeDeliveryInput({
-      handlers: { h_cycle_evaluate: throwingHandler },
+      handlers: { [C3_SCOPED_PROBE_KIND]: throwingHandler },
       queue: failureSnapshotQueue,
     }) as never);
     exactResults.push(snapshottedFailure);
@@ -1038,7 +1041,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     assert.equal(snapshottedFailCalls, 1);
     assert.equal(mutatedFailCalls, 0);
 
-    const mutableSuccessJob = makeLoopJob("h_cycle_evaluate");
+    const mutableSuccessJob = makeLoopJob(C3_SCOPED_PROBE_KIND);
     const successJobIdentity = {
       id: mutableSuccessJob.id,
       kind: mutableSuccessJob.kind,
@@ -1062,7 +1065,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     const mutationSafeSuccess = await runOneKindDelivery(makeDeliveryInput({
       queue: mutableSuccessQueue,
       handlers: {
-        h_cycle_evaluate: {
+        [C3_SCOPED_PROBE_KIND]: {
           idempotencyKey: "job_id",
           handle: async ({ idempotencyKey }: { idempotencyKey: string }) => {
             mutableSuccessHandlerCalls += 1;
@@ -1078,12 +1081,12 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     }) as never);
     exactResults.push(mutationSafeSuccess);
     assert.deepEqual(mutationSafeSuccess, { ok: true, code: "job_succeeded" });
-    assert.equal(successJobIdentity.kind, "h_cycle_evaluate");
+    assert.equal(successJobIdentity.kind, C3_SCOPED_PROBE_KIND);
     assert.equal(mutableSuccessHandlerCalls, 1);
     assert.equal(mutableSuccessFailCalls, 0);
     assert.equal(mutableSuccessSucceedCalls, 1);
 
-    const mutableFailureJob = makeLoopJob("h_cycle_evaluate");
+    const mutableFailureJob = makeLoopJob(C3_SCOPED_PROBE_KIND);
     const failureJobIdentity = {
       id: mutableFailureJob.id,
       kind: mutableFailureJob.kind,
@@ -1113,7 +1116,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     const mutationSafeFailure = await runOneKindDelivery(makeDeliveryInput({
       queue: mutableFailureQueue,
       handlers: {
-        h_cycle_evaluate: {
+        [C3_SCOPED_PROBE_KIND]: {
           idempotencyKey: "job_id",
           handle: async ({ idempotencyKey }: { idempotencyKey: string }) => {
             assert.equal(idempotencyKey, failureJobIdentity.id);
@@ -1127,7 +1130,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     }) as never);
     exactResults.push(mutationSafeFailure);
     assert.deepEqual(mutationSafeFailure, { ok: true, code: "job_retry_scheduled" });
-    assert.equal(failureJobIdentity.kind, "h_cycle_evaluate");
+    assert.equal(failureJobIdentity.kind, C3_SCOPED_PROBE_KIND);
     assert.equal(mutableFailureFailCalls, 1);
     assert.equal(mutableFailureSucceedCalls, 0);
 
@@ -1137,7 +1140,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     let recoverExpiredCalls = 0;
     const mismatchQueue = {
       claimKind: async (options: unknown) => {
-        assert.deepEqual(options, { kind: "h_cycle_evaluate", leaseDurationMs: 60_000 });
+        assert.deepEqual(options, { kind: C3_SCOPED_PROBE_KIND, leaseDurationMs: 60_000 });
         return { code: "claimed" as const, job: makeLoopJob("foreign_probe") };
       },
       failOwned: async () => {
@@ -1156,7 +1159,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     const mismatch = await runOneKindDelivery(makeDeliveryInput({
       queue: mismatchQueue,
       handlers: {
-        h_cycle_evaluate: {
+        [C3_SCOPED_PROBE_KIND]: {
           idempotencyKey: "job_id",
           handle: async () => {
             mismatchHandlerCalls += 1;
@@ -1193,7 +1196,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         availableAt: new Date(FIXED_NOW.getTime() - 2_000),
       });
       const hCycle = await queue.enqueue({
-        kind: "h_cycle_evaluate",
+        kind: C3_SCOPED_PROBE_KIND,
         payload: {
           hypothesis: "h_cycle",
           cadence: "weekly",
@@ -1218,11 +1221,11 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         },
       };
       const delivered = await runOneKindDelivery({
-        kind: "h_cycle_evaluate",
+        kind: C3_SCOPED_PROBE_KIND,
         queue: observedQueue,
         registry,
         handlers: {
-          h_cycle_evaluate: {
+          [C3_SCOPED_PROBE_KIND]: {
             idempotencyKey: "job_id",
             handle: async ({ idempotencyKey, payload }) => {
               assert.equal(idempotencyKey, hCycle.job.id);
@@ -1244,10 +1247,10 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         foreignBefore,
       );
       const none = await runOneKindDelivery({
-        kind: "h_cycle_evaluate",
+        kind: C3_SCOPED_PROBE_KIND,
         queue: observedQueue,
         registry,
-        handlers: { h_cycle_evaluate: validHandler },
+        handlers: { [C3_SCOPED_PROBE_KIND]: validHandler },
         leaseDurationMs: 60_000,
         baseDelayMs: 1_000,
         maxDelayMs: 60_000,
@@ -1267,21 +1270,26 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
     for (const result of exactResults) assertExactDeliveryResult(result);
     assert.equal(JSON.stringify(exactResults).includes("must-not-echo"), false);
-    assert.equal(JSON.stringify(exactResults).includes("h_cycle_evaluate"), false);
+    assert.equal(JSON.stringify(exactResults).includes(C3_SCOPED_PROBE_KIND), false);
     assert.equal(JSON.stringify(exactResults).includes("foreign_probe"), false);
   });
 
   test("A8C2-CG3-T1 scoped one-shot capability remains unreachable by default", async () => {
     const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba";
-    const protectedTreeEntryCount = 607;
-    const protectedTreeSha256 = "70cf77d98561641c8340a957b6cee97a11191eb04b7218fb6db5d24d9baa8ede";
+    const protectedTreeEntryCount = 605;
+    const protectedTreeSha256 = "079dd55740d2ed21f6d6e1560bea9209ff77adde6efdc356581bdfbd600a9d95";
     const allowedPaths = [
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
+      "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
+      "prisma/schema.prisma",
       "src/lib/loop-jobs/raw-state-adapter.ts",
       "src/lib/loop-jobs/state-machine.ts",
       "src/lib/loop-jobs/delivery.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+      "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.test.ts",
+      "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.test.ts",
+      "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
@@ -1430,7 +1438,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         assert.deepEqual(
           implementationChanges,
           allowedPaths,
-          "all historical and C3a/C3p static compatibility paths must be classified",
+          "all historical and C3a/C3p/C3b static compatibility paths must be classified",
         );
         return Object.freeze({ mode: "base_diff" as const, baseSha, paths: implementationChanges });
       }
@@ -1467,8 +1475,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     type C3RegionSpec = Readonly<{
       path: string;
       label: string;
-      parentBegin: string;
-      parentEnd: string;
+      parentBegin?: string;
+      parentEnd?: string;
       begin: string;
       end: string;
       leading: string;
@@ -1538,23 +1546,157 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       },
     ];
 
-    // C3b/C3c may extend this literal manifest only with regions nested inside
-    // a C2 snippet. Keeping it empty in C3a proves that this PR has no runtime
-    // C3 addition while making the later projection an executable requirement.
-    const c3RegionManifest: readonly C3RegionSpec[] = [];
+    // C3b explicitly freezes every generic reserved-kind fence. A region may
+    // be nested in a C2 snippet or be source-level; the latter must prove that
+    // it is outside every C2 snippet so it cannot silently expand a C2 delta.
+    const c3RegionManifest: readonly C3RegionSpec[] = [
+      {
+        path: "prisma/schema.prisma",
+        label: "LoopJob execution generation metadata",
+        begin: "// A8-C3 BEGIN: LoopJob execution generation metadata",
+        end: "// A8-C3 END: LoopJob execution generation metadata",
+        leading: "  ",
+        trailing: "\n",
+        sha256: "20a0b4df160e430dd0132f071ebf9115b1aa8ee5f38723197e84a61d2a6cc555",
+      },
+      {
+        path: "prisma/schema.prisma",
+        label: "LoopJob execution generation indexes",
+        begin: "// A8-C3 BEGIN: LoopJob execution generation indexes",
+        end: "// A8-C3 END: LoopJob execution generation indexes",
+        leading: "  ",
+        trailing: "\n",
+        sha256: "daea4933f94fb602b63e084e80b8bde74a8e3219c517de22a41fbed95cfc5354",
+      },
+      {
+        path: "prisma/schema.prisma",
+        label: "HCycle activation execution jobs relation",
+        begin: "// A8-C3 BEGIN: HCycle activation execution jobs relation",
+        end: "// A8-C3 END: HCycle activation execution jobs relation",
+        leading: "  ",
+        trailing: "\n",
+        sha256: "cbe3421cd0b7730a73fe4d8707bb6da4529ed7e1ca4b406d83d48e3ef3cc364c",
+      },
+      {
+        path: "src/lib/loop-jobs/raw-state-adapter.ts",
+        label: "generic raw claim candidate reserved-kind fence",
+        begin: "-- A8-C3 BEGIN: generic raw claim candidate reserved-kind fence",
+        end: "-- A8-C3 END: generic raw claim candidate reserved-kind fence",
+        leading: "        ",
+        trailing: "\n",
+        sha256: "d5551e6a9a3e7d2c91166203c19aba2737c03a6dc0255d82202b90b01a3ee67f",
+      },
+      {
+        path: "src/lib/loop-jobs/raw-state-adapter.ts",
+        label: "generic raw claim outer reserved-kind fence",
+        begin: "-- A8-C3 BEGIN: generic raw claim outer reserved-kind fence",
+        end: "-- A8-C3 END: generic raw claim outer reserved-kind fence",
+        leading: "      ",
+        trailing: "\n",
+        sha256: "28e6c27eccc6af5388351baa14974e2d9192662f38453c15ad54e5835200bc0d",
+      },
+      {
+        path: "src/lib/loop-jobs/raw-state-adapter.ts",
+        label: "generic renew reserved-kind fence",
+        begin: "-- A8-C3 BEGIN: generic renew reserved-kind fence",
+        end: "-- A8-C3 END: generic renew reserved-kind fence",
+        leading: "      ",
+        trailing: "\n",
+        sha256: "f3634a8bbe6be5f554f23310666fa850e28a321d20398d9018a376f93dbbd355",
+      },
+      {
+        path: "src/lib/loop-jobs/raw-state-adapter.ts",
+        label: "generic recovery candidate reserved-kind fence",
+        begin: "-- A8-C3 BEGIN: generic recovery candidate reserved-kind fence",
+        end: "-- A8-C3 END: generic recovery candidate reserved-kind fence",
+        leading: "        ",
+        trailing: "\n",
+        sha256: "0a78b07451654cf76e10404ae02e8262d3a342ca00e285c6cbdf665487954b11",
+      },
+      {
+        path: "src/lib/loop-jobs/raw-state-adapter.ts",
+        label: "generic recovery outer reserved-kind fence",
+        begin: "-- A8-C3 BEGIN: generic recovery outer reserved-kind fence",
+        end: "-- A8-C3 END: generic recovery outer reserved-kind fence",
+        leading: "      ",
+        trailing: "\n",
+        sha256: "aa751bbbb35fe888a253697cf6f15fa7048ab4cb4486cd126c1618d7506e537f",
+      },
+      {
+        path: "src/lib/loop-jobs/state-machine.ts",
+        label: "generic owned mutation reserved-kind fence",
+        begin: "// A8-C3 BEGIN: generic owned mutation reserved-kind fence",
+        end: "// A8-C3 END: generic owned mutation reserved-kind fence",
+        leading: "    ",
+        trailing: "\n",
+        sha256: "7e169d807992dc7664d686d338ac79fc277657b1a9e9d8359b712d1845daed04",
+      },
+      {
+        path: "src/lib/loop-jobs/state-machine.ts",
+        label: "generic queue enqueue reserved-kind fence",
+        begin: "// A8-C3 BEGIN: generic queue enqueue reserved-kind fence",
+        end: "// A8-C3 END: generic queue enqueue reserved-kind fence",
+        leading: "      ",
+        trailing: "\n",
+        sha256: "e3931c84f0c2b3db0a3ea938fb5c620c5c847bae348d474834e95a1f51c838e9",
+      },
+      {
+        path: "src/lib/loop-jobs/state-machine.ts",
+        label: "generic queue claimKind reserved-kind fence",
+        parentBegin: "    // A8-C2 BEGIN: queue claimKind method",
+        parentEnd: "    // A8-C2 END: queue claimKind method",
+        begin: "// A8-C3 BEGIN: generic queue claimKind reserved-kind fence",
+        end: "// A8-C3 END: generic queue claimKind reserved-kind fence",
+        leading: "        ",
+        trailing: "\n",
+        sha256: "556d6b14c3bb40056a6bafe427ed942adb063a24d82808ff22c4016ef1c7ad61",
+      },
+      {
+        path: "src/lib/loop-jobs/delivery.ts",
+        label: "generic delivery reserved-kind post-claim fence",
+        begin: "// A8-C3 BEGIN: generic delivery reserved-kind post-claim fence",
+        end: "// A8-C3 END: generic delivery reserved-kind post-claim fence",
+        leading: "  ",
+        trailing: "\n",
+        sha256: "333a51cda70a9b1b95a931cba06a3ef545a3ea86b22392887dfcabe4d2c4c682",
+      },
+      {
+        path: "src/lib/loop-jobs/delivery.ts",
+        label: "kind-isolated delivery reserved-kind pre-claim fence",
+        parentBegin: "// A8-C2 BEGIN: runOneKindDelivery",
+        parentEnd: "// A8-C2 END: runOneKindDelivery",
+        begin: "// A8-C3 BEGIN: kind-isolated delivery reserved-kind pre-claim fence",
+        end: "// A8-C3 END: kind-isolated delivery reserved-kind pre-claim fence",
+        leading: "    ",
+        trailing: "\n",
+        sha256: "9166b8753fa723d9ac6390a812504c4f95db51908203ddde325775d604a159d6",
+      },
+    ];
     type C3CommentToken = Readonly<{ text: string; start: number; end: number }>;
     const c3CommentTokens = (source: string): readonly C3CommentToken[] => {
       const scanner = ts.createScanner(ts.ScriptTarget.ESNext, false, ts.LanguageVariant.Standard, source);
       const tokens: C3CommentToken[] = [];
       while (true) {
         const kind = scanner.scan();
-        if (kind === ts.SyntaxKind.EndOfFileToken) return tokens;
+        if (kind === ts.SyntaxKind.EndOfFileToken) break;
         if (kind !== ts.SyntaxKind.SingleLineCommentTrivia) continue;
         const text = scanner.getTokenText();
         if (!text.includes("A8-C3")) continue;
         const start = scanner.getTokenPos();
         tokens.push(Object.freeze({ text, start, end: start + text.length }));
       }
+      // TypeScript's scanner currently skips comment trivia embedded in some
+      // template-literal paths, so retain its token walk and add an anchored
+      // line scan for the exact `//` and SQL `--` marker grammars.
+      const lineMarker = /^[\t ]*((?:\/\/|--) A8-C3 (?:BEGIN|END): [^\r\n]+)$/gm;
+      for (let match = lineMarker.exec(source); match; match = lineMarker.exec(source)) {
+        const text = match[1];
+        assert.notEqual(text, undefined, "C3 marker capture must exist");
+        const start = match.index + match[0].indexOf(text);
+        if (tokens.some((token) => token.start === start && token.text === text)) continue;
+        tokens.push(Object.freeze({ text, start, end: start + text.length }));
+      }
+      return tokens.sort((left, right) => left.start - right.start);
     };
     const projectC3Regions = (
       source: string,
@@ -1576,25 +1718,43 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
       const intervals: Array<Readonly<{ start: number; end: number; label: string }>> = [];
       for (const region of pathRegions) {
-        const parent = parentSnippets.find((snippet) =>
-          snippet.begin === region.parentBegin && snippet.end === region.parentEnd,
+        assert.equal(
+          (region.parentBegin === undefined) === (region.parentEnd === undefined),
+          true,
+          `${path}: ${region.label} parent declaration must be complete or absent`,
         );
-        assert.ok(parent, `${path}: ${region.label} must name an exact enclosing C2 snippet`);
-        assert.equal(source.split(parent.begin).length - 1, 1, `${path}: ${region.label} parent begin count`);
-        assert.equal(source.split(parent.end).length - 1, 1, `${path}: ${region.label} parent end count`);
-        const parentBegin = source.indexOf(parent.begin);
-        const parentEnd = source.indexOf(parent.end, parentBegin + parent.begin.length);
-        assert.ok(parentBegin >= 0 && parentEnd > parentBegin, `${path}: ${region.label} parent marker order`);
         const beginToken = tokenByText.get(region.begin);
         const endToken = tokenByText.get(region.end);
         assert.ok(beginToken && endToken, `${path}: ${region.label} must have both actual comment tokens`);
         assert.ok(beginToken.start < endToken.start, `${path}: ${region.label} C3 marker order`);
         const start = beginToken.start - region.leading.length;
         const end = endToken.end + region.trailing.length;
-        assert.ok(start >= parentBegin + parent.begin.length, `${path}: ${region.label} must start inside C2`);
-        assert.ok(end <= parentEnd, `${path}: ${region.label} must end inside C2`);
         assert.equal(source.slice(start, beginToken.start), region.leading, `${path}: ${region.label} leading delimiter`);
         assert.equal(source.slice(endToken.end, end), region.trailing, `${path}: ${region.label} trailing delimiter`);
+        if (region.parentBegin !== undefined && region.parentEnd !== undefined) {
+          const parent = parentSnippets.find((snippet) =>
+            snippet.begin === region.parentBegin && snippet.end === region.parentEnd,
+          );
+          assert.ok(parent, `${path}: ${region.label} must name an exact enclosing C2 snippet`);
+          assert.equal(source.split(parent.begin).length - 1, 1, `${path}: ${region.label} parent begin count`);
+          assert.equal(source.split(parent.end).length - 1, 1, `${path}: ${region.label} parent end count`);
+          const parentBegin = source.indexOf(parent.begin);
+          const parentEnd = source.indexOf(parent.end, parentBegin + parent.begin.length);
+          assert.ok(parentBegin >= 0 && parentEnd > parentBegin, `${path}: ${region.label} parent marker order`);
+          assert.ok(start >= parentBegin + parent.begin.length, `${path}: ${region.label} must start inside C2`);
+          assert.ok(end <= parentEnd, `${path}: ${region.label} must end inside C2`);
+        } else {
+          for (const parent of parentSnippets) {
+            const parentBegin = source.indexOf(parent.begin);
+            const parentEnd = source.indexOf(parent.end, parentBegin + parent.begin.length);
+            assert.ok(parentBegin >= 0 && parentEnd > parentBegin, `${path}: source-level parent marker order`);
+            assert.equal(
+              !(start >= parentBegin && end <= parentEnd),
+              true,
+              `${path}: ${region.label} nested C3 must name its enclosing C2 snippet`,
+            );
+          }
+        }
         assert.equal(
           createHash("sha256").update(source.slice(start, end)).digest("hex"),
           region.sha256,
@@ -1649,6 +1809,23 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       ),
       c3FixtureBase,
       "C3 projection must remove only declared actual-comment regions and reconstruct C2 bytes",
+    );
+
+    const c3ProjectedSchema = projectC3Regions(
+      readFileSync(join(process.cwd(), "prisma/schema.prisma"), "utf8"),
+      "prisma/schema.prisma",
+      [],
+      c3RegionManifest,
+    );
+    const a8c1SchemaStart = c3ProjectedSchema.indexOf("// A8-C1: redacted control facts only.");
+    const a8c1SchemaEnd = c3ProjectedSchema.indexOf("// 学び", a8c1SchemaStart);
+    assert.ok(a8c1SchemaStart >= 0 && a8c1SchemaEnd > a8c1SchemaStart, "C3-projected A8-C1 schema block");
+    assert.equal(
+      createHash("sha256")
+        .update(c3ProjectedSchema.slice(0, a8c1SchemaStart) + c3ProjectedSchema.slice(a8c1SchemaEnd), "utf8")
+        .digest("hex"),
+      "e119fa710fbe71648ef1389a36a5fb64fa06926a30b4d6b64526aa4e884251ae",
+      "C3 schema projection must reconstruct the pre-A8-C1 schema bytes",
     );
 
     const allAdditions: string[] = [];
@@ -1706,8 +1883,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     );
     for (const pinnedScopeLiteral of [
       'const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba"',
-      "const protectedTreeEntryCount = 607",
-      'const protectedTreeSha256 = "70cf77d98561641c8340a957b6cee97a11191eb04b7218fb6db5d24d9baa8ede"',
+      "const protectedTreeEntryCount = 605",
+      'const protectedTreeSha256 = "079dd55740d2ed21f6d6e1560bea9209ff77adde6efdc356581bdfbd600a9d95"',
       'gitNulPaths(["diff", "--name-only", "-z", baseSha, "--"])',
       'runGit(["ls-files", "--stage", "-z"], "buffer")',
       "splitNulRecords(indexResult.stdout as Buffer)",
@@ -1751,7 +1928,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       'assert.equal(baseProbe.status, 128, stderr);',
       'return "unavailable";',
       'return inspectProtectedTree();',
-      "const c3RegionManifest: readonly C3RegionSpec[] = [];",
+      "const c3RegionManifest: readonly C3RegionSpec[] = [",
       "const source = projectC3Regions(",
     ]) {
       assert.equal(cg3Text.includes(criticalModeSelection), true, `missing live mode-selection edge: ${criticalModeSelection}`);
@@ -1812,10 +1989,15 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       [
         "docs/adr/0033-h-cycle-generation-fenced-execution.md",
         "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
+        "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
+        "prisma/schema.prisma",
         "src/lib/loop-jobs/delivery.ts",
         "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
+        "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.test.ts",
+        "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.test.ts",
+        "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
@@ -1824,7 +2006,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "src/lib/loop-jobs/raw-state-adapter.ts",
         "src/lib/loop-jobs/state-machine.ts",
       ],
-      "fallback exclusion set must remain the exact C2-plus-C3a/C3p surface",
+      "fallback exclusion set must remain the exact C2-plus-C3a/C3p/C3b surface",
     );
     assert.equal(
       (dedicatedTestSource.match(/mkdtempSync\(join\(tmpdir\(\), "applied-loop-a8c2-cg[12]-"\)\)/g) ?? []).length,

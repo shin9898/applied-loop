@@ -273,6 +273,9 @@ export async function runOneDelivery(input: {
       ? { ok: true, code: "no_job" }
       : { ok: false, code: "storage_failure" };
   }
+  // A8-C3 BEGIN: generic delivery reserved-kind post-claim fence
+  if (claim.job.kind === "h_cycle_evaluate") return { ok: false, code: "storage_failure" };
+  // A8-C3 END: generic delivery reserved-kind post-claim fence
 
   const retry = {
     baseDelayMs: input.baseDelayMs,
@@ -347,6 +350,9 @@ export async function runOneKindDelivery(input: {
       return { ok: false, code: "storage_failure" };
     }
     snapshottedKind = kindDescriptor.value;
+    // A8-C3 BEGIN: kind-isolated delivery reserved-kind pre-claim fence
+    if (snapshottedKind === "h_cycle_evaluate") return { ok: false, code: "storage_failure" };
+    // A8-C3 END: kind-isolated delivery reserved-kind pre-claim fence
 
     const registryDescriptor = ownDataDescriptor(input, "registry", true);
     const normalizedRegistry = registryDescriptor

@@ -18,9 +18,13 @@ import {
   createHCycleEvaluatePayloadV1,
   H_CYCLE_EVALUATE_JOB_REGISTRY,
 } from "./h-cycle-evaluate-job-contract-v1";
-import { createLoopJobQueue } from "../state-machine";
+import { createLoopJobQueue, defineLoopJobRegistry } from "../state-machine";
 
 const ON_TIME = new Date("2026-08-16T23:15:02.000Z");
+const C3_SCOPED_PROBE_KIND = "c3_scoped_probe";
+const C3_SCOPED_PROBE_REGISTRY = defineLoopJobRegistry({
+  [C3_SCOPED_PROBE_KIND]: H_CYCLE_EVALUATE_JOB_REGISTRY.h_cycle_evaluate,
+});
 
 function emptySnapshot(): HCycleEvidenceSnapshotV1 {
   return {
@@ -173,12 +177,12 @@ test("A8B2-CG3-T2 temporary SQLite crash retry and stale lease recovery preserve
   await withFixture(async (client) => {
     const crashQueue = createLoopJobQueue({
       client,
-      registry: H_CYCLE_EVALUATE_JOB_REGISTRY,
+      registry: C3_SCOPED_PROBE_REGISTRY,
       clock: clockAt(ON_TIME),
       randomBytes: entropy(1),
     });
     const enqueued = await crashQueue.enqueue({
-      kind: "h_cycle_evaluate",
+      kind: C3_SCOPED_PROBE_KIND,
       payload: payload(),
       maxAttempts: 3,
     });
@@ -199,8 +203,8 @@ test("A8B2-CG3-T2 temporary SQLite crash retry and stale lease recovery preserve
     };
     const first = await runOneDelivery({
       queue: crashQueue,
-      registry: H_CYCLE_EVALUATE_JOB_REGISTRY,
-      handlers: { h_cycle_evaluate: crashAfterWrite },
+      registry: C3_SCOPED_PROBE_REGISTRY,
+      handlers: { [C3_SCOPED_PROBE_KIND]: crashAfterWrite },
       leaseDurationMs: 1_000,
       baseDelayMs: 0,
       maxDelayMs: 0,
@@ -211,8 +215,8 @@ test("A8B2-CG3-T2 temporary SQLite crash retry and stale lease recovery preserve
 
     const second = await runOneDelivery({
       queue: crashQueue,
-      registry: H_CYCLE_EVALUATE_JOB_REGISTRY,
-      handlers: { h_cycle_evaluate: durable },
+      registry: C3_SCOPED_PROBE_REGISTRY,
+      handlers: { [C3_SCOPED_PROBE_KIND]: durable },
       leaseDurationMs: 1_000,
       baseDelayMs: 0,
       maxDelayMs: 0,
@@ -227,12 +231,12 @@ test("A8B2-CG3-T2 temporary SQLite crash retry and stale lease recovery preserve
     const staleAt = new Date("2026-08-23T23:15:02.000Z");
     const staleQueue = createLoopJobQueue({
       client,
-      registry: H_CYCLE_EVALUATE_JOB_REGISTRY,
+      registry: C3_SCOPED_PROBE_REGISTRY,
       clock: clockAt(staleAt),
       randomBytes: entropy(100),
     });
     const staleEnqueue = await staleQueue.enqueue({
-      kind: "h_cycle_evaluate",
+      kind: C3_SCOPED_PROBE_KIND,
       payload: payload("2026-W34"),
       maxAttempts: 3,
     });
@@ -244,7 +248,7 @@ test("A8B2-CG3-T2 temporary SQLite crash retry and stale lease recovery preserve
     const recoveredAt = new Date(staleAt.getTime() + 1);
     const recoveryQueue = createLoopJobQueue({
       client,
-      registry: H_CYCLE_EVALUATE_JOB_REGISTRY,
+      registry: C3_SCOPED_PROBE_REGISTRY,
       clock: clockAt(recoveredAt),
       randomBytes: entropy(200),
     });
@@ -253,8 +257,8 @@ test("A8B2-CG3-T2 temporary SQLite crash retry and stale lease recovery preserve
     assert.equal(recovered.ok ? recovered.recovered : false, true);
     const recovery = await runOneDelivery({
       queue: recoveryQueue,
-      registry: H_CYCLE_EVALUATE_JOB_REGISTRY,
-      handlers: { h_cycle_evaluate: handlerFor(client, recoveredAt, emptySnapshot()) },
+      registry: C3_SCOPED_PROBE_REGISTRY,
+      handlers: { [C3_SCOPED_PROBE_KIND]: handlerFor(client, recoveredAt, emptySnapshot()) },
       leaseDurationMs: 1_000,
       baseDelayMs: 0,
       maxDelayMs: 0,
