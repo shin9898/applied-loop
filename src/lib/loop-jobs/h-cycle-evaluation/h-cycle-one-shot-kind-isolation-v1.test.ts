@@ -1276,13 +1276,14 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
   test("A8C2-CG3-T1 scoped one-shot capability remains unreachable by default", async () => {
     const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba";
-    const protectedTreeEntryCount = 603;
-    const protectedTreeSha256 = "20fed7356656c4a2ded1080fe6b3455fdbe547f23d0ae328c1927b474de9eb1c";
+    const protectedTreeEntryCount = 602;
+    const protectedTreeSha256 = "6f030b690a3e6f0f5dc1ed06820b973d22efeb9858b4157d3865ea9cbffa5617";
     const allowedPaths = [
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
       "docs/adr/0035-harness-evaluation-next-action-proposals.md",
       "docs/phase-progress.md",
+      "package.json",
       "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
       "prisma/schema.prisma",
       "src/lib/h-cycle-evaluation-record.ts",
@@ -1298,6 +1299,10 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
       "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
       "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.test.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-dormancy.test.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-main.ts",
       "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.test.ts",
       "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
@@ -1888,8 +1893,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     );
     for (const pinnedScopeLiteral of [
       'const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba"',
-      "const protectedTreeEntryCount = 603",
-      'const protectedTreeSha256 = "20fed7356656c4a2ded1080fe6b3455fdbe547f23d0ae328c1927b474de9eb1c"',
+      "const protectedTreeEntryCount = 602",
+      'const protectedTreeSha256 = "6f030b690a3e6f0f5dc1ed06820b973d22efeb9858b4157d3865ea9cbffa5617"',
       'gitNulPaths(["diff", "--name-only", "-z", baseSha, "--"])',
       'runGit(["ls-files", "--stage", "-z"], "buffer")',
       "splitNulRecords(indexResult.stdout as Buffer)",
@@ -1996,6 +2001,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
         "docs/adr/0035-harness-evaluation-next-action-proposals.md",
         "docs/phase-progress.md",
+        "package.json",
         "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
         "prisma/schema.prisma",
         "src/lib/h-cycle-evaluation-record.ts",
@@ -2011,6 +2017,10 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
         "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.test.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-cli.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-dormancy.test.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-main.ts",
         "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.test.ts",
         "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.ts",
         "src/lib/loop-jobs/raw-state-adapter.ts",

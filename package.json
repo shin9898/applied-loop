@@ -36,6 +36,7 @@
     "harness:preview-cycle-evidence": "tsx scripts/preview-h-cycle-evidence.ts",
     "harness:plan-usage-backfill": "tsx scripts/plan-harness-usage-backfill.ts",
     "harness:evaluate-preview": "tsx src/lib/loop-jobs/harness-evaluation/h-eval-preview-main.ts",
+    "harness:evaluate-report-preview": "tsx src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-main.ts",
     "loop:worker": "node src/lib/loop-jobs/worker.mjs",
     "rewrite-gates": "node scripts/rewrite-gates.mjs",
     "postinstall": "node scripts/postinstall-node-pty.mjs && prisma generate"
