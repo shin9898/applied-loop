@@ -54,6 +54,8 @@ const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-cli.ts",
   "src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-dormancy.test.ts",
   "src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-main.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-adapter-v1.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-adapter-v1.ts",
 ] as const;
 const H_EVAL_DIRECTORY_PREFIX = "src/lib/loop-jobs/harness-evaluation/";
 const A5_ALLOWED_NON_H_EVAL_PATHS = [
@@ -572,6 +574,12 @@ const A9B_ADDITIVE_NON_H_EVAL_PATHS = [
   "prisma/schema.prisma",
   "src/lib/harness-evaluation-run-v1.test.ts",
   "src/lib/harness-evaluation-run-v1.ts",
+] as const;
+const A9D2_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0037-harness-evaluation-manual-window-adapter.md",
+] as const;
+const A9D2_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0037-harness-evaluation-manual-window-adapter.md",
 ] as const;
 const A9B_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/harness-evaluation-run-v1.ts",
@@ -1654,6 +1662,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A8C3P_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A8C3B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A9B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A9D2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1692,6 +1701,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A8C3P_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A8C3B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A9B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A9D2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || path === A8C2_REVIEW_ARTIFACT_PATH
         || path === A8C3_REVIEW_ARTIFACT_PATH
         || path === A8C3P_REVIEW_ARTIFACT_PATH
@@ -1855,6 +1865,13 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A9B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA9BPaths, [...A9B_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredA9D2Paths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A9D2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA9D2Paths, [...A9D2_ALLOWED_NON_H_EVAL_PATHS].sort());
   const c3StaticFenceSource = readFileSync(
     join(root, "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts"),
     "utf8",

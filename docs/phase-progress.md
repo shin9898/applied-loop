@@ -168,7 +168,8 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 | A9-A | evidence report / next-action manual preview | done | closed aggregate report が H-CYCLE / H-EVAL / H-CACHE を非混合で評価し、最大3件の非実行 proposal を返す |
 | A9-B | durable evaluation report record | done | ADR-0036、aggregate-only `HarnessEvaluationRun`、idempotency / privacy / append-only proof を main に反映 |
 | A9-C | opt-in periodic evaluation | blocked | A8-C4 と scheduler operation evidence |
-| A9-D | outcome decision | doing | A9-D1 の feature-off two-adjacent-window classifier / opaque durable key を実装。実窓観測と outcome record は未開始 |
+| A9-D | outcome decision | doing | A9-D1 の feature-off two-adjacent-window classifier / opaque durable key と A9-D2 の manual report → 単一 window adapter を実装。実窓観測と outcome record は未開始 |
+| A9-D2 | manual preview window adapter | doing | closed report の単一 cohort を A9-D1 source に写像。read-only / feature-off、実窓収集・durable writeなし |
 
 ### Harness control-plane 完了チェック
 
@@ -178,6 +179,7 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 - [ ] A8-C4 / A9-C は user-owned opt-in と operational evidence 後にのみ開始
 - [ ] H-CYCLE / H-JOB / H-CACHE の verdict を混ぜず、各 hypothesis の outcome を再観測
 - [ ] A9-D の baseline / eligible window が実観測で supported / rejected / inconclusive を記録
+- [ ] A9-D2 adapter の main反映後に manual preview caller から各cohortを別々に観測
 
 ---
 
@@ -231,3 +233,4 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 | 2026-08-10 | C1-2 parked/dismiss UI。C4-1 説明更新。C4-2 手順書。P4 実装 Must は人間セルフランのみ残り |
 | 2026-08-26 | A8-C3b/C3c と A9-A の main 反映を再確認。A9-B は ADR-0036 と aggregate-only durable record の temporary SQLite proof に着手 |
 | 2026-08-26 | A9-B の main反映・CI成功を確認。A9-D1 の opaque window identity と二つの隣接 completed window による feature-off classifier を追加 |
+| 2026-08-26 | A9-D2 の manual report → 単一 cohort window adapter を追加。integrity stop / invalid aggregate は fail-closed、DB・scheduler・writerは追加しない |
