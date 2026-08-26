@@ -1273,11 +1273,13 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
   test("A8C2-CG3-T1 scoped one-shot capability remains unreachable by default", async () => {
     const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba";
-    const protectedTreeEntryCount = 607;
-    const protectedTreeSha256 = "70cf77d98561641c8340a957b6cee97a11191eb04b7218fb6db5d24d9baa8ede";
+    const protectedTreeEntryCount = 606;
+    const protectedTreeSha256 = "00f661b4e63512145ec022a094ca947c20fc9cb39799fba5515631b88399ab1a";
     const allowedPaths = [
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
+      "docs/adr/0035-harness-evaluation-next-action-proposals.md",
+      "docs/phase-progress.md",
       "src/lib/loop-jobs/raw-state-adapter.ts",
       "src/lib/loop-jobs/state-machine.ts",
       "src/lib/loop-jobs/delivery.ts",
@@ -1430,7 +1432,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         assert.deepEqual(
           implementationChanges,
           allowedPaths,
-          "all historical and C3a/C3p static compatibility paths must be classified",
+          "all historical and C3a/C3p/evaluation-contract static compatibility paths must be classified",
         );
         return Object.freeze({ mode: "base_diff" as const, baseSha, paths: implementationChanges });
       }
@@ -1706,8 +1708,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     );
     for (const pinnedScopeLiteral of [
       'const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba"',
-      "const protectedTreeEntryCount = 607",
-      'const protectedTreeSha256 = "70cf77d98561641c8340a957b6cee97a11191eb04b7218fb6db5d24d9baa8ede"',
+      "const protectedTreeEntryCount = 606",
+      'const protectedTreeSha256 = "00f661b4e63512145ec022a094ca947c20fc9cb39799fba5515631b88399ab1a"',
       'gitNulPaths(["diff", "--name-only", "-z", baseSha, "--"])',
       'runGit(["ls-files", "--stage", "-z"], "buffer")',
       "splitNulRecords(indexResult.stdout as Buffer)",
@@ -1812,6 +1814,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       [
         "docs/adr/0033-h-cycle-generation-fenced-execution.md",
         "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
+        "docs/adr/0035-harness-evaluation-next-action-proposals.md",
+        "docs/phase-progress.md",
         "src/lib/loop-jobs/delivery.ts",
         "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
@@ -1824,7 +1828,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "src/lib/loop-jobs/raw-state-adapter.ts",
         "src/lib/loop-jobs/state-machine.ts",
       ],
-      "fallback exclusion set must remain the exact C2-plus-C3a/C3p surface",
+      "fallback exclusion set must remain the exact C2-plus-C3a/C3p/evaluation-contract surface",
     );
     assert.equal(
       (dedicatedTestSource.match(/mkdtempSync\(join\(tmpdir\(\), "applied-loop-a8c2-cg[12]-"\)\)/g) ?? []).length,
