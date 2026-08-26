@@ -153,6 +153,32 @@ ADR（P4 正本）: [0020-daily-retro-knowledge-loop.md](./adr/0020-daily-retro-
 
 ---
 
+## Harness control-plane — H-CYCLE / H-EVAL / H-CACHE（ADR-0025）
+
+この表では、P0〜P4 の製品ループと、ハーネス自身の evidence / evaluation / proposal を
+混ぜない。詳細な契約は ADR-0025 / 0027 / 0029 / 0033 / 0035、実装 Issue は #24 / #40 / #53 を正本とする。
+
+| ID | 項目 | Status | 完了条件（要約） |
+|---|---|---|---|
+| A8-C3a | generation-fenced execution contract | done | ADR-0033 と chained static fence が main に反映 |
+| A8-C3p | SQLite immediate write primitive proof | done | ADR-0034 と二 client temporary SQLite proof が main に反映 |
+| A8-C3b | generation-scoped enqueue / claim / recovery | todo | stale / disabled / pre-floor / generic path が H-CYCLE row を mutate しない |
+| A8-C3c | atomic record / reconciliation / success | todo | guarded record write と success が same transaction で fence される |
+| A8-C4 | opt-in runtime binding | blocked | C3b/C3c、manual observation、per-operation approval、heartbeat/stop/recovery evidence |
+| A9-A | evidence report / next-action manual preview | todo | H-CYCLE / H-JOB / H-CACHE を cohort 非混合で読み、非実行 proposal を返す |
+| A9-B | durable evaluation report record | blocked | A8-C3c と別 ADR の idempotency/privacy contract |
+| A9-C | opt-in periodic evaluation | blocked | A8-C4 と scheduler operation evidence |
+| A9-D | outcome decision | blocked | baseline と eligible window で supported / rejected / inconclusive を記録 |
+
+### Harness control-plane 完了チェック
+
+- [ ] A8-C3b / C3c が temporary SQLite と historical fence を通過
+- [ ] A9-A の manual preview が raw data を露出せず、最大3件の evidence-backed proposal を返す
+- [ ] A8-C4 / A9-C は user-owned opt-in と operational evidence 後にのみ開始
+- [ ] H-CYCLE / H-JOB / H-CACHE の verdict を混ぜず、各 hypothesis の outcome を再観測
+
+---
+
 ## Should / Could（Phase 任意枠・忘れ防止）
 
 | ID | Phase 目安 | Status | 項目 |
