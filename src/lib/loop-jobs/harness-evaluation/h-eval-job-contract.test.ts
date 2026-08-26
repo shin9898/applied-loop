@@ -56,6 +56,10 @@ const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-main.ts",
   "src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-adapter-v1.test.ts",
   "src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-adapter-v1.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-preview-cli.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-preview-cli.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-preview-dormancy.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-preview-main.ts",
 ] as const;
 const H_EVAL_DIRECTORY_PREFIX = "src/lib/loop-jobs/harness-evaluation/";
 const A5_ALLOWED_NON_H_EVAL_PATHS = [
@@ -580,6 +584,12 @@ const A9D2_ALLOWED_NON_H_EVAL_PATHS = [
 ] as const;
 const A9D2_ADDITIVE_NON_H_EVAL_PATHS = [
   "docs/adr/0037-harness-evaluation-manual-window-adapter.md",
+] as const;
+const A9D3_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0038-harness-evaluation-manual-window-preview-caller.md",
+] as const;
+const A9D3_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0038-harness-evaluation-manual-window-preview-caller.md",
 ] as const;
 const A9B_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/harness-evaluation-run-v1.ts",
@@ -1570,6 +1580,7 @@ function packageBaselineSha256(packageJson: JsonDataRecord): string {
   delete scripts["harness:evaluate-preview"];
   delete scripts["harness:evaluate-report-preview"];
   delete scripts["harness:evaluate-source-preview"];
+  delete scripts["harness:evaluate-window-preview"];
   delete scripts["harness:preview-cycle-evidence"];
   delete scripts["harness:plan-usage-backfill"];
   return createHash("sha256").update(canonicalJson(baseline), "utf8").digest("hex");
@@ -1614,6 +1625,16 @@ function assertExactPreviewPackageException(rawBytes: Uint8Array): void {
     Object.keys(scripts).filter((key) => key.includes("evaluate-source-preview")).length,
     1,
     "unexpected source-preview script alias",
+  );
+  assert.equal(
+    scripts["harness:evaluate-window-preview"],
+    "tsx src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-preview-main.ts",
+    "unexpected window-preview script value",
+  );
+  assert.equal(
+    Object.keys(scripts).filter((key) => key.includes("evaluate-window-preview")).length,
+    1,
+    "unexpected window-preview script alias",
   );
   assert.equal(
     scripts["harness:preview-cycle-evidence"],
@@ -1663,6 +1684,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A8C3B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A9B_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A9D2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(A9D3_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1702,6 +1724,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A8C3B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A9B_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A9D2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (A9D3_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || path === A8C2_REVIEW_ARTIFACT_PATH
         || path === A8C3_REVIEW_ARTIFACT_PATH
         || path === A8C3P_REVIEW_ARTIFACT_PATH
@@ -1872,6 +1895,13 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A9D2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA9D2Paths, [...A9D2_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredA9D3Paths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (A9D3_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredA9D3Paths, [...A9D3_ALLOWED_NON_H_EVAL_PATHS].sort());
   const c3StaticFenceSource = readFileSync(
     join(root, "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts"),
     "utf8",

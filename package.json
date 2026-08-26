@@ -38,6 +38,7 @@
     "harness:evaluate-preview": "tsx src/lib/loop-jobs/harness-evaluation/h-eval-preview-main.ts",
     "harness:evaluate-report-preview": "tsx src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-preview-main.ts",
     "harness:evaluate-source-preview": "tsx src/lib/loop-jobs/harness-evaluation/harness-evaluation-source-preview-main.ts",
+    "harness:evaluate-window-preview": "tsx src/lib/loop-jobs/harness-evaluation/harness-evaluation-window-preview-main.ts",
     "loop:worker": "node src/lib/loop-jobs/worker.mjs",
     "rewrite-gates": "node scripts/rewrite-gates.mjs",
     "postinstall": "node scripts/postinstall-node-pty.mjs && prisma generate"
