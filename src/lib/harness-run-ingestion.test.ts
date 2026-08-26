@@ -29,7 +29,7 @@ function payload(overrides: Record<string, unknown> = {}) {
     turns: 1,
     startedAt: "2026-08-23T00:00:00.000Z",
     endedAt: "2026-08-23T00:05:00.000Z",
-    collectorVersion: "harness-collector-v2",
+    collectorVersion: "harness-collector-v3",
     contextFingerprint: fingerprint,
     ...overrides,
   };
@@ -52,7 +52,7 @@ test("A5-CG2-T1 accepts raw/source metadata and derives evidence only on the ser
     turns: 1,
     startedAt: new Date("2026-08-23T00:00:00.000Z"),
     endedAt: new Date("2026-08-23T00:05:00.000Z"),
-    collectorVersion: "harness-collector-v2",
+    collectorVersion: "harness-collector-v3",
     contextFingerprint: fingerprint,
     inputTotalTokens: 100,
     inputUncachedTokens: 20,
@@ -100,9 +100,13 @@ test("A5-CG2-T2 rejects forged derived evidence and malformed source metadata", 
 
 test("A5-CG2-T3 makes the collector identify its source without broadening its metadata allowlist", () => {
   const source = readFileSync(join(process.cwd(), "scripts/collect-harness.mjs"), "utf8");
-  assert.match(source, /const COLLECTOR_VERSION = "harness-collector-v2";/);
+  assert.match(source, /const COLLECTOR_VERSION = "harness-collector-v3";/);
   assert.match(source, /collectorVersion: COLLECTOR_VERSION,/);
+  assert.match(source, /contextFingerprint,/);
+  assert.match(source, /toPayload\(parsed, prev\?\.contextFingerprint\)/);
+  assert.match(source, /contextFingerprint: payload\.contextFingerprint,/);
   assert.match(source, /"collectorVersion",/);
+  assert.match(source, /"contextFingerprint",/);
   assert.doesNotMatch(source, /(?:promptBody|conversationBody|messageText|toolArguments)/);
 });
 
@@ -183,7 +187,7 @@ test("A5-CG2-T4 persists server-derived evidence through the real authenticated 
         usageSemanticsVersion: "harness-usage-v1",
         usageNormalizationStatus: "supported",
         usageNormalizationReason: null,
-        collectorVersion: "harness-collector-v2",
+        collectorVersion: "harness-collector-v3",
         contextFingerprint: fingerprint,
       });
     } finally {

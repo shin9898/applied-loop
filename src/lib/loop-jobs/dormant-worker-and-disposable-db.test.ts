@@ -242,6 +242,23 @@ const A9B_ADDITIVE_SRC_PATHS = [
 const A9B_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/harness-evaluation-run-v1.ts",
 ] as const;
+// A9-D4 measurement canonicalization adds only non-activation surfaces.
+const A9D4_ALLOWED_SRC_PATHS = [
+  "src/components/living-atlas/load-atlas-data.ts",
+  "src/lib/harness-context-fingerprint.test.ts",
+  "src/lib/harness-stats.ts",
+] as const;
+const A9D4_ADDITIVE_SRC_PATHS = [
+  "src/lib/harness-context-fingerprint.test.ts",
+] as const;
+const A9D4_MODIFIED_BASE_SRC_BLOBS: Readonly<Record<string, string>> = {
+  "src/components/living-atlas/load-atlas-data.ts": "8a8159c3ec02e5b812ce41e3b89e63f84b71bfe4",
+  "src/lib/harness-stats.ts": "4a2cb69cfcf85a78c408590722f05e543b9dccd9",
+};
+const A9D4_NON_ACTIVATION_PRODUCTION_PATHS = [
+  "src/components/living-atlas/load-atlas-data.ts",
+  "src/lib/harness-stats.ts",
+] as const;
 const A8C3B_ALLOWED_SRC_PATHS = [
   "src/lib/loop-jobs/raw-state-adapter.ts",
   "src/lib/loop-jobs/state-machine.ts",
@@ -624,10 +641,12 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => !(A8C0_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .filter((path) => !(A8C1_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .filter((path) => !(A9B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
+        .filter((path) => !(A9D4_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.equal(trackedSourcePaths.length, 258);
       const currentBaseAggregate = trackedSourcePaths.map((path) => {
-        const blob = A7_MODIFIED_BASE_SRC_BLOBS[path]
+        const blob = A9D4_MODIFIED_BASE_SRC_BLOBS[path]
+          ?? A7_MODIFIED_BASE_SRC_BLOBS[path]
           ?? A6_MODIFIED_BASE_SRC_BLOBS[path]
           ?? A7B_MODIFIED_BASE_SRC_BLOBS[path]
           ?? execFileSync("git", ["hash-object", path], {
@@ -661,6 +680,7 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
                 && !(A8C0_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
                 && !(A8C1_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
                 && !(A9B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
+                && !(A9D4_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
               );
           });
         assert.equal(tree.length, 258);
@@ -668,7 +688,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
           const match = line.match(/^\d+ blob ([0-9a-f]{40})\t(.+)$/);
           assert.ok(match, `unexpected ls-tree line: ${line}`);
           const [, expectedBlob, path] = match;
-          const modifiedBaseBlob = A7_MODIFIED_BASE_SRC_BLOBS[path]
+          const modifiedBaseBlob = A9D4_MODIFIED_BASE_SRC_BLOBS[path]
+            ?? A7_MODIFIED_BASE_SRC_BLOBS[path]
             ?? A6_MODIFIED_BASE_SRC_BLOBS[path]
             ?? A7B_MODIFIED_BASE_SRC_BLOBS[path];
           if (modifiedBaseBlob !== undefined) {
@@ -719,7 +740,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
             || (A8C2_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A8C3_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A8C3P_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
-            || (A9B_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
+            || (A9B_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
+            || (A9D4_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
         ),
         true,
       );
@@ -835,6 +857,14 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => (A9B_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.deepEqual(discoveredA9BSources, [...A9B_ALLOWED_SRC_PATHS].sort());
+      const discoveredA9D4Sources = [
+        ...execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" })
+          .trim().split("\n").filter(Boolean),
+        ...untrackedSource,
+      ]
+        .filter((path) => (A9D4_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .sort();
+      assert.deepEqual(discoveredA9D4Sources, [...A9D4_ALLOWED_SRC_PATHS].sort());
       assert.equal(
         sha256(await readFile(join(process.cwd(), A8C3_ADR_PATH))),
         A8C3_ADR_SHA256,
@@ -901,6 +931,12 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         A7B_ALLOWED_SRC_PATHS.filter(
           (path) => !(A7B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
             && A6_MODIFIED_BASE_SRC_BLOBS[path] === undefined,
+        ).sort(),
+      );
+      assert.deepEqual(
+        Object.keys(A9D4_MODIFIED_BASE_SRC_BLOBS).sort(),
+        A9D4_ALLOWED_SRC_PATHS.filter(
+          (path) => !(A9D4_ADDITIVE_SRC_PATHS as readonly string[]).includes(path),
         ).sort(),
       );
       for (const path of A6_NON_ACTIVATION_PRODUCTION_PATHS) {
@@ -977,6 +1013,14 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         );
       }
       for (const path of A9B_NON_ACTIVATION_PRODUCTION_PATHS) {
+        const source = await readFile(join(process.cwd(), path), "utf8");
+        assert.doesNotMatch(
+          source,
+          /(?:loop:worker|worker-phase[12]|runOneShotWorker|runOneDelivery|runOneKindDelivery|DATABASE_URL|DOTENV_CONFIG_PATH|PrismaBetterSqlite3|launchctl|\.plist|ProgramArguments|StartInterval|StartCalendarInterval|RunAtLoad|KeepAlive|setInterval|setTimeout|fetch\()/,
+          path,
+        );
+      }
+      for (const path of A9D4_NON_ACTIVATION_PRODUCTION_PATHS) {
         const source = await readFile(join(process.cwd(), path), "utf8");
         assert.doesNotMatch(
           source,

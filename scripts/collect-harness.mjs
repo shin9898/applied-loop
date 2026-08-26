@@ -5,6 +5,8 @@
  * プライバシー不変条件:
  * - 会話本文 (user/assistant の text・thinking・tool input/result) は一切読まない
  * - 読み取るのは type / timestamp / sessionId / cwd / model / usage / tool_use.name のみ
+ * - contextFingerprint は本文を読まず、metadata-derived cohort hash または明示された
+ *   APPLIED_LOOP_CONTEXT_FINGERPRINT を送る
  * - 送信ペイロードにも本文フィールドを含めない
  *
  * 使い方:
@@ -23,6 +25,10 @@ import {
 import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
+import {
+  createHarnessContextFingerprint,
+  isHarnessContextFingerprint,
+} from "./harness-context-fingerprint.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const STATE_PATH = join(SCRIPT_DIR, ".harness-collect-state.json");
@@ -35,7 +41,7 @@ const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
 const CODEX_SESSIONS = join(homedir(), ".codex", "sessions");
 const DRY_RUN = process.argv.includes("--dry-run");
 // Source identity only. It is not derived from or a hash of conversation text.
-const COLLECTOR_VERSION = "harness-collector-v2";
+const COLLECTOR_VERSION = "harness-collector-v3";
 
 function loadEnvToken() {
   try {
@@ -401,8 +407,15 @@ function listCodexSessions() {
   }));
 }
 
-function toPayload(parsed) {
+function toPayload(parsed, previousContextFingerprint) {
   const { harness, sessionId, agg } = parsed;
+  const contextFingerprint = isHarnessContextFingerprint(previousContextFingerprint)
+    ? previousContextFingerprint
+    : createHarnessContextFingerprint({
+        harness,
+        model: agg.model,
+        repo: agg.repo,
+      });
   return {
     harness,
     sessionId,
@@ -418,6 +431,7 @@ function toPayload(parsed) {
     startedAt: agg.startedAt,
     endedAt: agg.endedAt,
     collectorVersion: COLLECTOR_VERSION,
+    contextFingerprint,
   };
 }
 
@@ -444,6 +458,7 @@ function assertNoConversationBody(payload) {
     "startedAt",
     "endedAt",
     "collectorVersion",
+    "contextFingerprint",
   ]);
   function walk(node, path) {
     if (node == null) return;
@@ -541,12 +556,13 @@ async function main() {
         skipped += 1;
         continue;
       }
-      const payload = toPayload(parsed);
+      const payload = toPayload(parsed, prev?.contextFingerprint);
       await postRun(payload);
       state.files[item.path] = {
         ...fp,
         harness: parsed.harness,
         sessionId: parsed.sessionId,
+        contextFingerprint: payload.contextFingerprint,
       };
       sent += 1;
       if (sent % 50 === 0) {

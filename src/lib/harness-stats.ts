@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { weekKeyJST, weekRangeJST, weekStartJST } from "@/lib/date";
+import { readSupportedStoredHarnessUsage } from "./harness-usage-evidence";
 
 export type WeeklyTokenBreakdown = {
   weekKey: string;
@@ -27,10 +28,20 @@ export type RepoCacheReadRate = {
   insufficientThisWeek: boolean;
 };
 
-function cacheReadRate(cacheRead: number, tokensIn: number, cacheCreate: number): number {
-  const denom = cacheRead + tokensIn + cacheCreate;
-  if (denom <= 0) return 0;
-  return cacheRead / denom;
+export type RepoCacheUsageRow = Readonly<{
+  repo: string | null;
+  startedAt: Date;
+  inputTotalTokens: number | null;
+  inputUncachedTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  usageSemanticsVersion: string | null;
+  usageNormalizationStatus: string | null;
+}>;
+
+function normalizedCacheReadRate(cacheRead: number, totalInput: number): number {
+  if (totalInput <= 0) return 0;
+  return cacheRead / totalInput;
 }
 
 /** 直近 n 週の token 内訳 (セッション開始週で集計) */
@@ -112,18 +123,19 @@ export async function harnessModelShares(
 
 /**
  * repo 別の今週/先週 cache read 率 (ADR-0016)。
- * module ゲート差し込みと /harness 内訳で共用。
+ * module ゲート差し込みと /harness 内訳で共用する canonical projection。
+ *
+ * Raw counters are deliberately not used here: Claude と Codex では
+ * `tokensIn` の意味が異なり、Codex の cached input を再加算すると率を
+ * 半分近くまで誤って下げる。legacy/null evidence は観測不足として除外し、
+ * 0 や raw fallback に丸めない。
  */
 export async function repoCacheReadRates(
   now: Date = new Date(),
   opts: { minTokens?: number; take?: number } = {}
 ): Promise<RepoCacheReadRate[]> {
-  const minTokens = opts.minTokens ?? 10_000;
-  const take = opts.take ?? 12;
   const thisWeek = weekRangeJST(now);
   const lastWeekStart = new Date(thisWeek.start.getTime() - 7 * 86400000);
-  const lastWeekEnd = thisWeek.start;
-
   const runs = await prisma.harnessRun.findMany({
     where: {
       startedAt: { gte: lastWeekStart, lt: thisWeek.end },
@@ -132,29 +144,47 @@ export async function repoCacheReadRates(
     select: {
       repo: true,
       startedAt: true,
-      cacheRead: true,
-      tokensIn: true,
-      cacheCreate: true,
+      inputTotalTokens: true,
+      inputUncachedTokens: true,
+      cacheReadTokens: true,
+      cacheWriteTokens: true,
+      usageSemanticsVersion: true,
+      usageNormalizationStatus: true,
     },
   });
+  return aggregateRepoCacheReadRates(runs, now, opts);
+}
+
+/**
+ * Pure projection used by the database adapter and its deterministic tests.
+ * Keeping the window/rate calculation separate makes it impossible for a
+ * query change to silently reintroduce the provider-ambiguous raw formula.
+ */
+export function aggregateRepoCacheReadRates(
+  runs: readonly RepoCacheUsageRow[],
+  now: Date = new Date(),
+  opts: { minTokens?: number; take?: number } = {},
+): RepoCacheReadRate[] {
+  const minTokens = opts.minTokens ?? 10_000;
+  const take = opts.take ?? 12;
+  const thisWeek = weekRangeJST(now);
+  const lastWeekStart = new Date(thisWeek.start.getTime() - 7 * 86400000);
+  const lastWeekEnd = thisWeek.start;
 
   type Acc = {
-    this: { cacheRead: number; tokensIn: number; cacheCreate: number };
-    last: { cacheRead: number; tokensIn: number; cacheCreate: number };
+    this: { cacheRead: number; totalInput: number };
+    last: { cacheRead: number; totalInput: number };
   };
   const map = new Map<string, Acc>();
 
   for (const r of runs) {
     const repo = r.repo?.trim();
     if (!repo) continue;
-    // synthetic / 空ランは再利用率を壊すので集計から除外
-    const runTokens = r.cacheRead + r.tokensIn + r.cacheCreate;
-    if (runTokens <= 0) continue;
     let a = map.get(repo);
     if (!a) {
       a = {
-        this: { cacheRead: 0, tokensIn: 0, cacheCreate: 0 },
-        last: { cacheRead: 0, tokensIn: 0, cacheCreate: 0 },
+        this: { cacheRead: 0, totalInput: 0 },
+        last: { cacheRead: 0, totalInput: 0 },
       };
       map.set(repo, a);
     }
@@ -165,25 +195,24 @@ export async function repoCacheReadRates(
           ? a.last
           : null;
     if (!bucket) continue;
-    bucket.cacheRead += r.cacheRead;
-    bucket.tokensIn += r.tokensIn;
-    bucket.cacheCreate += r.cacheCreate;
+    const usage = readSupportedStoredHarnessUsage(r);
+    if (usage === null) continue;
+    // synthetic / 空ランは再利用率を壊すので集計から除外
+    if (usage.inputTotalTokens <= 0) continue;
+    bucket.cacheRead += usage.cacheReadTokens;
+    bucket.totalInput += usage.inputTotalTokens;
   }
 
   const rows: RepoCacheReadRate[] = [];
   for (const [repo, a] of map) {
-    const thisTokens = a.this.cacheRead + a.this.tokensIn + a.this.cacheCreate;
-    const lastTokens = a.last.cacheRead + a.last.tokensIn + a.last.cacheCreate;
+    const thisTokens = a.this.totalInput;
+    const lastTokens = a.last.totalInput;
     if (thisTokens < minTokens && lastTokens < minTokens) continue;
-    const lastWeekRate = cacheReadRate(
-      a.last.cacheRead,
-      a.last.tokensIn,
-      a.last.cacheCreate
-    );
+    const lastWeekRate = normalizedCacheReadRate(a.last.cacheRead, a.last.totalInput);
     const insufficientThisWeek = thisTokens < minTokens;
     const thisWeekRate = insufficientThisWeek
       ? lastWeekRate
-      : cacheReadRate(a.this.cacheRead, a.this.tokensIn, a.this.cacheCreate);
+      : normalizedCacheReadRate(a.this.cacheRead, a.this.totalInput);
     // 今週薄いのに 0% とみなして「全repo悪化」にしない
     const declineRatio =
       insufficientThisWeek || lastWeekRate <= 0

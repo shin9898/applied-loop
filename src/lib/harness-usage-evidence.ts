@@ -38,6 +38,66 @@ export type HarnessUsageEvidence = Readonly<{
   usageNormalizationReason: HarnessUsageNormalizationReason | null;
 }>;
 
+export type StoredHarnessUsageEvidence = Readonly<{
+  inputTotalTokens: number | null;
+  inputUncachedTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  usageSemanticsVersion: string | null;
+  usageNormalizationStatus: string | null;
+}>;
+
+export type SupportedStoredHarnessUsage = Readonly<{
+  inputTotalTokens: number;
+  inputUncachedTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number | null;
+}>;
+
+function safeNonNegativeInteger(value: number | null): value is number {
+  return value !== null
+    && Number.isSafeInteger(value)
+    && value >= 0
+    && !Object.is(value, -0);
+}
+
+/**
+ * Reads only the server-derived evidence projection. Legacy/null, invalid,
+ * unsupported, and semantically inconsistent rows are not measurement data.
+ * Callers must keep them out of rate denominators instead of treating them as
+ * zero or falling back to the provider-ambiguous raw counters.
+ */
+export function readSupportedStoredHarnessUsage(
+  row: StoredHarnessUsageEvidence,
+): SupportedStoredHarnessUsage | null {
+  if (
+    row.usageSemanticsVersion !== HARNESS_USAGE_SEMANTICS_VERSION
+    || row.usageNormalizationStatus !== "supported"
+    || !safeNonNegativeInteger(row.inputTotalTokens)
+    || !safeNonNegativeInteger(row.inputUncachedTokens)
+    || !safeNonNegativeInteger(row.cacheReadTokens)
+    || (row.cacheWriteTokens !== null && !safeNonNegativeInteger(row.cacheWriteTokens))
+    || row.inputTotalTokens === 0
+    || row.cacheReadTokens > row.inputTotalTokens
+  ) {
+    return null;
+  }
+
+  const freshInput = row.inputTotalTokens - row.cacheReadTokens;
+  const uncachedMatches = row.cacheWriteTokens === null
+    ? row.inputUncachedTokens === freshInput
+    : row.inputUncachedTokens <= freshInput
+      && row.inputUncachedTokens + row.cacheWriteTokens === freshInput;
+  if (!uncachedMatches) return null;
+
+  return {
+    inputTotalTokens: row.inputTotalTokens,
+    inputUncachedTokens: row.inputUncachedTokens,
+    cacheReadTokens: row.cacheReadTokens,
+    cacheWriteTokens: row.cacheWriteTokens,
+  };
+}
+
 function unavailableEvidence(
   status: "invalid" | "unsupported",
   reason: HarnessUsageNormalizationReason,
