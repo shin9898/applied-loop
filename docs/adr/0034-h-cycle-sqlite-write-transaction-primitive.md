@@ -100,7 +100,9 @@ guarded probe write 後に child を release し、bounded wait で child の ac
 
 child process / test source is not an application worker registration and is never run by a queue,
 scheduler, registry, handler, launchd service, or production entrypoint. It exists only in the
-temporary fixture test and uses explicit `execArgv: ["--import", "tsx"]` when spawned.
+temporary fixture test and uses explicit `execArgv: ["--require", "tsx/cjs"]` when spawned. The
+CJS preload keeps the child and its extensionless TypeScript dependency edges portable under the
+repository's Node 20 `tsx --test` invocation.
 
 ### 4. historical fences remain independently checked
 
@@ -124,8 +126,8 @@ same local-only design artifact.
 
 An executable source graph check must prove that the helper has exactly one `ImportDeclaration`
 consumer, the C3p test; the test-support child has exactly one `new Worker(new URL(...))` reference,
-also in that test; and no worker, registry, queue, delivery, index, barrel, or production source
-imports or re-exports either module.
+also in that test, with the exact CJS preload; and no worker, registry, queue, delivery, index,
+barrel, or production source imports or re-exports either module.
 
 ## 受入条件
 

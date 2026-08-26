@@ -228,7 +228,7 @@ const A8C3P_ALLOWED_SRC_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
 ] as const;
 const A8C3P_ADR_PATH = "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md";
-const A8C3P_ADR_SHA256 = "eb6013e687aeb1b1c6bd036cac2989fb01ff54fc172829686d7f728f4c0978d4";
+const A8C3P_ADR_SHA256 = "8a7b7836d6b54d1168cf0cfc26bbb9b9f9133f17463ad82e15698bc0572bbfae";
 const A8C3P_REVIEW_ARTIFACT_PATH = "docs/plans/2026-08-26-a8-c3p-sqlite-transaction-primitive.md";
 const A8C3P_REVIEW_ARTIFACT_SHA256 = "95fa7af479d56b9000cd42a5676f1f8b3207633ab60ab84ea819ba308d6866de";
 const workerEntry = join(process.cwd(), "src/lib/loop-jobs/worker.mjs");

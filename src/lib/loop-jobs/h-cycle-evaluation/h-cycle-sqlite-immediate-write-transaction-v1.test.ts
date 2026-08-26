@@ -328,7 +328,7 @@ export function spawnHCycleSqliteImmediateWriteTransactionDisableChildForTestV1(
   return new Worker(
     new URL("./h-cycle-sqlite-immediate-write-transaction-disable-child.ts", import.meta.url),
     {
-      execArgv: ["--import", "tsx"],
+      execArgv: ["--require", "tsx/cjs"],
       workerData,
     },
   );
@@ -372,6 +372,7 @@ function assertC3pStaticSourceGraph(): void {
   const helperReexportConsumers: string[] = [];
   const childReexportConsumers: string[] = [];
   const childWorkerUrlConsumers: string[] = [];
+  const childWorkerCjsPreloadConsumers: string[] = [];
   for (const path of sourcePaths) {
     const source = readFileSync(join(root, path), "utf8");
     const scriptKind = path.endsWith(".tsx") ? ts.ScriptKind.TSX : path.endsWith(".mjs")
@@ -396,6 +397,18 @@ function assertC3pStaticSourceGraph(): void {
             ts.isStringLiteral(firstArgument.arguments[0]) &&
             targetPath(path, firstArgument.arguments[0].text) === C3P_CHILD_PATH) {
           childWorkerUrlConsumers.push(path);
+          const options = node.arguments?.[1];
+          const execArgv = options && ts.isObjectLiteralExpression(options)
+            ? options.properties.find((property): property is import("typescript").PropertyAssignment =>
+              ts.isPropertyAssignment(property) && ts.isIdentifier(property.name) && property.name.text === "execArgv")
+            : undefined;
+          const argumentsValue = execArgv?.initializer;
+          if (argumentsValue && ts.isArrayLiteralExpression(argumentsValue) &&
+              argumentsValue.elements.length === 2 &&
+              ts.isStringLiteral(argumentsValue.elements[0]) && argumentsValue.elements[0].text === "--require" &&
+              ts.isStringLiteral(argumentsValue.elements[1]) && argumentsValue.elements[1].text === "tsx/cjs") {
+            childWorkerCjsPreloadConsumers.push(path);
+          }
         }
       }
       ts.forEachChild(node, visit);
@@ -407,6 +420,7 @@ function assertC3pStaticSourceGraph(): void {
   assert.deepEqual(helperReexportConsumers, []);
   assert.deepEqual(childReexportConsumers, []);
   assert.deepEqual(childWorkerUrlConsumers, [C3P_TEST_PATH]);
+  assert.deepEqual(childWorkerCjsPreloadConsumers, [C3P_TEST_PATH]);
 
   const helperSource = readFileSync(join(root, C3P_HELPER_PATH), "utf8");
   assert.doesNotMatch(helperSource, /^\s*import\s/m);

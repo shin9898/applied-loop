@@ -339,7 +339,7 @@ const A8C3P_ADDITIVE_NON_H_EVAL_PATHS = [
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
 ] as const;
 const A8C3P_IMMUTABLE_CONTENT_SHA256: Readonly<Record<string, string>> = {
-  "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md": "eb6013e687aeb1b1c6bd036cac2989fb01ff54fc172829686d7f728f4c0978d4",
+  "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md": "8a7b7836d6b54d1168cf0cfc26bbb9b9f9133f17463ad82e15698bc0572bbfae",
 };
 const A8C3P_REVIEW_ARTIFACT_PATH = "docs/plans/2026-08-26-a8-c3p-sqlite-transaction-primitive.md";
 const A8C3P_REVIEW_ARTIFACT_SHA256 = "95fa7af479d56b9000cd42a5676f1f8b3207633ab60ab84ea819ba308d6866de";
