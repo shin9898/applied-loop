@@ -37,6 +37,7 @@ const PROJECTION_KEYS = [
 ] as const;
 const PERIOD_KEYS = ["weekKey", "start", "end", "asOf"] as const;
 const RECORD_INPUT_KEYS = ["client", "preview", "scheduledFor", "evaluatedAt", "triggerKind", "timeliness"] as const;
+const RECORD_WRITE_INPUT_KEYS = ["preview", "scheduledFor", "evaluatedAt", "triggerKind", "timeliness"] as const;
 const KNOWN_RATE_REASONS = new Set([
   "invalid_mastery_event",
   "invalid_gate_state_history",
@@ -85,7 +86,7 @@ type ClosedPreviewEnvelope = Readonly<{
   projections: readonly [HCycleEvidenceProjectionV1, HCycleEvidenceProjectionV1];
   policy: HCycleEvidencePolicyResultV1;
 }>;
-type RecordIdentity = Readonly<{
+export type HCycleEvaluationRecordIdentityV1 = Readonly<{
   recordSchema: typeof RECORD_SCHEMA_V1;
   policyVersion: typeof H_CYCLE_POLICY_VERSION_V1;
   projectionSchemaVersion: typeof PREVIEW_SCHEMA_V1;
@@ -94,9 +95,13 @@ type RecordIdentity = Readonly<{
 type HCycleEvaluationRecordClient = Readonly<{
   hCycleEvaluationRecord: Pick<PrismaClient["hCycleEvaluationRecord"], "create" | "findUnique">;
 }>;
-type PreparedRecord = Readonly<{
-  client: HCycleEvaluationRecordClient;
-  identity: RecordIdentity;
+/**
+ * Canonical aggregate-only fields for one append-only H-CYCLE record. This
+ * has no database client or persistence capability, so C3c can validate the
+ * exact same record identity before its own proven immediate transaction.
+ */
+export type PreparedHCycleEvaluationRecordV1 = Readonly<{
+  identity: HCycleEvaluationRecordIdentityV1;
   previousWeekKey: string;
   previousPeriodJson: string;
   targetPeriodJson: string;
@@ -107,6 +112,9 @@ type PreparedRecord = Readonly<{
   aggregateEnvelopeJson: string;
   aggregateEnvelopeSha256: string;
   recordSha256: string;
+}>;
+type PreparedRecord = PreparedHCycleEvaluationRecordV1 & Readonly<{
+  client: HCycleEvaluationRecordClient;
 }>;
 
 export type PersistHCycleEvaluationRecordResult =
@@ -374,11 +382,15 @@ function validDate(value: unknown): Date | null {
   return new Date(value.getTime());
 }
 
-function prepareRecord(input: unknown): PreparedRecord | null {
+/**
+ * Validates and canonicalizes an aggregate-only record without opening or
+ * receiving a database capability. Persistence routes must still provide
+ * their own atomicity and authorization fence.
+ */
+export function prepareHCycleEvaluationRecordV1(input: unknown): PreparedHCycleEvaluationRecordV1 | null {
   try {
     const record = dataObject(input);
-    if (!record || !hasExactKeys(record, RECORD_INPUT_KEYS)
-      || record.client === null || typeof record.client !== "object") return null;
+    if (!record || !hasExactKeys(record, RECORD_WRITE_INPUT_KEYS)) return null;
     const preview = normalizeClosedPreview(record.preview);
     const scheduledFor = validDate(record.scheduledFor);
     const evaluatedAt = validDate(record.evaluatedAt);
@@ -392,7 +404,7 @@ function prepareRecord(input: unknown): PreparedRecord | null {
     const aggregateEnvelopeSha256 = sha256(aggregateEnvelopeJson);
     const previousPeriodJson = canonicalJson(preview.projections[0].period);
     const targetPeriodJson = canonicalJson(preview.projections[1].period);
-    const identity: RecordIdentity = Object.freeze({
+    const identity: HCycleEvaluationRecordIdentityV1 = Object.freeze({
       recordSchema: RECORD_SCHEMA_V1,
       policyVersion: H_CYCLE_POLICY_VERSION_V1,
       projectionSchemaVersion: PREVIEW_SCHEMA_V1,
@@ -410,7 +422,6 @@ function prepareRecord(input: unknown): PreparedRecord | null {
       aggregateEnvelopeSha256,
     }));
     return Object.freeze({
-      client: record.client as HCycleEvaluationRecordClient,
       identity,
       previousWeekKey: preview.projections[0].period.weekKey,
       previousPeriodJson,
@@ -428,7 +439,27 @@ function prepareRecord(input: unknown): PreparedRecord | null {
   }
 }
 
-function identityWhere(identity: RecordIdentity) {
+function prepareRecord(input: unknown): PreparedRecord | null {
+  try {
+    const record = dataObject(input);
+    if (!record || !hasExactKeys(record, RECORD_INPUT_KEYS)
+      || record.client === null || typeof record.client !== "object") return null;
+    const prepared = prepareHCycleEvaluationRecordV1({
+      preview: record.preview,
+      scheduledFor: record.scheduledFor,
+      evaluatedAt: record.evaluatedAt,
+      triggerKind: record.triggerKind,
+      timeliness: record.timeliness,
+    });
+    return prepared === null
+      ? null
+      : Object.freeze({ client: record.client as HCycleEvaluationRecordClient, ...prepared });
+  } catch {
+    return null;
+  }
+}
+
+function identityWhere(identity: HCycleEvaluationRecordIdentityV1) {
   return {
     recordSchema_policyVersion_projectionSchemaVersion_targetWeekKey: identity,
   };

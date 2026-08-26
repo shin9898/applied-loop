@@ -1,5 +1,6 @@
 import { createHash, randomBytes as secureRandomBytes } from "node:crypto";
 
+import { prepareHCycleEvaluationRecordV1 } from "../../h-cycle-evaluation-record";
 import {
   canonicalJson,
   decodeLoopJobPayload,
@@ -9,6 +10,7 @@ import {
   createHCycleEvaluatePayloadV1,
   H_CYCLE_EVALUATE_JOB_REGISTRY,
 } from "./h-cycle-evaluate-job-contract-v1";
+import { deriveHCycleEvaluateTimingV1 } from "./h-cycle-evaluate-planner-v1";
 
 const H_CYCLE_KIND = "h_cycle_evaluate" as const;
 const EVENT_SCHEMA_V1 = "h_cycle_activation_event_v1" as const;
@@ -16,6 +18,7 @@ const INITIAL_FLOOR_WEEK_KEY = "2026-W35" as const;
 const ENQUEUE_INPUT_SCHEMA_V1 = "h_cycle_generation_scoped_enqueue_v1" as const;
 const CLAIM_INPUT_SCHEMA_V1 = "h_cycle_generation_scoped_claim_v1" as const;
 const RECOVER_INPUT_SCHEMA_V1 = "h_cycle_generation_scoped_recover_v1" as const;
+const RECORD_AND_SUCCEED_INPUT_SCHEMA_V1 = "h_cycle_generation_scoped_record_and_succeed_v1" as const;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1_000;
 const DAY_MS = 24 * 60 * 60 * 1_000;
 const JOB_ID = /^job_[0-9a-f]{32}$/;
@@ -75,6 +78,16 @@ export type HCycleGenerationScopedClaimCapabilityV1 = Readonly<{
   readonly [H_CYCLE_CLAIM_CAPABILITY_BRAND]: "h_cycle_generation_scoped_claim_v1";
 }>;
 
+export type HCycleGenerationScopedRecordAndSucceedInputV1 = Readonly<{
+  schema: typeof RECORD_AND_SUCCEED_INPUT_SCHEMA_V1;
+  capability: HCycleGenerationScopedClaimCapabilityV1;
+  preview: unknown;
+  scheduledFor: Date;
+  evaluatedAt: Date;
+  triggerKind: "scheduled" | "catch_up";
+  timeliness: "on_time" | "catch_up";
+}>;
+
 export type HCycleGenerationScopedEnqueueResultV1 =
   | Readonly<{ ok: true; featureState: "off"; code: "enqueued" | "already_enqueued" }>
   | Readonly<{
@@ -103,6 +116,23 @@ export type HCycleGenerationScopedRecoverResultV1 =
     ok: false;
     featureState: "off";
     code: "invalid_execution_input" | "execution_fenced" | "storage_failure";
+  }>;
+
+export type HCycleGenerationScopedRecordAndSucceedResultV1 =
+  | Readonly<{
+    ok: true;
+    featureState: "off";
+    code: "recorded_and_succeeded" | "reconciled_and_succeeded";
+  }>
+  | Readonly<{
+    ok: false;
+    featureState: "off";
+    code:
+      | "invalid_execution_input"
+      | "invalid_evaluation_record"
+      | "execution_fenced"
+      | "evaluation_record_integrity_failure"
+      | "storage_failure";
   }>;
 
 type CapabilityPrivateState = Readonly<{
@@ -185,6 +215,26 @@ const ALREADY_ENQUEUED = Object.freeze({
   code: "already_enqueued" as const,
 });
 const RECOVERED = Object.freeze({ ok: true as const, featureState: "off" as const, code: "recovered" as const });
+const INVALID_EVALUATION_RECORD = Object.freeze({
+  ok: false as const,
+  featureState: "off" as const,
+  code: "invalid_evaluation_record" as const,
+});
+const EVALUATION_RECORD_INTEGRITY_FAILURE = Object.freeze({
+  ok: false as const,
+  featureState: "off" as const,
+  code: "evaluation_record_integrity_failure" as const,
+});
+const RECORDED_AND_SUCCEEDED = Object.freeze({
+  ok: true as const,
+  featureState: "off" as const,
+  code: "recorded_and_succeeded" as const,
+});
+const RECONCILED_AND_SUCCEEDED = Object.freeze({
+  ok: true as const,
+  featureState: "off" as const,
+  code: "reconciled_and_succeeded" as const,
+});
 
 function dataObject(value: unknown): DataObject | null {
   try {
@@ -493,6 +543,39 @@ function validRecoverInput(value: unknown): value is HCycleGenerationScopedRecov
   return input !== null && exactKeys(input, ["schema"]) && input.schema === RECOVER_INPUT_SCHEMA_V1;
 }
 
+function validRecordAndSucceedInput(value: unknown): value is HCycleGenerationScopedRecordAndSucceedInputV1 {
+  const input = dataObject(value);
+  return input !== null
+    && exactKeys(input, ["schema", "capability", "preview", "scheduledFor", "evaluatedAt", "triggerKind", "timeliness"])
+    && input.schema === RECORD_AND_SUCCEED_INPUT_SCHEMA_V1
+    && input.capability !== null
+    && typeof input.capability === "object";
+}
+
+function capabilityState(value: unknown): CapabilityPrivateState | null {
+  if (value === null || typeof value !== "object") return null;
+  try {
+    return capabilities.get(value) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function singleAggregateEnvelopeHash(rows: readonly unknown[]): string | null {
+  if (rows.length !== 1) return null;
+  const row = dataObject(rows[0]);
+  return row !== null
+    && exactKeys(row, ["aggregateEnvelopeSha256"])
+    && typeof row.aggregateEnvelopeSha256 === "string"
+    && PAYLOAD_HASH.test(row.aggregateEnvelopeSha256)
+    ? row.aggregateEnvelopeSha256
+    : null;
+}
+
+function recordIdFor(recordSha256: string): string | null {
+  return PAYLOAD_HASH.test(recordSha256) ? `c${recordSha256.slice(0, 24)}` : null;
+}
+
 function sha256(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -731,6 +814,180 @@ export function createHCycleGenerationScopedExecutionV1(
           policyVersion: payload.policyVersion,
           projectionSchemaVersion: payload.projectionSchemaVersion,
         }));
+      });
+      return exactResult(result);
+    },
+
+    recordAndSucceed(input: unknown): HCycleGenerationScopedRecordAndSucceedResultV1 {
+      if (!validRecordAndSucceedInput(input)) return INVALID_EXECUTION_INPUT;
+      const claim = capabilityState(input.capability);
+      if (!claim) return INVALID_EXECUTION_INPUT;
+      const prepared = prepareHCycleEvaluationRecordV1({
+        preview: input.preview,
+        scheduledFor: input.scheduledFor,
+        evaluatedAt: input.evaluatedAt,
+        triggerKind: input.triggerKind,
+        timeliness: input.timeliness,
+      });
+      if (!prepared) return INVALID_EVALUATION_RECORD;
+      if (prepared.identity.targetWeekKey !== claim.targetWeekKey
+        || prepared.identity.policyVersion !== claim.policyVersion
+        || prepared.identity.projectionSchemaVersion !== claim.projectionSchemaVersion) {
+        return EXECUTION_FENCED;
+      }
+      const timing = deriveHCycleEvaluateTimingV1({
+        targetWeekKey: claim.targetWeekKey,
+        evaluatedAt: prepared.evaluatedAt,
+      });
+      if (!timing.ok
+        || timing.timing.scheduledFor.getTime() !== prepared.scheduledFor.getTime()
+        || timing.timing.triggerKind !== prepared.triggerKind
+        || timing.timing.timeliness !== prepared.timeliness) {
+        return INVALID_EVALUATION_RECORD;
+      }
+      const recordId = recordIdFor(prepared.recordSha256);
+      if (!recordId) return STORAGE_FAILURE;
+
+      let now: Date;
+      let nowIso: string | null;
+      let scheduledForIso: string | null;
+      let evaluatedAtIso: string | null;
+      try {
+        now = dependencies.clock.now();
+        nowIso = isoDate(now);
+        scheduledForIso = isoDate(prepared.scheduledFor);
+        evaluatedAtIso = isoDate(prepared.evaluatedAt);
+      } catch {
+        return STORAGE_FAILURE;
+      }
+      if (!nowIso || !scheduledForIso || !evaluatedAtIso) return STORAGE_FAILURE;
+      if (prepared.evaluatedAt.getTime() > now.getTime()) return INVALID_EVALUATION_RECORD;
+
+      const result = runImmediate(dependencies, (connection): HCycleGenerationScopedRecordAndSucceedResultV1 => {
+        const control = loadActiveControlState(connection, now);
+        if (!control
+          || control.generationSequence !== claim.generationSequence
+          || claim.targetWeekKey < control.activationFloorWeekKey) {
+          return EXECUTION_FENCED;
+        }
+        const candidate = selectedJob(connection, `
+          SELECT "id", "kind", "dedupeKey", "payloadJson", "payloadHash", "status", "attempts", "maxAttempts",
+            "availableAt", "lockedAt", "leaseExpiresAt", "lockedBy", "leaseToken", "lastError", "createdAt",
+            "updatedAt", "finishedAt", "executionGenerationSequence"
+          FROM "LoopJob"
+          WHERE "id" = :id
+            AND "kind" = :kind
+            AND "executionGenerationSequence" = :generationSequence
+            AND "payloadHash" = :payloadHash
+            AND "status" = 'running'
+            AND "leaseToken" = :leaseToken
+            AND "leaseExpiresAt" > :now
+        `, {
+          id: claim.jobId,
+          kind: H_CYCLE_KIND,
+          generationSequence: claim.generationSequence,
+          payloadHash: claim.payloadHash,
+          leaseToken: claim.leaseToken,
+          now: nowIso,
+        });
+        const payload = candidate === null ? null : validHCyclePayload(candidate, control.activationFloorWeekKey);
+        if (!candidate || !payload
+          || candidate.executionGenerationSequence !== claim.generationSequence
+          || candidate.leaseToken !== claim.leaseToken
+          || candidate.payloadHash !== claim.payloadHash
+          || payload.targetWeekKey !== claim.targetWeekKey
+          || payload.policyVersion !== claim.policyVersion
+          || payload.projectionSchemaVersion !== claim.projectionSchemaVersion) {
+          return EXECUTION_FENCED;
+        }
+
+        const insertedHash = singleAggregateEnvelopeHash(connection.prepare(`
+          INSERT INTO "HCycleEvaluationRecord" (
+            "id", "recordSchema", "policyVersion", "projectionSchemaVersion", "previousWeekKey", "targetWeekKey",
+            "previousPeriodJson", "targetPeriodJson", "scheduledFor", "evaluatedAt", "triggerKind", "timeliness",
+            "aggregateEnvelopeJson", "aggregateEnvelopeSha256", "recordSha256"
+          ) VALUES (
+            :id, :recordSchema, :policyVersion, :projectionSchemaVersion, :previousWeekKey, :targetWeekKey,
+            :previousPeriodJson, :targetPeriodJson, :scheduledFor, :evaluatedAt, :triggerKind, :timeliness,
+            :aggregateEnvelopeJson, :aggregateEnvelopeSha256, :recordSha256
+          ) ON CONFLICT("recordSchema", "policyVersion", "projectionSchemaVersion", "targetWeekKey") DO NOTHING
+          RETURNING "aggregateEnvelopeSha256"
+        `).all({
+          id: recordId,
+          recordSchema: prepared.identity.recordSchema,
+          policyVersion: prepared.identity.policyVersion,
+          projectionSchemaVersion: prepared.identity.projectionSchemaVersion,
+          previousWeekKey: prepared.previousWeekKey,
+          targetWeekKey: prepared.identity.targetWeekKey,
+          previousPeriodJson: prepared.previousPeriodJson,
+          targetPeriodJson: prepared.targetPeriodJson,
+          scheduledFor: scheduledForIso,
+          evaluatedAt: evaluatedAtIso,
+          triggerKind: prepared.triggerKind,
+          timeliness: prepared.timeliness,
+          aggregateEnvelopeJson: prepared.aggregateEnvelopeJson,
+          aggregateEnvelopeSha256: prepared.aggregateEnvelopeSha256,
+          recordSha256: prepared.recordSha256,
+        }));
+        let reconciled = false;
+        if (insertedHash === null) {
+          const winnerHash = singleAggregateEnvelopeHash(connection.prepare(`
+            SELECT "aggregateEnvelopeSha256"
+            FROM "HCycleEvaluationRecord"
+            WHERE "recordSchema" = :recordSchema
+              AND "policyVersion" = :policyVersion
+              AND "projectionSchemaVersion" = :projectionSchemaVersion
+              AND "targetWeekKey" = :targetWeekKey
+          `).all({
+            recordSchema: prepared.identity.recordSchema,
+            policyVersion: prepared.identity.policyVersion,
+            projectionSchemaVersion: prepared.identity.projectionSchemaVersion,
+            targetWeekKey: prepared.identity.targetWeekKey,
+          }));
+          if (winnerHash === null) throw new Error("missing guarded record winner");
+          if (winnerHash !== prepared.aggregateEnvelopeSha256) return EVALUATION_RECORD_INTEGRITY_FAILURE;
+          reconciled = true;
+        } else if (insertedHash !== prepared.aggregateEnvelopeSha256) {
+          throw new Error("unexpected guarded record hash");
+        }
+
+        const succeeded = parseOnlyStoredLoopJob(connection.prepare(`
+          UPDATE "LoopJob"
+          SET "status" = 'succeeded',
+              "lockedAt" = NULL,
+              "leaseExpiresAt" = NULL,
+              "lockedBy" = NULL,
+              "leaseToken" = NULL,
+              "lastError" = NULL,
+              "updatedAt" = :now,
+              "finishedAt" = :now
+          WHERE "id" = :id
+            AND "kind" = :kind
+            AND "executionGenerationSequence" = :generationSequence
+            AND "payloadHash" = :payloadHash
+            AND "status" = 'running'
+            AND "leaseToken" = :leaseToken
+            AND "leaseExpiresAt" > :now
+          RETURNING "id", "kind", "dedupeKey", "payloadJson", "payloadHash", "status", "attempts", "maxAttempts",
+            "availableAt", "lockedAt", "leaseExpiresAt", "lockedBy", "leaseToken", "lastError", "createdAt",
+            "updatedAt", "finishedAt", "executionGenerationSequence"
+        `).all({
+          id: claim.jobId,
+          kind: H_CYCLE_KIND,
+          generationSequence: claim.generationSequence,
+          payloadHash: claim.payloadHash,
+          leaseToken: claim.leaseToken,
+          now: nowIso,
+        }));
+        if (!succeeded
+          || succeeded.status !== "succeeded"
+          || succeeded.executionGenerationSequence !== claim.generationSequence
+          || succeeded.payloadHash !== claim.payloadHash) {
+          // The immediate primitive rolls back both the guarded record write
+          // and this job transition before normalizing the storage failure.
+          throw new Error("guarded success transition lost");
+        }
+        return reconciled ? RECONCILED_AND_SUCCEEDED : RECORDED_AND_SUCCEEDED;
       });
       return exactResult(result);
     },

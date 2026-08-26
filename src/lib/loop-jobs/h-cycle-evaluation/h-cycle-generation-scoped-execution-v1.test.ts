@@ -10,6 +10,8 @@ import test from "node:test";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 import { PrismaClient } from "../../../generated/prisma/client";
+import { buildHCycleEvidencePreviewV1 } from "../../h-cycle-evidence-preview";
+import { persistHCycleEvaluationRecordV1 } from "../../h-cycle-evaluation-record";
 import { appendHCycleActivationEventV1 } from "./h-cycle-activation-control-ledger-v1";
 import {
   createHCycleGenerationScopedExecutionV1,
@@ -20,6 +22,7 @@ import {
   createHCycleEvaluatePayloadV1,
   H_CYCLE_EVALUATE_JOB_REGISTRY,
 } from "./h-cycle-evaluate-job-contract-v1";
+import { deriveHCycleEvaluateTimingV1 } from "./h-cycle-evaluate-planner-v1";
 import {
   runHCycleSqliteImmediateWriteTransactionV1,
   type HCycleSqliteImmediateWriteConnectionV1,
@@ -136,6 +139,55 @@ function hCyclePayloadJson(targetWeekKey: string) {
   return Object.freeze({
     payloadJson,
     payloadHash: createHash("sha256").update(payloadJson, "utf8").digest("hex"),
+  });
+}
+
+function evaluationFor(targetWeekKey: string, evaluatedAt: Date) {
+  const timing = deriveHCycleEvaluateTimingV1({ targetWeekKey, evaluatedAt });
+  assert.equal(timing.ok, true, "fixture target must be due");
+  if (!timing.ok) assert.fail("fixture target must derive evaluation timing");
+  const preview = buildHCycleEvidencePreviewV1({
+    sourceRevisions: [],
+    promotions: [],
+    gateStateEvents: [],
+    failureCaptures: [],
+    followupObservations: [],
+  }, timing.timing.periods);
+  return Object.freeze({
+    preview,
+    scheduledFor: timing.timing.scheduledFor,
+    evaluatedAt: timing.timing.evaluatedAt,
+    triggerKind: timing.timing.triggerKind,
+    timeliness: timing.timing.timeliness,
+  });
+}
+
+function conflictingEvaluationFor(targetWeekKey: string, evaluatedAt: Date) {
+  const timing = deriveHCycleEvaluateTimingV1({ targetWeekKey, evaluatedAt });
+  assert.equal(timing.ok, true, "fixture target must be due");
+  if (!timing.ok) assert.fail("fixture target must derive evaluation timing");
+  const observedAt = new Date(timing.timing.periods[1].start.getTime() + 60_000);
+  const preview = buildHCycleEvidencePreviewV1({
+    sourceRevisions: [{
+      sourceKind: "daily",
+      textbookKey: `fixture-${targetWeekKey}`,
+      source: "auto",
+      checkIndex: 1,
+      sourceRevisionHash: "f".repeat(64),
+      firstObservedAt: observedAt,
+      masteryEvents: [{ mastery: "partial", recordedAt: new Date(observedAt.getTime() + 1_000) }],
+    }],
+    promotions: [],
+    gateStateEvents: [],
+    failureCaptures: [],
+    followupObservations: [],
+  }, timing.timing.periods);
+  return Object.freeze({
+    preview,
+    scheduledFor: timing.timing.scheduledFor,
+    evaluatedAt: timing.timing.evaluatedAt,
+    triggerKind: timing.timing.triggerKind,
+    timeliness: timing.timing.timeliness,
   });
 }
 
@@ -464,5 +516,152 @@ test("A8C3B-CG1-T1 keeps H-CYCLE generation-scoped and generic queue paths inert
     assert.ok(g1 && g2);
     assert.equal((await client.loopJob.findUniqueOrThrow({ where: { id: g1.id } })).status, "queued");
     assert.equal((await client.loopJob.findUniqueOrThrow({ where: { id: g2.id } })).status, "running");
+  });
+});
+
+test("A8C3C-CG1-T1 atomically fences record/reconcile/success to one current generation", async () => {
+  await withFixture(async (_fixture, client, direct) => {
+    let now = new Date(ROOT_NOW);
+    const generationOne = await appendRoot(client, () => new Date(now));
+    now = new Date("2026-09-27T23:20:00.000Z");
+    const scoped = createHCycleGenerationScopedExecutionV1({
+      runImmediate: immediateRunner(direct),
+      clock: { now: () => new Date(now) },
+      randomBytes: entropy(500),
+    });
+    const target39 = evaluationFor("2026-W39", now);
+    exactResult(scoped.recordAndSucceed({
+      schema: "h_cycle_generation_scoped_record_and_succeed_v1",
+      capability: Object.freeze(Object.create(null)) as never,
+      ...target39,
+    }), { ok: false, featureState: "off", code: "invalid_execution_input" });
+    assert.equal(await client.hCycleEvaluationRecord.count(), 0);
+
+    exactResult(scoped.enqueue({
+      schema: "h_cycle_generation_scoped_enqueue_v1",
+      targetWeekKey: "2026-W39",
+      maxAttempts: 3,
+      availableAt: new Date(now),
+    }), { ok: true, featureState: "off", code: "enqueued" });
+    const firstClaim = scoped.claim({ schema: "h_cycle_generation_scoped_claim_v1", leaseDurationMs: 60_000 });
+    assert.equal(firstClaim.ok, true);
+    assert.equal(firstClaim.ok && firstClaim.code, "claimed");
+    if (!firstClaim.ok || firstClaim.code !== "claimed") assert.fail("current generation target must claim");
+
+    const beforeTimingFence = await client.loopJob.findFirstOrThrow({
+      where: { kind: H_CYCLE_KIND, executionGenerationSequence: generationOne, payloadHash: hCyclePayloadJson("2026-W39").payloadHash },
+    });
+    exactResult(scoped.recordAndSucceed({
+      schema: "h_cycle_generation_scoped_record_and_succeed_v1",
+      capability: firstClaim.capability,
+      ...target39,
+      scheduledFor: new Date(target39.scheduledFor.getTime() + 1),
+    }), { ok: false, featureState: "off", code: "invalid_evaluation_record" });
+    assert.equal(await client.hCycleEvaluationRecord.count(), 0);
+    assert.deepEqual(
+      await client.loopJob.findUniqueOrThrow({ where: { id: beforeTimingFence.id } }),
+      beforeTimingFence,
+      "timing metadata must be canonical before either durable mutation",
+    );
+
+    exactResult(scoped.recordAndSucceed({
+      schema: "h_cycle_generation_scoped_record_and_succeed_v1",
+      capability: firstClaim.capability,
+      ...target39,
+    }), { ok: true, featureState: "off", code: "recorded_and_succeeded" });
+    assert.equal(await client.hCycleEvaluationRecord.count(), 1);
+    const firstRecord = await client.hCycleEvaluationRecord.findFirstOrThrow({
+      where: { targetWeekKey: "2026-W39" },
+    });
+    const firstJob = await client.loopJob.findFirstOrThrow({
+      where: { kind: H_CYCLE_KIND, executionGenerationSequence: generationOne, payloadHash: hCyclePayloadJson("2026-W39").payloadHash },
+    });
+    assert.equal(firstJob.status, "succeeded");
+    assert.equal(firstJob.leaseToken, null);
+
+    const target38 = evaluationFor("2026-W38", now);
+    const legacyRecord = await persistHCycleEvaluationRecordV1({ client, ...target38 });
+    assert.equal(legacyRecord.ok, true);
+    assert.equal(legacyRecord.ok && legacyRecord.created, true);
+    if (!legacyRecord.ok) assert.fail("fixture record must persist once");
+    exactResult(scoped.enqueue({
+      schema: "h_cycle_generation_scoped_enqueue_v1",
+      targetWeekKey: "2026-W38",
+      maxAttempts: 3,
+      availableAt: new Date(now),
+    }), { ok: true, featureState: "off", code: "enqueued" });
+    const reconciliationClaim = scoped.claim({ schema: "h_cycle_generation_scoped_claim_v1", leaseDurationMs: 60_000 });
+    assert.equal(reconciliationClaim.ok, true);
+    assert.equal(reconciliationClaim.ok && reconciliationClaim.code, "claimed");
+    if (!reconciliationClaim.ok || reconciliationClaim.code !== "claimed") assert.fail("current generation record must claim");
+    exactResult(scoped.recordAndSucceed({
+      schema: "h_cycle_generation_scoped_record_and_succeed_v1",
+      capability: reconciliationClaim.capability,
+      ...target38,
+    }), { ok: true, featureState: "off", code: "reconciled_and_succeeded" });
+    assert.equal(await client.hCycleEvaluationRecord.count(), 2);
+    const reconciled = await client.hCycleEvaluationRecord.findUniqueOrThrow({ where: { id: legacyRecord.record.id } });
+    assert.equal(reconciled.aggregateEnvelopeSha256, legacyRecord.record.aggregateEnvelopeSha256);
+    assert.equal(reconciled.recordSha256, legacyRecord.record.recordSha256);
+
+    const target36 = evaluationFor("2026-W36", now);
+    const conflicting36 = conflictingEvaluationFor("2026-W36", now);
+    const original36 = await persistHCycleEvaluationRecordV1({ client, ...target36 });
+    assert.equal(original36.ok, true);
+    assert.equal(original36.ok && original36.created, true);
+    if (!original36.ok) assert.fail("fixture record must persist once");
+    exactResult(scoped.enqueue({
+      schema: "h_cycle_generation_scoped_enqueue_v1",
+      targetWeekKey: "2026-W36",
+      maxAttempts: 3,
+      availableAt: new Date(now),
+    }), { ok: true, featureState: "off", code: "enqueued" });
+    const mismatchClaim = scoped.claim({ schema: "h_cycle_generation_scoped_claim_v1", leaseDurationMs: 60_000 });
+    assert.equal(mismatchClaim.ok, true);
+    assert.equal(mismatchClaim.ok && mismatchClaim.code, "claimed");
+    if (!mismatchClaim.ok || mismatchClaim.code !== "claimed") assert.fail("conflicting record target must claim");
+    const beforeMismatchFence = await client.loopJob.findFirstOrThrow({
+      where: { kind: H_CYCLE_KIND, executionGenerationSequence: generationOne, payloadHash: hCyclePayloadJson("2026-W36").payloadHash },
+    });
+    exactResult(scoped.recordAndSucceed({
+      schema: "h_cycle_generation_scoped_record_and_succeed_v1",
+      capability: mismatchClaim.capability,
+      ...conflicting36,
+    }), { ok: false, featureState: "off", code: "evaluation_record_integrity_failure" });
+    assert.equal(await client.hCycleEvaluationRecord.count(), 3);
+    assert.deepEqual(
+      await client.loopJob.findUniqueOrThrow({ where: { id: beforeMismatchFence.id } }),
+      beforeMismatchFence,
+      "digest mismatch leaves the claimed job unchanged",
+    );
+
+    const target37 = evaluationFor("2026-W37", now);
+    exactResult(scoped.enqueue({
+      schema: "h_cycle_generation_scoped_enqueue_v1",
+      targetWeekKey: "2026-W37",
+      maxAttempts: 3,
+      availableAt: new Date(now),
+    }), { ok: true, featureState: "off", code: "enqueued" });
+    const disabledClaim = scoped.claim({ schema: "h_cycle_generation_scoped_claim_v1", leaseDurationMs: 60_000 });
+    assert.equal(disabledClaim.ok, true);
+    assert.equal(disabledClaim.ok && disabledClaim.code, "claimed");
+    if (!disabledClaim.ok || disabledClaim.code !== "claimed") assert.fail("due current generation target must claim");
+    const beforeDisableFence = await client.loopJob.findFirstOrThrow({
+      where: { kind: H_CYCLE_KIND, executionGenerationSequence: generationOne, payloadHash: hCyclePayloadJson("2026-W37").payloadHash },
+    });
+    await appendDisable(client, () => new Date(now));
+    exactResult(scoped.recordAndSucceed({
+      schema: "h_cycle_generation_scoped_record_and_succeed_v1",
+      capability: disabledClaim.capability,
+      ...target37,
+    }), { ok: false, featureState: "off", code: "execution_fenced" });
+    assert.equal(await client.hCycleEvaluationRecord.count(), 3);
+    assert.deepEqual(
+      await client.loopJob.findUniqueOrThrow({ where: { id: beforeDisableFence.id } }),
+      beforeDisableFence,
+      "disable-first leaves neither record nor job mutation",
+    );
+    const retainedFirstRecord = await client.hCycleEvaluationRecord.findUniqueOrThrow({ where: { id: firstRecord.id } });
+    assert.equal(retainedFirstRecord.aggregateEnvelopeSha256, firstRecord.aggregateEnvelopeSha256);
   });
 });
