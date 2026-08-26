@@ -1298,6 +1298,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
       "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
       "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.test.ts",
+      "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
       "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
     ].sort();
@@ -1441,7 +1443,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         assert.deepEqual(
           implementationChanges,
           allowedPaths,
-          "all historical and C3a/C3p/C3b/C3c/evaluation-contract static compatibility paths must be classified",
+          "all historical and C3a/C3p/C3b/C3c/evaluation-contract/report static compatibility paths must be classified",
         );
         return Object.freeze({ mode: "base_diff" as const, baseSha, paths: implementationChanges });
       }
@@ -2009,10 +2011,12 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts",
         "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.test.ts",
+        "src/lib/loop-jobs/harness-evaluation/harness-evaluation-report-v1.ts",
         "src/lib/loop-jobs/raw-state-adapter.ts",
         "src/lib/loop-jobs/state-machine.ts",
       ],
-      "fallback exclusion set must remain the exact C2-plus-C3a/C3p/C3b/C3c/evaluation-contract surface",
+      "fallback exclusion set must remain the exact C2-plus-C3a/C3p/C3b/C3c/evaluation-contract/report surface",
     );
     assert.equal(
       (dedicatedTestSource.match(/mkdtempSync\(join\(tmpdir\(\), "applied-loop-a8c2-cg[12]-"\)\)/g) ?? []).length,
