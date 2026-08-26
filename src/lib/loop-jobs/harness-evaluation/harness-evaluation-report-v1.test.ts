@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { buildHarnessEvaluationReportV1 } from "./harness-evaluation-report-v1";
+import {
+  buildHarnessEvaluationReportV1,
+  isHarnessEvaluationEvidenceV1,
+} from "./harness-evaluation-report-v1";
 
 const hash = (character: string) => character.repeat(64);
 
@@ -266,6 +269,21 @@ test("A9A-CG5 rejects invalid, accessor, mixed, and Proxy evidence without echoi
     assert.equal(JSON.stringify(report).includes(sentinel), false);
     assertFrozenDeeply(report);
   }
+});
+
+test("A9A-CG5b exposes only a closed-schema validation bit for manual adapters", () => {
+  const accessor = evidence();
+  Object.defineProperty(accessor, "hEval", {
+    enumerable: true,
+    get() {
+      throw new Error("must-not-leak");
+    },
+  });
+
+  assert.equal(isHarnessEvaluationEvidenceV1(evidence()), true);
+  assert.equal(isHarnessEvaluationEvidenceV1({ ...evidence(), unexpected: true }), false);
+  assert.equal(isHarnessEvaluationEvidenceV1(accessor), false);
+  assert.equal(isHarnessEvaluationEvidenceV1(new Proxy(evidence(), {})), false);
 });
 
 test("A9A-CG6 remains a pure manual report kernel", () => {
