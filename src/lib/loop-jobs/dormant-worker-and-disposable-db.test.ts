@@ -212,6 +212,13 @@ const A8C2_ALLOWED_SRC_PATHS = [
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
 ] as const;
+const A8C3_ALLOWED_SRC_PATHS = [
+  "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+  "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
+] as const;
+const A8C3_ADR_PATH = "docs/adr/0033-h-cycle-generation-fenced-execution.md";
+const A8C3_ADR_SHA256 = "0f352cdebc117959ae5fe160c0c9a75c6379d2b78a96d18a5a979bb82c06da56";
 const workerEntry = join(process.cwd(), "src/lib/loop-jobs/worker.mjs");
 
 function sha256(bytes: Buffer | string): string {
@@ -665,7 +672,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
             || (A8B2_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A8C0_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A8C1_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
-            || (A8C2_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
+            || (A8C2_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
+            || (A8C3_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
         ),
         true,
       );
@@ -749,6 +757,41 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => (A8C2_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.deepEqual(discoveredA8C2Sources, [...A8C2_ALLOWED_SRC_PATHS].sort());
+      const discoveredA8C3Sources = [
+        ...execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" })
+          .trim().split("\n").filter(Boolean),
+        ...untrackedSource,
+      ]
+        .filter((path) => (A8C3_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .sort();
+      assert.deepEqual(discoveredA8C3Sources, [...A8C3_ALLOWED_SRC_PATHS].sort());
+      assert.equal(
+        sha256(await readFile(join(process.cwd(), A8C3_ADR_PATH))),
+        A8C3_ADR_SHA256,
+        "A8-C3 ADR bytes must remain independently pinned",
+      );
+      const c3StaticFenceSource = await readFile(
+        join(process.cwd(), "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts"),
+        "utf8",
+      );
+      const hEvalStaticGuardSource = await readFile(
+        join(process.cwd(), "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts"),
+        "utf8",
+      );
+      for (const requiredLiteral of [
+        "const c3RegionManifest: readonly C3RegionSpec[] = [];",
+        "ts.SyntaxKind.SingleLineCommentTrivia",
+        "const projectC3Regions = (",
+      ]) {
+        assert.equal(c3StaticFenceSource.includes(requiredLiteral), true, `missing C3 projection fence: ${requiredLiteral}`);
+      }
+      for (const requiredLiteral of [
+        "A8C3_IMMUTABLE_CONTENT_SHA256",
+        "A8C3_REVIEW_ARTIFACT_SHA256",
+        "const c3StaticFenceSource = readFileSync(",
+      ]) {
+        assert.equal(hEvalStaticGuardSource.includes(requiredLiteral), true, `missing independent C3 cross-check: ${requiredLiteral}`);
+      }
       for (const path of A5_ALLOWED_SRC_PATHS.filter((path) => !path.endsWith(".test.ts"))) {
         const source = await readFile(join(process.cwd(), path), "utf8");
         assert.doesNotMatch(

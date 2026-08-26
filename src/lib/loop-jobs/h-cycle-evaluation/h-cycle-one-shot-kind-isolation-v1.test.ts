@@ -1276,6 +1276,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     const protectedTreeEntryCount = 607;
     const protectedTreeSha256 = "70cf77d98561641c8340a957b6cee97a11191eb04b7218fb6db5d24d9baa8ede";
     const allowedPaths = [
+      "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "src/lib/loop-jobs/raw-state-adapter.ts",
       "src/lib/loop-jobs/state-machine.ts",
       "src/lib/loop-jobs/delivery.ts",
@@ -1322,14 +1323,29 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       return gitNulPathRecords(args).map(decodeGitPath);
     };
     const untrackedPaths = gitNulPaths(["ls-files", "--others", "--exclude-standard", "-z"]);
+    const frozenReviewSupportArtifacts = new Map<string, string>([
+      [
+        "docs/plans/2026-08-26-a8-c3-generation-fenced-execution.md",
+        "077242bf56f1549b2df47c8b5a9a733da75641f8958b48a15282bcf7542b5eb0",
+      ],
+    ]);
     const exactNonImplementationSupportPaths = new Set([
       "docs/plans/2026-08-24-a8-c2-one-shot-observability.md",
+      ...frozenReviewSupportArtifacts.keys(),
     ]);
     assert.deepEqual(
       untrackedPaths.filter((path) => !allowedPathSet.has(path) && !exactNonImplementationSupportPaths.has(path)),
       [],
       "untracked paths must be an exact allowed implementation path or the exact frozen design support path",
     );
+    for (const [path, expectedSha256] of frozenReviewSupportArtifacts) {
+      if (!untrackedPaths.includes(path)) continue;
+      assert.equal(
+        createHash("sha256").update(readFileSync(join(process.cwd(), path))).digest("hex"),
+        expectedSha256,
+        `${path} must retain its independently reviewed bytes when present locally`,
+      );
+    }
     const untrackedImplementation = untrackedPaths.filter((path) => allowedPathSet.has(path));
 
     type ProtectedTreeEvidence = Readonly<{
@@ -1406,7 +1422,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         assert.deepEqual(
           implementationChanges,
           allowedPaths,
-          "all four narrow historical/static compatibility paths must be classified",
+          "all historical and C3a static compatibility paths must be classified",
         );
         return Object.freeze({ mode: "base_diff" as const, baseSha, paths: implementationChanges });
       }
@@ -1434,6 +1450,17 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
     type SnippetSpec = Readonly<{
       label: string;
+      begin: string;
+      end: string;
+      leading: string;
+      trailing: string;
+      sha256: string;
+    }>;
+    type C3RegionSpec = Readonly<{
+      path: string;
+      label: string;
+      parentBegin: string;
+      parentEnd: string;
       begin: string;
       end: string;
       leading: string;
@@ -1503,9 +1530,127 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       },
     ];
 
+    // C3b/C3c may extend this literal manifest only with regions nested inside
+    // a C2 snippet. Keeping it empty in C3a proves that this PR has no runtime
+    // C3 addition while making the later projection an executable requirement.
+    const c3RegionManifest: readonly C3RegionSpec[] = [];
+    type C3CommentToken = Readonly<{ text: string; start: number; end: number }>;
+    const c3CommentTokens = (source: string): readonly C3CommentToken[] => {
+      const scanner = ts.createScanner(ts.ScriptTarget.ESNext, false, ts.LanguageVariant.Standard, source);
+      const tokens: C3CommentToken[] = [];
+      while (true) {
+        const kind = scanner.scan();
+        if (kind === ts.SyntaxKind.EndOfFileToken) return tokens;
+        if (kind !== ts.SyntaxKind.SingleLineCommentTrivia) continue;
+        const text = scanner.getTokenText();
+        if (!text.includes("A8-C3")) continue;
+        const start = scanner.getTokenPos();
+        tokens.push(Object.freeze({ text, start, end: start + text.length }));
+      }
+    };
+    const projectC3Regions = (
+      source: string,
+      path: string,
+      parentSnippets: readonly Pick<SnippetSpec, "begin" | "end">[],
+      regions: readonly C3RegionSpec[],
+    ): string => {
+      const pathRegions = regions.filter((region) => region.path === path);
+      const expectedMarkers = pathRegions.flatMap((region) => [region.begin, region.end]).sort();
+      assert.equal(new Set(expectedMarkers).size, expectedMarkers.length, `${path}: C3 marker literals must be unique`);
+      const actualTokens = c3CommentTokens(source);
+      assert.deepEqual(
+        actualTokens.map((token) => token.text).sort(),
+        expectedMarkers,
+        `${path}: C3 markers must be exact single-line comment tokens declared by the manifest`,
+      );
+      const tokenByText = new Map(actualTokens.map((token) => [token.text, token]));
+      assert.equal(tokenByText.size, actualTokens.length, `${path}: actual C3 marker tokens must be unique`);
+
+      const intervals: Array<Readonly<{ start: number; end: number; label: string }>> = [];
+      for (const region of pathRegions) {
+        const parent = parentSnippets.find((snippet) =>
+          snippet.begin === region.parentBegin && snippet.end === region.parentEnd,
+        );
+        assert.ok(parent, `${path}: ${region.label} must name an exact enclosing C2 snippet`);
+        assert.equal(source.split(parent.begin).length - 1, 1, `${path}: ${region.label} parent begin count`);
+        assert.equal(source.split(parent.end).length - 1, 1, `${path}: ${region.label} parent end count`);
+        const parentBegin = source.indexOf(parent.begin);
+        const parentEnd = source.indexOf(parent.end, parentBegin + parent.begin.length);
+        assert.ok(parentBegin >= 0 && parentEnd > parentBegin, `${path}: ${region.label} parent marker order`);
+        const beginToken = tokenByText.get(region.begin);
+        const endToken = tokenByText.get(region.end);
+        assert.ok(beginToken && endToken, `${path}: ${region.label} must have both actual comment tokens`);
+        assert.ok(beginToken.start < endToken.start, `${path}: ${region.label} C3 marker order`);
+        const start = beginToken.start - region.leading.length;
+        const end = endToken.end + region.trailing.length;
+        assert.ok(start >= parentBegin + parent.begin.length, `${path}: ${region.label} must start inside C2`);
+        assert.ok(end <= parentEnd, `${path}: ${region.label} must end inside C2`);
+        assert.equal(source.slice(start, beginToken.start), region.leading, `${path}: ${region.label} leading delimiter`);
+        assert.equal(source.slice(endToken.end, end), region.trailing, `${path}: ${region.label} trailing delimiter`);
+        assert.equal(
+          createHash("sha256").update(source.slice(start, end)).digest("hex"),
+          region.sha256,
+          `${path}: ${region.label} frozen C3 region`,
+        );
+        intervals.push(Object.freeze({ start, end, label: region.label }));
+      }
+      const ascending = [...intervals].sort((left, right) => left.start - right.start);
+      for (let index = 1; index < ascending.length; index += 1) {
+        assert.ok(ascending[index - 1].end <= ascending[index].start, `${path}: C3 regions must not overlap`);
+      }
+      let projected = source;
+      for (const interval of [...intervals].sort((left, right) => right.start - left.start)) {
+        projected = projected.slice(0, interval.start) + projected.slice(interval.end);
+      }
+      return projected;
+    };
+
+    const c3FixturePath = "src/lib/loop-jobs/delivery.ts";
+    const c3FixtureBase = [
+      "// A8-C2 BEGIN: fixture parent",
+      'const decoy = "// A8-C3 BEGIN: fixture decoy";',
+      "// A8-C2 END: fixture parent",
+      "",
+    ].join("\n");
+    const c3FixtureRegion = [
+      "// A8-C3 BEGIN: fixture projection",
+      "const c3Only = true;",
+      "// A8-C3 END: fixture projection",
+      "",
+    ].join("\n");
+    const c3FixtureSource = c3FixtureBase.replace(
+      "// A8-C2 END: fixture parent\n",
+      `${c3FixtureRegion}// A8-C2 END: fixture parent\n`,
+    );
+    assert.equal(
+      projectC3Regions(
+        c3FixtureSource,
+        c3FixturePath,
+        [{ begin: "// A8-C2 BEGIN: fixture parent", end: "// A8-C2 END: fixture parent" }],
+        [{
+          path: c3FixturePath,
+          label: "fixture projection",
+          parentBegin: "// A8-C2 BEGIN: fixture parent",
+          parentEnd: "// A8-C2 END: fixture parent",
+          begin: "// A8-C3 BEGIN: fixture projection",
+          end: "// A8-C3 END: fixture projection",
+          leading: "",
+          trailing: "\n",
+          sha256: "0b46055eec3170cbbdb715ba8b3e96e3f27ff44fbc5013c79ef30ec6caf5119c",
+        }],
+      ),
+      c3FixtureBase,
+      "C3 projection must remove only declared actual-comment regions and reconstruct C2 bytes",
+    );
+
     const allAdditions: string[] = [];
     for (const runtime of protectedRuntime) {
-      const source = readFileSync(join(process.cwd(), runtime.path), "utf8");
+      const source = projectC3Regions(
+        readFileSync(join(process.cwd(), runtime.path), "utf8"),
+        runtime.path,
+        runtime.snippets,
+        c3RegionManifest,
+      );
       let cursor = 0;
       let reconstructed = "";
       for (const snippet of runtime.snippets) {
@@ -1598,9 +1743,17 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       'assert.equal(baseProbe.status, 128, stderr);',
       'return "unavailable";',
       'return inspectProtectedTree();',
+      "const c3RegionManifest: readonly C3RegionSpec[] = [];",
+      "const source = projectC3Regions(",
     ]) {
       assert.equal(cg3Text.includes(criticalModeSelection), true, `missing live mode-selection edge: ${criticalModeSelection}`);
     }
+    const c3ProjectionCall = cg3Text.indexOf("const source = projectC3Regions(");
+    const c2SnippetReconstruction = cg3Text.indexOf("for (const snippet of runtime.snippets)");
+    assert.ok(
+      c3ProjectionCall >= 0 && c2SnippetReconstruction > c3ProjectionCall,
+      "C3 projection must dominate each preserved C2 snippet hash and byte reconstruction",
+    );
     const gitCommands: string[] = [];
     let directGitSpawnCount = 0;
     let localeDependentPathOperationCount = 0;
@@ -1649,6 +1802,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     assert.deepEqual(
       [...allowedPathSet],
       [
+        "docs/adr/0033-h-cycle-generation-fenced-execution.md",
         "src/lib/loop-jobs/delivery.ts",
         "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
         "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
@@ -1658,7 +1812,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "src/lib/loop-jobs/raw-state-adapter.ts",
         "src/lib/loop-jobs/state-machine.ts",
       ],
-      "fallback exclusion set must remain the exact eight-path surface",
+      "fallback exclusion set must remain the exact C2-plus-C3a surface",
     );
     assert.equal(
       (dedicatedTestSource.match(/mkdtempSync\(join\(tmpdir\(\), "applied-loop-a8c2-cg[12]-"\)\)/g) ?? []).length,
