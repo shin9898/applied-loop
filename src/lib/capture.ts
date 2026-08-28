@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import {
   confirmMisconception,
@@ -37,6 +38,40 @@ const ALREADY_PROCESSED_RACE: TriageResult = {
   message: "既に処理済みです（他の呼び出しが先に確定させました）。",
 };
 
+type CaptureWriteClient = PrismaClient | Prisma.TransactionClient;
+
+/**
+ * The follow-up history tables are additive evidence, not a prerequisite for
+ * the inbox's core accept/skip operation. A local database can legitimately
+ * lag the app code after a merge (for example, while `prisma migrate deploy`
+ * is pending), so keep that optional evidence write fail-open while preserving
+ * every non-schema error for the caller to investigate.
+ */
+function isMissingFollowupTable(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2021";
+}
+
+async function findFailureCaptureIfAvailable(
+  client: CaptureWriteClient,
+  captureId: string,
+) {
+  try {
+    return await client.textbookCheckGateFailureCapture.findUnique({
+      where: { captureId },
+      select: { id: true },
+    });
+  } catch (error) {
+    if (!isMissingFollowupTable(error)) throw error;
+    // Do not expose the driver message (it can include a local path). The
+    // migration drift remains observable in server logs and diagnostics.
+    console.warn(
+      "[capture] optional textbook follow-up evidence is unavailable; continuing inbox triage",
+      { code: "P2021", captureId },
+    );
+    return null;
+  }
+}
+
 /**
  * confirmMisconception を呼び、Capture を accepted + misconceptionId 確定にする共通処理。
  * accept 判定から確定まで LLM 呼び出し（最大 30〜60s）を挟むため、先に status:"pending" を
@@ -66,10 +101,7 @@ async function createMisconceptionAndAccept(
       where: { id: captureId },
       data: { misconceptionId: created.id },
     });
-    const directFailureCapture = await tx.textbookCheckGateFailureCapture.findUnique({
-      where: { captureId },
-      select: { id: true },
-    });
+    const directFailureCapture = await findFailureCaptureIfAvailable(tx, captureId);
     if (directFailureCapture !== null) {
       await observeTextbookCheckGateFollowup(tx, {
         failureCaptureId: directFailureCapture.id,
@@ -180,10 +212,7 @@ export async function triageCapture(
               ...(linkGate ? { gates: { connect: { id: linkGate.id } } } : {}),
             },
           });
-          const directFailureCapture = await tx.textbookCheckGateFailureCapture.findUnique({
-            where: { captureId: id },
-            select: { id: true },
-          });
+          const directFailureCapture = await findFailureCaptureIfAvailable(tx, id);
           if (directFailureCapture !== null) {
             await observeTextbookCheckGateFollowup(tx, {
               failureCaptureId: directFailureCapture.id,

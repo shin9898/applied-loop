@@ -26,7 +26,10 @@ const RESULT_PENDING = 0;
 const RESULT_EXPECTED_STORAGE_FAILURE = 1;
 const RESULT_UNEXPECTED = 2;
 const RESULT_CHILD_FAILURE = 3;
-const PARENT_WAIT_TIMEOUT_MS = 1_000;
+// Worker + tsx/Prisma initialization can exceed one second when the complete
+// test suite is running in parallel on a shared CI runner. Keep the handshake
+// bounded, but leave enough time for the child to reach its real-query barrier.
+const PARENT_WAIT_TIMEOUT_MS = 10_000;
 const C3P_HELPER_PATH = "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.ts";
 const C3P_TEST_PATH = "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts";
 const C3P_CHILD_PATH = "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-disable-child.ts";

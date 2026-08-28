@@ -1276,8 +1276,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
   test("A8C2-CG3-T1 scoped one-shot capability remains unreachable by default", async () => {
     const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba";
-    const protectedTreeEntryCount = 595;
-    const protectedTreeSha256 = "19bb1a589f938350e52236ca70109218521d3eae9979dd75e5a2dfbaf1c4562c";
+    const protectedTreeEntryCount = 592;
+    const protectedTreeSha256 = "3ed94dc375658dc821f31f0464f928beef4bf4303f66b6b3c316bf52d2c6f89c";
     const allowedPaths = [
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
@@ -1293,7 +1293,11 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "scripts/collect-harness.mjs",
       "scripts/com.applied-loop.harness-collect.plist",
       "scripts/harness-context-fingerprint.mjs",
+      "src/app/api/harness-runs/route.ts",
+      "src/components/living-atlas/atlas-dashboard.tsx",
       "src/components/living-atlas/load-atlas-data.ts",
+      "src/lib/capture-schema-drift.test.ts",
+      "src/lib/capture.ts",
       "src/lib/h-cycle-evaluation-record.ts",
       "src/lib/harness-context-fingerprint.test.ts",
       "src/lib/harness-run-ingestion.test.ts",
@@ -1925,8 +1929,8 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     );
     for (const pinnedScopeLiteral of [
       'const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba"',
-      "const protectedTreeEntryCount = 595",
-      'const protectedTreeSha256 = "19bb1a589f938350e52236ca70109218521d3eae9979dd75e5a2dfbaf1c4562c"',
+      "const protectedTreeEntryCount = 592",
+      'const protectedTreeSha256 = "3ed94dc375658dc821f31f0464f928beef4bf4303f66b6b3c316bf52d2c6f89c"',
       'gitNulPaths(["diff", "--name-only", "-z", baseSha, "--"])',
       'runGit(["ls-files", "--stage", "-z"], "buffer")',
       "splitNulRecords(indexResult.stdout as Buffer)",
@@ -2044,7 +2048,11 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "scripts/collect-harness.mjs",
         "scripts/com.applied-loop.harness-collect.plist",
         "scripts/harness-context-fingerprint.mjs",
+        "src/app/api/harness-runs/route.ts",
+        "src/components/living-atlas/atlas-dashboard.tsx",
         "src/components/living-atlas/load-atlas-data.ts",
+        "src/lib/capture-schema-drift.test.ts",
+        "src/lib/capture.ts",
         "src/lib/h-cycle-evaluation-record.ts",
         "src/lib/harness-context-fingerprint.test.ts",
         "src/lib/harness-evaluation-run-v1.test.ts",
