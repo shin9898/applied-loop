@@ -20,12 +20,21 @@
  * 従来どおり無制限の増分収集として動作する。
  */
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { spawn, spawnSync } from "node:child_process";
 import {
+  closeSync,
   existsSync,
+  fstatSync,
+  ftruncateSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
   readFileSync,
   readdirSync,
+  renameSync,
   statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
@@ -37,19 +46,68 @@ import {
 } from "./harness-context-fingerprint.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_DATA_DIR = join(homedir(), ".applied-loop", "harness-collector");
+const LEGACY_STATE_PATH = join(SCRIPT_DIR, ".harness-collect-state.json");
 const STATE_PATH =
   process.env.APPLIED_LOOP_COLLECT_STATE_PATH ||
-  join(SCRIPT_DIR, ".harness-collect-state.json");
-const BASE_URL = (process.env.APPLIED_LOOP_URL || "http://localhost:3100").replace(
+  join(DEFAULT_DATA_DIR, "state.json");
+const STATUS_PATH =
+  process.env.APPLIED_LOOP_COLLECT_STATUS_PATH ||
+  join(DEFAULT_DATA_DIR, "status.json");
+const LOCK_PATH =
+  process.env.APPLIED_LOOP_COLLECT_LOCK_PATH ||
+  join(DEFAULT_DATA_DIR, "collector.lock");
+const BASE_URL = (
+  process.env.APPLIED_LOOP_URL ||
+  loadEnvValue("APPLIED_LOOP_URL") ||
+  "http://localhost:3100"
+).replace(
   /\/$/,
-  ""
+""
 );
-const TOKEN = process.env.MCP_TOKEN || loadEnvToken();
+const TOKEN = process.env.MCP_TOKEN || loadEnvValue("MCP_TOKEN");
 const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
 const CODEX_SESSIONS = join(homedir(), ".codex", "sessions");
 // Source identity only. It is not derived from or a hash of conversation text.
 const COLLECTOR_VERSION = "harness-collector-v3";
 const SNAPSHOT_SCHEMA_VERSION = 1;
+const STATE_SCHEMA_VERSION = 2;
+const STATUS_SCHEMA_VERSION = 1;
+let activeStatusContext = null;
+let activeLockProcess = null;
+
+function parsePositiveIntegerEnv(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === "") return fallback;
+  const value = parseNonNegativeInteger(raw, name);
+  if (value < 1) throw new Error(`${name} must be at least 1`);
+  return value;
+}
+
+const RETRY_MAX_ATTEMPTS = parsePositiveIntegerEnv(
+  "APPLIED_LOOP_COLLECT_RETRY_MAX_ATTEMPTS",
+  3,
+);
+const RETRY_BASE_DELAY_MS = parsePositiveIntegerEnv(
+  "APPLIED_LOOP_COLLECT_RETRY_BASE_DELAY_MS",
+  1_000,
+);
+const RETRY_MAX_DELAY_MS = parsePositiveIntegerEnv(
+  "APPLIED_LOOP_COLLECT_RETRY_MAX_DELAY_MS",
+  15_000,
+);
+const REQUEST_TIMEOUT_MS = parsePositiveIntegerEnv(
+  "APPLIED_LOOP_COLLECT_REQUEST_TIMEOUT_MS",
+  20_000,
+);
+const SCHEDULED_RUN_BUDGET_MS = parsePositiveIntegerEnv(
+  "APPLIED_LOOP_COLLECT_RUN_BUDGET_MS",
+  12 * 60 * 1_000,
+);
+const UNKNOWN_LOCK_STALE_MS = parsePositiveIntegerEnv(
+  "APPLIED_LOOP_COLLECT_LOCK_UNKNOWN_STALE_MS",
+  30_000,
+);
 
 function parseNonNegativeInteger(raw, optionName) {
   if (!/^\d+$/.test(raw)) {
@@ -68,6 +126,8 @@ function parseArgs(argv = []) {
     snapshotOutPath: null,
     applySnapshotPath: null,
     maxSends: null,
+    status: false,
+    json: false,
     help: false,
   };
 
@@ -75,6 +135,14 @@ function parseArgs(argv = []) {
     const arg = argv[index];
     if (arg === "--dry-run") {
       options.dryRun = true;
+      continue;
+    }
+    if (arg === "--status") {
+      options.status = true;
+      continue;
+    }
+    if (arg === "--json") {
+      options.json = true;
       continue;
     }
     if (arg === "--help" || arg === "-h") {
@@ -114,6 +182,15 @@ function parseArgs(argv = []) {
   if (options.snapshotOutPath && !options.dryRun) {
     throw new Error("--snapshot-out requires --dry-run");
   }
+  if (options.json && !options.status) {
+    throw new Error("--json requires --status");
+  }
+  if (
+    options.status &&
+    (options.dryRun || options.snapshotOutPath || options.applySnapshotPath || options.maxSends !== null)
+  ) {
+    throw new Error("--status cannot be combined with collection options");
+  }
   return options;
 }
 
@@ -124,36 +201,381 @@ function usage() {
     "  node scripts/collect-harness.mjs --max-sends N",
     "  node scripts/collect-harness.mjs --dry-run --snapshot-out PATH [--max-sends N]",
     "  node scripts/collect-harness.mjs --apply-snapshot PATH [--max-sends N]",
+    "  node scripts/collect-harness.mjs --status [--json]",
     "",
     "--snapshot-out is read-only and creates a deterministic local target manifest.",
     "--apply-snapshot sends only targets in that manifest and fails closed if any target is stale.",
     "--max-sends limits HTTP send attempts; it is a safety valve, not a cohort definition.",
+    "--status reports the durable checkpoint and pending/error state without sending.",
   ].join("\n");
 }
 
-function loadEnvToken() {
+function loadEnvValue(name) {
   try {
     const envPath = join(SCRIPT_DIR, "..", ".env");
     if (!existsSync(envPath)) return "";
     const text = readFileSync(envPath, "utf8");
-    const m = text.match(/^\s*MCP_TOKEN\s*=\s*(.+)\s*$/m);
+    const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const m = text.match(
+      new RegExp(`^\\s*(?:export\\s+)?${escapedName}\\s*=\\s*(.+?)\\s*$`, "m"),
+    );
     return m ? m[1].trim().replace(/^["']|["']$/g, "") : "";
   } catch {
     return "";
   }
 }
 
-function loadState() {
+function atomicWriteJson(path, value) {
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  const tempPath = `${path}.tmp-${process.pid}-${Date.now()}`;
+  let descriptor;
   try {
-    if (!existsSync(STATE_PATH)) return { files: {} };
-    return JSON.parse(readFileSync(STATE_PATH, "utf8"));
-  } catch {
-    return { files: {} };
+    descriptor = openSync(tempPath, "wx", 0o600);
+    writeFileSync(descriptor, JSON.stringify(value, null, 2) + "\n", "utf8");
+    fsyncSync(descriptor);
+    closeSync(descriptor);
+    descriptor = undefined;
+    renameSync(tempPath, path);
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+    if (existsSync(tempPath)) unlinkSync(tempPath);
+  }
+}
+
+function validateState(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("checkpoint must be an object");
+  }
+  if (!value.files || typeof value.files !== "object" || Array.isArray(value.files)) {
+    throw new Error("checkpoint files must be an object");
+  }
+  return { schemaVersion: STATE_SCHEMA_VERSION, files: value.files };
+}
+
+function loadState({ recoverCorrupt = false } = {}) {
+  const useLegacy =
+    !process.env.APPLIED_LOOP_COLLECT_STATE_PATH &&
+    !existsSync(STATE_PATH) &&
+    existsSync(LEGACY_STATE_PATH);
+  const sourcePath = useLegacy ? LEGACY_STATE_PATH : STATE_PATH;
+  if (!existsSync(sourcePath)) {
+    return {
+      state: { schemaVersion: STATE_SCHEMA_VERSION, files: {} },
+      stateHealth: "missing",
+      recovery: null,
+    };
+  }
+  try {
+    return {
+      state: validateState(JSON.parse(readFileSync(sourcePath, "utf8"))),
+      stateHealth: "ok",
+      recovery: useLegacy ? `migrated legacy checkpoint from ${sourcePath}` : null,
+    };
+  } catch (error) {
+    let recovery = `corrupt checkpoint detected: ${error.message || String(error)}`;
+    if (recoverCorrupt && sourcePath === STATE_PATH) {
+      const quarantinePath = `${STATE_PATH}.corrupt-${Date.now()}`;
+      try {
+        renameSync(STATE_PATH, quarantinePath);
+        recovery = `quarantined corrupt checkpoint at ${quarantinePath}`;
+      } catch (quarantineError) {
+        recovery += `; quarantine failed: ${quarantineError.message || String(quarantineError)}`;
+      }
+    }
+    return {
+      state: { schemaVersion: STATE_SCHEMA_VERSION, files: {} },
+      stateHealth: "corrupt",
+      recovery,
+    };
   }
 }
 
 function saveState(state) {
-  writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + "\n", "utf8");
+  atomicWriteJson(STATE_PATH, {
+    schemaVersion: STATE_SCHEMA_VERSION,
+    files: state.files ?? {},
+  });
+}
+
+function loadStatus() {
+  try {
+    if (!existsSync(STATUS_PATH)) return null;
+    const value = JSON.parse(readFileSync(STATUS_PATH, "utf8"));
+    return value && typeof value === "object" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStatus(status) {
+  atomicWriteJson(STATUS_PATH, {
+    schemaVersion: STATUS_SCHEMA_VERSION,
+    ...status,
+  });
+}
+
+function saveInterruptedStatus(context) {
+  const { runMode, lastAttemptAt, previousStatus, loadedState } = context;
+  saveStatus({
+    runState: "error",
+    runMode,
+    lastAttemptAt,
+    lastCompletedAt: new Date().toISOString(),
+    lastSuccessfulSyncAt: previousStatus?.lastSuccessfulSyncAt ?? null,
+    lastCheckpointAt: context.lastCheckpointAt ?? previousStatus?.lastCheckpointAt ?? null,
+    pendingCount: null,
+    pendingCountExact: false,
+    unreadableCount: null,
+    errorCount: 1,
+    consecutiveFailures: (previousStatus?.consecutiveFailures ?? 0) + 1,
+    lastError: "collector_interrupted",
+    stateRecovery: loadedState.recovery,
+  });
+}
+
+class CollectorAlreadyRunningError extends Error {
+  constructor(pid) {
+    super(`collector_already_running${pid ? ` pid=${pid}` : ""}`);
+    this.name = "CollectorAlreadyRunningError";
+    this.exitCode = 75;
+  }
+}
+
+function processIsRunning(pid) {
+  if (!Number.isSafeInteger(pid) || pid < 1) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+function readProcessStartIdentity(pid) {
+  if (!processIsRunning(pid)) return null;
+  if (process.platform === "linux") {
+    try {
+      const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+      const closeParen = stat.lastIndexOf(")");
+      if (closeParen < 0) return null;
+      const fieldsFromState = stat.slice(closeParen + 2).trim().split(/\s+/);
+      const startTicks = fieldsFromState[19];
+      return startTicks ? `linux-proc-start:${startTicks}` : null;
+    } catch {
+      return null;
+    }
+  }
+  if (process.platform === "darwin") {
+    const result = spawnSync("/bin/ps", ["-o", "lstart=", "-p", String(pid)], {
+      encoding: "utf8",
+    });
+    const startedAt = result.status === 0 ? result.stdout.trim() : "";
+    return startedAt ? `darwin-ps-start:${startedAt}` : null;
+  }
+  return null;
+}
+
+function parseLockOwner(raw) {
+  try {
+    const value = JSON.parse(raw);
+    if (
+      !Number.isSafeInteger(value?.pid) ||
+      value.pid < 1 ||
+      typeof value.processStartIdentity !== "string" ||
+      !value.processStartIdentity ||
+      typeof value.lockId !== "string" ||
+      !value.lockId
+    ) {
+      return null;
+    }
+    return {
+      pid: value.pid,
+      processStartIdentity: value.processStartIdentity,
+      lockId: value.lockId,
+      createdAt: typeof value.createdAt === "string" ? value.createdAt : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function readLockObservation() {
+  let descriptor;
+  try {
+    descriptor = openSync(LOCK_PATH, "r");
+    const identity = fstatSync(descriptor);
+    const raw = readFileSync(descriptor, "utf8");
+    closeSync(descriptor);
+    descriptor = undefined;
+    return {
+      identity: { dev: identity.dev, ino: identity.ino, mtimeMs: identity.mtimeMs },
+      raw,
+      owner: parseLockOwner(raw),
+    };
+  } catch (error) {
+    if (descriptor !== undefined) closeSync(descriptor);
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+const LOCK_OWNER_READ_ATTEMPTS = 3;
+const LOCK_OWNER_READ_DELAY_MS = 25;
+const LOCK_OWNER_WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+function readLockAfterInitializationWindow() {
+  let observation = null;
+  for (let attempt = 0; attempt < LOCK_OWNER_READ_ATTEMPTS; attempt += 1) {
+    observation = readLockObservation();
+    if (!observation || observation.owner !== null) return observation;
+    if (attempt + 1 < LOCK_OWNER_READ_ATTEMPTS) {
+      Atomics.wait(LOCK_OWNER_WAIT_BUFFER, 0, 0, LOCK_OWNER_READ_DELAY_MS);
+    }
+  }
+  return observation;
+}
+
+function lockOwnerIsCurrent(owner) {
+  if (!owner || !processIsRunning(owner.pid)) return false;
+  const currentStartIdentity = readProcessStartIdentity(owner.pid);
+  // If the platform cannot expose a start identity, fail closed while the PID
+  // is live. A known mismatch proves PID reuse and makes the old lock stale.
+  return (
+    currentStartIdentity === null ||
+    currentStartIdentity === owner.processStartIdentity
+  );
+}
+
+function assertRecoverableLegacyLock(observation) {
+  if (!observation) return;
+  if (observation.owner && lockOwnerIsCurrent(observation.owner)) {
+    throw new CollectorAlreadyRunningError(observation.owner.pid);
+  }
+  if (
+    !observation.owner &&
+    Date.now() - observation.identity.mtimeMs < UNKNOWN_LOCK_STALE_MS
+  ) {
+    throw new CollectorAlreadyRunningError(null);
+  }
+}
+
+function kernelLockInvocation() {
+  const holderSource =
+    'process.stdout.write("collector-lock-ready\\n");' +
+    "process.stdin.resume();";
+  if (process.platform === "darwin") {
+    return {
+      command: "/usr/bin/lockf",
+      args: ["-k", "-t", "0", "-w", LOCK_PATH, process.execPath, "-e", holderSource],
+    };
+  }
+  if (process.platform === "linux") {
+    return {
+      command: "/usr/bin/flock",
+      args: ["--nonblock", LOCK_PATH, process.execPath, "-e", holderSource],
+    };
+  }
+  throw new Error(`collector_lock_platform_unsupported:${process.platform}`);
+}
+
+function startKernelLockHolder() {
+  const invocation = kernelLockInvocation();
+  return new Promise((resolveHolder, rejectHolder) => {
+    const child = spawn(invocation.command, invocation.args, {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let settled = false;
+    let stdout = "";
+    let stderr = "";
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill("SIGTERM");
+      rejectHolder(new Error("collector_lock_holder_start_timeout"));
+    }, 5_000);
+
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+      if (!settled && stdout.includes("collector-lock-ready\n")) {
+        settled = true;
+        clearTimeout(timeout);
+        resolveHolder(child);
+      }
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.once("error", (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      rejectHolder(error);
+    });
+    child.once("exit", (code, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (code === 75 || code === 1) {
+        rejectHolder(new CollectorAlreadyRunningError(readLockObservation()?.owner?.pid ?? null));
+      } else {
+        rejectHolder(
+          new Error(
+            `collector_lock_holder_exited code=${String(code)} signal=${String(signal)}` +
+              (stderr.trim() ? `: ${stderr.trim()}` : ""),
+          ),
+        );
+      }
+    });
+  });
+}
+
+function writeLockOwner(owner) {
+  let descriptor;
+  try {
+    descriptor = openSync(LOCK_PATH, "r+");
+    ftruncateSync(descriptor, 0);
+    writeFileSync(descriptor, JSON.stringify(owner) + "\n", "utf8");
+    fsyncSync(descriptor);
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+async function acquireCollectorLock() {
+  mkdirSync(dirname(LOCK_PATH), { recursive: true, mode: 0o700 });
+  const priorObservation = readLockAfterInitializationWindow();
+  assertRecoverableLegacyLock(priorObservation);
+  const processStartIdentity = readProcessStartIdentity(process.pid);
+  if (!processStartIdentity) {
+    throw new Error("collector_lock_start_identity_unavailable");
+  }
+  const holder = await startKernelLockHolder();
+  try {
+    // Recheck after the kernel lock is held to stay compatible with an older
+    // collector that may have been between exclusive create and owner write.
+    const heldObservation = readLockAfterInitializationWindow();
+    if (heldObservation?.owner && lockOwnerIsCurrent(heldObservation.owner)) {
+      throw new CollectorAlreadyRunningError(heldObservation.owner.pid);
+    }
+    writeLockOwner({
+      pid: process.pid,
+      processStartIdentity,
+      lockId: randomUUID(),
+      createdAt: new Date().toISOString(),
+    });
+    activeLockProcess = holder;
+  } catch (error) {
+    holder.stdin.end();
+    throw error;
+  }
+}
+
+function releaseCollectorLock() {
+  const holder = activeLockProcess;
+  activeLockProcess = null;
+  if (holder && !holder.stdin.destroyed) holder.stdin.end();
 }
 
 function sameFileFingerprint(left, right) {
@@ -171,6 +593,129 @@ function sortCandidates(candidates) {
       compareStrings(left.path, right.path) ||
       compareStrings(left.harness, right.harness),
   );
+}
+
+class CandidateScanStoppedError extends Error {
+  constructor() {
+    super("candidate_scan_stopped");
+    this.name = "CandidateScanStoppedError";
+  }
+}
+
+function sortWithHalt(values, compare, shouldHalt) {
+  try {
+    values.sort((left, right) => {
+      if (shouldHalt()) throw new CandidateScanStoppedError();
+      return compare(left, right);
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof CandidateScanStoppedError) return false;
+    throw error;
+  }
+}
+
+function sortCandidatesForScheduledRun(
+  candidates,
+  state,
+  { shouldHalt = () => Boolean(false), readFingerprint = fileFingerprint } = {},
+) {
+  const pending = [];
+  const unchanged = [];
+  let unreadableCount = 0;
+  for (const candidate of candidates) {
+    if (shouldHalt()) {
+      return {
+        candidates: [],
+        pendingCount: pending.length,
+        unreadableCount,
+        examinedCount: pending.length + unchanged.length,
+        complete: false,
+      };
+    }
+    let mtimeMs = -1;
+    let isPending = true;
+    let unreadable = false;
+    try {
+      const fingerprint = readFingerprint(candidate.path);
+      mtimeMs = fingerprint.mtimeMs;
+      isPending = !sameFileFingerprint(state.files[candidate.path], fingerprint);
+    } catch {
+      // Unreadable candidates remain pending and are surfaced by collection.
+      unreadable = true;
+      unreadableCount += 1;
+    }
+    (isPending ? pending : unchanged).push({ candidate, mtimeMs, unreadable });
+  }
+
+  const pendingSorted = sortWithHalt(
+    pending,
+    (left, right) =>
+      left.mtimeMs - right.mtimeMs ||
+      compareStrings(left.candidate.path, right.candidate.path) ||
+      compareStrings(left.candidate.harness, right.candidate.harness),
+    shouldHalt,
+  );
+  if (!pendingSorted) {
+    return {
+      candidates: [],
+      pendingCount: pending.length,
+      unreadableCount,
+      examinedCount: candidates.length,
+      complete: false,
+    };
+  }
+  const fairPending = [];
+  for (let oldest = 0, newest = pending.length - 1; oldest <= newest; oldest += 1, newest -= 1) {
+    if (shouldHalt()) {
+      return {
+        candidates: [],
+        pendingCount: pending.length,
+        unreadableCount,
+        examinedCount: candidates.length,
+        complete: false,
+      };
+    }
+    // Every tick gives the oldest pending session the first slot, then alternates
+    // with the newest work so neither side of a large backlog is ignored.
+    fairPending.push(pending[oldest].candidate);
+    if (oldest !== newest) fairPending.push(pending[newest].candidate);
+  }
+  const unchangedSorted = sortWithHalt(
+    unchanged,
+    (left, right) =>
+      compareStrings(left.candidate.path, right.candidate.path) ||
+      compareStrings(left.candidate.harness, right.candidate.harness),
+    shouldHalt,
+  );
+  if (!unchangedSorted) {
+    return {
+      candidates: [],
+      pendingCount: pending.length,
+      unreadableCount,
+      examinedCount: candidates.length,
+      complete: false,
+    };
+  }
+  for (const entry of unchanged) {
+    if (shouldHalt()) {
+      return {
+        candidates: [],
+        pendingCount: pending.length,
+        unreadableCount,
+        examinedCount: candidates.length,
+        complete: false,
+      };
+    }
+    fairPending.push(entry.candidate);
+  }
+  return {
+    candidates: fairPending,
+    pendingCount: pending.length,
+    unreadableCount,
+    examinedCount: candidates.length,
+    complete: true,
+  };
 }
 
 function parseCandidate(item) {
@@ -320,11 +865,12 @@ function extractClaudeLineMeta(line) {
     meta.model = typeof o.message.model === "string" ? o.message.model : null;
     const u = o.message.usage;
     if (u && typeof u === "object") {
+      const cacheCreationInputTokens = Number(u.cache_creation_input_tokens) || 0;
       meta.usage = {
         input_tokens: Number(u.input_tokens) || 0,
         output_tokens: Number(u.output_tokens) || 0,
         cache_read_input_tokens: Number(u.cache_read_input_tokens) || 0,
-        cache_creation_input_tokens: Number(u.cache_creation_input_tokens) || 0,
+        cache_creation_input_tokens: cacheCreationInputTokens,
         thinking_tokens:
           Number(u.thinking_tokens) ||
           Number(u.output_tokens_details?.reasoning_tokens) ||
@@ -550,18 +1096,29 @@ function parseCodexFile(filePath) {
   return { harness: "codex", sessionId, agg };
 }
 
-function walkJsonl(root, { skipSubagents = false } = {}) {
+function walkJsonl(root, { skipSubagents = false, shouldHalt = () => false } = {}) {
   const out = [];
-  if (!existsSync(root)) return out;
+  let complete = true;
+  if (shouldHalt()) return { paths: out, complete: false };
+  if (!existsSync(root)) return { paths: out, complete };
 
   function walk(dir) {
+    if (shouldHalt()) {
+      complete = false;
+      return;
+    }
     let entries;
     try {
       entries = readdirSync(dir, { withFileTypes: true });
     } catch {
+      complete = false;
       return;
     }
     for (const ent of entries) {
+      if (shouldHalt()) {
+        complete = false;
+        return;
+      }
       const p = join(dir, ent.name);
       if (ent.isDirectory()) {
         if (skipSubagents && ent.name === "subagents") continue;
@@ -572,19 +1129,25 @@ function walkJsonl(root, { skipSubagents = false } = {}) {
     }
   }
   walk(root);
-  return out;
+  return { paths: out, complete };
 }
 
-function listClaudeSessions() {
+function listClaudeSessions({ shouldHalt = () => false } = {}) {
   const files = [];
-  if (!existsSync(CLAUDE_PROJECTS)) return files;
+  let complete = true;
+  if (shouldHalt()) return { candidates: files, complete: false };
+  if (!existsSync(CLAUDE_PROJECTS)) return { candidates: files, complete };
   let projects;
   try {
     projects = readdirSync(CLAUDE_PROJECTS, { withFileTypes: true });
   } catch {
-    return files;
+    return { candidates: files, complete: false };
   }
   for (const proj of projects) {
+    if (shouldHalt()) {
+      complete = false;
+      break;
+    }
     if (!proj.isDirectory()) continue;
     const projDir = join(CLAUDE_PROJECTS, proj.name);
     const decoded = decodeClaudeProjectDir(proj.name);
@@ -594,24 +1157,55 @@ function listClaudeSessions() {
     try {
       entries = readdirSync(projDir, { withFileTypes: true });
     } catch {
+      complete = false;
       continue;
     }
     for (const ent of entries) {
+      if (shouldHalt()) {
+        complete = false;
+        break;
+      }
       if (ent.isFile() && ent.name.endsWith(".jsonl")) {
         files.push({ path: join(projDir, ent.name), fallbackRepo, harness: "claude" });
       }
     }
   }
-  return files;
+  return { candidates: files, complete };
 }
 
-function listCodexSessions() {
-  if (!existsSync(CODEX_SESSIONS)) return [];
-  return walkJsonl(CODEX_SESSIONS).map((path) => ({
-    path,
-    fallbackRepo: null,
-    harness: "codex",
-  }));
+function listCodexSessions({ shouldHalt = () => false } = {}) {
+  const walked = walkJsonl(CODEX_SESSIONS, { shouldHalt });
+  const candidates = [];
+  for (const path of walked.paths) {
+    if (shouldHalt()) return { candidates, complete: false };
+    candidates.push({
+      path,
+      fallbackRepo: null,
+      harness: "codex",
+    });
+  }
+  return {
+    candidates,
+    complete: walked.complete,
+  };
+}
+
+function discoverCandidates({ shouldHalt = () => false } = {}) {
+  const claude = listClaudeSessions({ shouldHalt });
+  const codex = listCodexSessions({ shouldHalt });
+  const candidates = [];
+  for (const candidate of claude.candidates) {
+    if (shouldHalt()) return { candidates, complete: false };
+    candidates.push(candidate);
+  }
+  for (const candidate of codex.candidates) {
+    if (shouldHalt()) return { candidates, complete: false };
+    candidates.push(candidate);
+  }
+  return {
+    candidates,
+    complete: claude.complete && codex.complete,
+  };
 }
 
 function toPayload(parsed, previousContextFingerprint) {
@@ -693,9 +1287,47 @@ function assertNoConversationBody(payload) {
   walk(payload, "");
 }
 
-async function postRun(payload, { dryRun }) {
+class CollectorSendError extends Error {
+  constructor(message, { retryable, cause } = {}) {
+    super(message, cause ? { cause } : undefined);
+    this.name = "CollectorSendError";
+    this.retryable = retryable === true;
+  }
+}
+
+class CollectorRunStoppedError extends Error {
+  constructor(reason) {
+    super(`collector_${reason}`);
+    this.name = "CollectorRunStoppedError";
+    this.reason = reason;
+  }
+}
+
+async function waitForRetry(delayMs, { shouldStop, shouldDefer }) {
+  const finishAt = Date.now() + delayMs;
+  while (Date.now() < finishAt) {
+    if (shouldStop()) throw new CollectorRunStoppedError("interrupted");
+    if (shouldDefer()) throw new CollectorRunStoppedError("budget_deferred");
+    await new Promise((resolveWait) =>
+      setTimeout(resolveWait, Math.min(25, Math.max(1, finishAt - Date.now()))),
+    );
+  }
+}
+
+async function postRunOnce(
+  payload,
+  {
+    dryRun,
+    onAttempt = () => {},
+    shouldStop = () => false,
+    shouldDefer = () => false,
+  },
+) {
+  if (shouldStop()) throw new CollectorRunStoppedError("interrupted");
+  if (shouldDefer()) throw new CollectorRunStoppedError("budget_deferred");
   assertNoConversationBody(payload);
   if (dryRun) {
+    onAttempt();
     console.log("[dry-run]", payload.harness, payload.sessionId, {
       model: payload.model,
       repo: payload.repo,
@@ -710,16 +1342,68 @@ async function postRun(payload, { dryRun }) {
   const headers = { "content-type": "application/json" };
   if (TOKEN) headers.authorization = `Bearer ${TOKEN}`;
 
-  const res = await fetch(`${BASE_URL}/api/harness-runs`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
+  let res;
+  // Keep this check immediately adjacent to fetch: a parse or payload build that
+  // consumes the remaining budget must not open a new HTTP request.
+  if (shouldStop()) throw new CollectorRunStoppedError("interrupted");
+  if (shouldDefer()) throw new CollectorRunStoppedError("budget_deferred");
+  onAttempt();
+  try {
+    res = await fetch(`${BASE_URL}/api/harness-runs`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    throw new CollectorSendError(`POST network failure: ${error.message || String(error)}`, {
+      retryable: true,
+      cause: error,
+    });
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`POST failed ${res.status}: ${body.slice(0, 200)}`);
+    throw new CollectorSendError(`POST failed ${res.status}: ${body.slice(0, 200)}`, {
+      retryable: res.status === 408 || res.status === 429 || res.status >= 500,
+    });
   }
   return res.json();
+}
+
+async function postRunWithRetry(
+  payload,
+  {
+    dryRun,
+    maxAttempts,
+    onAttempt,
+    shouldStop,
+    shouldDefer,
+    postOnce = postRunOnce,
+  },
+) {
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (shouldStop()) throw new CollectorRunStoppedError("interrupted");
+    if (shouldDefer()) throw new CollectorRunStoppedError("budget_deferred");
+    try {
+      return await postOnce(payload, { dryRun, onAttempt, shouldStop, shouldDefer });
+    } catch (error) {
+      lastError = error;
+      if (shouldStop()) throw new CollectorRunStoppedError("interrupted");
+      if (shouldDefer()) throw new CollectorRunStoppedError("budget_deferred");
+      if (!error.retryable || attempt >= maxAttempts) throw error;
+      const delayMs = Math.min(
+        RETRY_BASE_DELAY_MS * 2 ** (attempt - 1),
+        RETRY_MAX_DELAY_MS,
+      );
+      console.error(
+        `[harness-collect] retry attempt=${attempt + 1}/${maxAttempts}` +
+          ` delayMs=${delayMs} reason=${error.message || String(error)}`,
+      );
+      await waitForRetry(delayMs, { shouldStop, shouldDefer });
+    }
+  }
+  throw lastError;
 }
 
 function fileFingerprint(path) {
@@ -875,7 +1559,18 @@ function preflightSnapshot(snapshot) {
 async function collectItems(
   items,
   state,
-  { dryRun, maxSends, preparedByPath = null, shouldStop = () => false },
+  {
+    dryRun,
+    maxSends,
+    preparedByPath = null,
+    shouldStop = () => false,
+    shouldDefer = () => false,
+    readFingerprint = fileFingerprint,
+    parseItem = parseCandidate,
+    postPayload = postRunWithRetry,
+    checkpointState = saveState,
+    nowIso = () => new Date().toISOString(),
+  },
 ) {
   const result = {
     sent: 0,
@@ -887,17 +1582,33 @@ async function collectItems(
     stalePaths: [],
     stoppedAtLimit: false,
     interrupted: false,
+    deferredForBudget: false,
+    lastCheckpointAt: null,
+    lastError: null,
   };
+
+  if (shouldStop()) {
+    result.interrupted = true;
+    return result;
+  }
+  if (shouldDefer()) {
+    result.deferredForBudget = true;
+    return result;
+  }
 
   for (const item of items) {
     if (shouldStop()) {
       result.interrupted = true;
       break;
     }
+    if (shouldDefer()) {
+      result.deferredForBudget = true;
+      break;
+    }
 
     let fp;
     try {
-      fp = fileFingerprint(item.path);
+      fp = readFingerprint(item.path);
     } catch (error) {
       if (preparedByPath) {
         result.staleSnapshot += 1;
@@ -905,8 +1616,18 @@ async function collectItems(
         break;
       }
       result.errors += 1;
+      result.lastError = `stat error ${item.path}: ${error.message || String(error)}`;
       console.error(`[harness-collect] stat error ${item.path}:`, error.message || error);
       continue;
+    }
+
+    if (shouldStop()) {
+      result.interrupted = true;
+      break;
+    }
+    if (shouldDefer()) {
+      result.deferredForBudget = true;
+      break;
     }
 
     if (preparedByPath && !sameFileFingerprint(fp, item)) {
@@ -923,7 +1644,7 @@ async function collectItems(
 
     let parsed = preparedByPath?.get(item.path)?.parsed;
     try {
-      if (!parsed) parsed = parseCandidate(item);
+      if (!parsed) parsed = parseItem(item);
     } catch (error) {
       if (preparedByPath) {
         result.staleSnapshot += 1;
@@ -931,8 +1652,18 @@ async function collectItems(
         break;
       }
       result.errors += 1;
+      result.lastError = `parse error ${item.path}: ${error.message || String(error)}`;
       console.error(`[harness-collect] parse error ${item.path}:`, error.message || error);
       continue;
+    }
+
+    if (shouldStop()) {
+      result.interrupted = true;
+      break;
+    }
+    if (shouldDefer()) {
+      result.deferredForBudget = true;
+      break;
     }
 
     if (!parsed) {
@@ -941,7 +1672,10 @@ async function collectItems(
         result.stalePaths.push(item.path);
         break;
       }
-      if (!dryRun) state.files[item.path] = { ...fp, skipped: true };
+      if (!dryRun) {
+        state.files[item.path] = { ...fp, skipped: true };
+        checkpointState(state);
+      }
       result.unparseable += 1;
       continue;
     }
@@ -966,10 +1700,25 @@ async function collectItems(
         break;
       }
 
-      // attempts counts HTTP simulations too, so the safety valve remains a hard cap
-      // even when the server returns errors.
-      result.attempts += 1;
-      await postRun(payload, { dryRun });
+      const remainingAttempts =
+        maxSends === null
+          ? RETRY_MAX_ATTEMPTS
+          : Math.min(RETRY_MAX_ATTEMPTS, maxSends - result.attempts);
+      if (remainingAttempts < 1) {
+        result.stoppedAtLimit = true;
+        break;
+      }
+      // attempts includes retries and dry-run simulations, preserving --max-sends as
+      // a hard HTTP-attempt cap for bounded validation runs.
+      await postPayload(payload, {
+        dryRun,
+        maxAttempts: remainingAttempts,
+        shouldStop,
+        shouldDefer,
+        onAttempt: () => {
+          result.attempts += 1;
+        },
+      });
       result.sent += 1;
       if (!dryRun) {
         state.files[item.path] = {
@@ -978,18 +1727,122 @@ async function collectItems(
           sessionId: parsed.sessionId,
           contextFingerprint: payload.contextFingerprint,
         };
+        checkpointState(state);
+        result.lastCheckpointAt = nowIso();
         if (result.sent % 50 === 0) {
-          saveState(state);
           console.log(`[harness-collect] progress sent=${result.sent}`);
         }
       }
     } catch (error) {
+      if (error instanceof CollectorRunStoppedError) {
+        if (error.reason === "interrupted") result.interrupted = true;
+        else result.deferredForBudget = true;
+        break;
+      }
       result.errors += 1;
+      result.lastError = `send error ${item.path}: ${error.message || String(error)}`;
       console.error(`[harness-collect] error ${item.path}:`, error.message || error);
+      // A down or rejecting endpoint is run-scoped. Stop after bounded retries so
+      // thousands of pending sessions do not turn one 15-minute tick into a storm.
+      break;
     }
   }
 
   return result;
+}
+
+function countPendingCandidates(
+  candidates,
+  state,
+  { shouldHalt = () => Boolean(false), readFingerprint = fileFingerprint } = {},
+) {
+  let pendingCount = 0;
+  let unreadableCount = 0;
+  let examinedCount = 0;
+  for (const item of candidates) {
+    if (shouldHalt()) {
+      return { pendingCount, unreadableCount, examinedCount, complete: false };
+    }
+    try {
+      const fingerprint = readFingerprint(item.path);
+      if (!sameFileFingerprint(state.files[item.path], fingerprint)) pendingCount += 1;
+    } catch {
+      pendingCount += 1;
+      unreadableCount += 1;
+    }
+    examinedCount += 1;
+  }
+  return { pendingCount, unreadableCount, examinedCount, complete: true };
+}
+
+function resolvePendingStatus({ pendingAfter, hasError, deferredForBudget }) {
+  const pendingCount = pendingAfter.complete ? pendingAfter.pendingCount : null;
+  return {
+    runState:
+      hasError
+        ? "error"
+        : deferredForBudget || !pendingAfter.complete || pendingCount > 0
+          ? "pending"
+          : "synced",
+    pendingCount,
+    pendingCountExact: pendingAfter.complete,
+    unreadableCount: pendingAfter.complete ? pendingAfter.unreadableCount : null,
+  };
+}
+
+function collectorRunMode(options) {
+  if (options.applySnapshotPath) return "snapshot";
+  if (options.maxSends !== null) return "bounded";
+  return process.env.APPLIED_LOOP_COLLECT_RUN_MODE || "standard";
+}
+
+function buildDiagnosticReport() {
+  const loaded = loadState();
+  const discovery = discoverCandidates();
+  const candidates = sortCandidates(discovery.candidates);
+  const pending = countPendingCandidates(candidates, loaded.state);
+  const scanComplete = discovery.complete && pending.complete;
+  const status = loadStatus();
+  return {
+    runState:
+      loaded.stateHealth === "corrupt"
+        ? "error"
+        : !scanComplete
+          ? "pending"
+          : status?.runState || (pending.pendingCount > 0 ? "never-synced" : "synced"),
+    stateHealth: loaded.stateHealth,
+    pendingCount: scanComplete ? pending.pendingCount : null,
+    pendingCountExact: scanComplete,
+    unreadableCount: scanComplete ? pending.unreadableCount : null,
+    candidateCount: candidates.length,
+    lastAttemptAt: status?.lastAttemptAt ?? null,
+    lastCompletedAt: status?.lastCompletedAt ?? null,
+    lastSuccessfulSyncAt: status?.lastSuccessfulSyncAt ?? null,
+    lastCheckpointAt: status?.lastCheckpointAt ?? null,
+    consecutiveFailures: status?.consecutiveFailures ?? 0,
+    lastError: status?.lastError ?? (loaded.stateHealth === "corrupt" ? loaded.recovery : null),
+    stateRecovery: status?.stateRecovery ?? loaded.recovery,
+    statePath: STATE_PATH,
+    statusPath: STATUS_PATH,
+  };
+}
+
+function printDiagnostic(report, { json }) {
+  if (json) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+  console.log("Applied Loop harness collector");
+  console.log(`  state: ${report.runState} (checkpoint: ${report.stateHealth})`);
+  console.log(
+    `  pending sessions: ${report.pendingCount ?? "unknown"}` +
+      (report.pendingCountExact === false ? " (scan incomplete)" : ""),
+  );
+  console.log(`  last successful sync: ${report.lastSuccessfulSyncAt ?? "never"}`);
+  console.log(`  last checkpoint: ${report.lastCheckpointAt ?? "never"}`);
+  console.log(`  last attempt: ${report.lastAttemptAt ?? "never"}`);
+  if (report.lastError) console.log(`  last error: ${report.lastError}`);
+  if (report.stateRecovery) console.log(`  recovery: ${report.stateRecovery}`);
 }
 
 async function main(argv = process.argv.slice(2)) {
@@ -998,10 +1851,63 @@ async function main(argv = process.argv.slice(2)) {
     console.log(usage());
     return;
   }
+  if (options.status) {
+    printDiagnostic(buildDiagnosticReport(), options);
+    return;
+  }
+  const runMode = collectorRunMode(options);
+  let interrupted = false;
+  const onInterrupt = () => {
+    if (!interrupted) {
+      interrupted = true;
+      process.exitCode = 130;
+      console.error("[harness-collect] interrupt requested; stopping before the next request");
+      if (activeStatusContext) {
+        try {
+          saveInterruptedStatus(activeStatusContext);
+        } catch (error) {
+          console.error("[harness-collect] failed to persist interrupted status:", error);
+        }
+      }
+    }
+  };
+  const onSigint = () => onInterrupt();
+  const onSigterm = () => onInterrupt();
+  process.on("SIGINT", onSigint);
+  process.on("SIGTERM", onSigterm);
+  let mainCompleted = false;
+  try {
+    if (!options.dryRun) await acquireCollectorLock();
 
-  const state = loadState();
+  const loadedState = loadState({ recoverCorrupt: !options.dryRun });
+  const state = loadedState.state;
   state.files ??= {};
-  const candidates = sortCandidates([...listClaudeSessions(), ...listCodexSessions()]);
+  const scheduledCollection =
+    runMode === "scheduled" &&
+    !options.dryRun &&
+    !options.snapshotOutPath &&
+    !options.applySnapshotPath;
+  // Start the scheduled budget before filesystem discovery. Parsing and retry
+  // receive the same deadline below, so the 12-minute cap covers the whole scan.
+  const scheduledDeadline = scheduledCollection
+    ? Date.now() + SCHEDULED_RUN_BUDGET_MS
+    : null;
+  const shouldStop = () => interrupted;
+  const shouldDefer = () =>
+    scheduledDeadline !== null && Date.now() >= scheduledDeadline;
+  const shouldHaltScan = () => shouldStop() || shouldDefer();
+  const discovery = discoverCandidates({ shouldHalt: shouldHaltScan });
+  if (options.snapshotOutPath && !discovery.complete) {
+    throw new Error("snapshot_not_created: candidate scan incomplete");
+  }
+  const scheduledCandidates = scheduledCollection
+    ? sortCandidatesForScheduledRun(discovery.candidates, state, {
+        shouldHalt: shouldHaltScan,
+      })
+    : null;
+  const candidates = scheduledCandidates
+    ? scheduledCandidates.candidates
+    : sortCandidates(discovery.candidates);
 
   if (options.snapshotOutPath) {
     const plan = buildSnapshotPlan(candidates, state, options.maxSends);
@@ -1025,6 +1931,7 @@ async function main(argv = process.argv.slice(2)) {
       `[harness-collect] snapshot-written path=${options.snapshotOutPath}` +
         ` targets=${plan.document.targets.length}`,
     );
+    mainCompleted = true;
     return;
   }
 
@@ -1041,20 +1948,45 @@ async function main(argv = process.argv.slice(2)) {
   const maxSends = snapshot
     ? Math.min(options.maxSends ?? snapshot.targets.length, snapshot.targets.length)
     : options.maxSends;
+  const trackOperationalStatus = !options.dryRun && !snapshot;
+  const previousStatus = loadStatus();
+  const attemptStartedAt = new Date().toISOString();
+  const pendingBefore = scheduledCandidates
+    ? {
+        pendingCount: scheduledCandidates.pendingCount,
+        unreadableCount: scheduledCandidates.unreadableCount,
+        complete: discovery.complete && scheduledCandidates.complete,
+      }
+    : countPendingCandidates(candidates, state);
+  if (trackOperationalStatus) {
+    activeStatusContext = {
+      runMode,
+      lastAttemptAt: attemptStartedAt,
+      previousStatus,
+      loadedState,
+    };
+    saveStatus({
+      runState: "running",
+      runMode,
+      lastAttemptAt: attemptStartedAt,
+      lastCompletedAt: previousStatus?.lastCompletedAt ?? null,
+      lastSuccessfulSyncAt: previousStatus?.lastSuccessfulSyncAt ?? null,
+      lastCheckpointAt: previousStatus?.lastCheckpointAt ?? null,
+      pendingCount: pendingBefore.complete ? pendingBefore.pendingCount : null,
+      pendingCountExact: pendingBefore.complete,
+      unreadableCount: pendingBefore.complete ? pendingBefore.unreadableCount : null,
+      errorCount: 0,
+      consecutiveFailures: previousStatus?.consecutiveFailures ?? 0,
+      lastError: null,
+      stateRecovery: loadedState.recovery,
+    });
+  }
   console.log(
     `[harness-collect] candidates=${items.length} url=${BASE_URL}` +
       ` dryRun=${options.dryRun} maxSends=${maxSends ?? "unlimited"}` +
-      ` snapshot=${snapshot ? options.applySnapshotPath : "none"}`,
+      ` snapshot=${snapshot ? options.applySnapshotPath : "none"}` +
+      ` mode=${runMode}`,
   );
-
-  let interrupted = false;
-  const onSigint = () => {
-    if (!interrupted) {
-      interrupted = true;
-      console.error("[harness-collect] interrupt requested; finishing current request");
-    }
-  };
-  process.once("SIGINT", onSigint);
 
   let result;
   try {
@@ -1062,13 +1994,67 @@ async function main(argv = process.argv.slice(2)) {
       dryRun: options.dryRun,
       maxSends,
       preparedByPath,
-      shouldStop: () => interrupted,
+      shouldStop,
+      shouldDefer,
     });
   } finally {
-    process.off("SIGINT", onSigint);
-    // Dry-run must remain read-only; actual collection persists only successful sends
-    // and deliberate parse skips.
+    // Dry-run must remain read-only. Successful sends and deliberate parse skips are
+    // checkpointed immediately; this final atomic save covers empty/failed runs too.
     if (!options.dryRun) saveState(state);
+  }
+  if (activeStatusContext) {
+    activeStatusContext.lastCheckpointAt =
+      result.lastCheckpointAt ?? previousStatus?.lastCheckpointAt ?? null;
+  }
+
+  const pendingAfterScan = countPendingCandidates(candidates, state, {
+    shouldHalt: scheduledCollection ? shouldHaltScan : () => false,
+  });
+  // Synchronous filesystem calls cannot dispatch JS signal callbacks mid-call.
+  // Yield once while handlers are still installed so a signal received during
+  // the final scan is observed before status can be declared fully synced.
+  await new Promise((resolveYield) => setImmediate(resolveYield));
+  const pendingAfterComplete =
+    discovery.complete &&
+    (scheduledCandidates?.complete ?? true) &&
+    pendingAfterScan.complete &&
+    !interrupted;
+  const deferredForBudget =
+    result.deferredForBudget ||
+    (scheduledCollection && !pendingAfterComplete && shouldDefer());
+  const finalInterrupted = result.interrupted || interrupted;
+  if (trackOperationalStatus) {
+    const hasError = result.errors > 0 || result.staleSnapshot > 0 || finalInterrupted;
+    const pendingStatus = resolvePendingStatus({
+      pendingAfter: { ...pendingAfterScan, complete: pendingAfterComplete },
+      hasError,
+      deferredForBudget,
+    });
+    const completeUnboundedSync =
+      !hasError &&
+      !deferredForBudget &&
+      pendingAfterComplete &&
+      maxSends === null &&
+      pendingStatus.pendingCount === 0;
+    saveStatus({
+      runState: pendingStatus.runState,
+      runMode,
+      lastAttemptAt: attemptStartedAt,
+      lastCompletedAt: new Date().toISOString(),
+      lastSuccessfulSyncAt: completeUnboundedSync
+        ? new Date().toISOString()
+        : previousStatus?.lastSuccessfulSyncAt ?? null,
+      lastCheckpointAt: result.lastCheckpointAt ?? previousStatus?.lastCheckpointAt ?? null,
+      pendingCount: pendingStatus.pendingCount,
+      pendingCountExact: pendingStatus.pendingCountExact,
+      unreadableCount: pendingStatus.unreadableCount,
+      errorCount: result.errors + result.staleSnapshot + (finalInterrupted ? 1 : 0),
+      consecutiveFailures: hasError
+        ? (previousStatus?.consecutiveFailures ?? 0) + 1
+        : 0,
+      lastError: result.lastError ?? (finalInterrupted ? "collector_interrupted" : null),
+      stateRecovery: loadedState.recovery,
+    });
   }
 
   console.log(
@@ -1079,30 +2065,77 @@ async function main(argv = process.argv.slice(2)) {
       ` errors=${result.errors}` +
       ` staleSnapshot=${result.staleSnapshot}` +
       ` stoppedAtLimit=${result.stoppedAtLimit}` +
-      ` interrupted=${result.interrupted}`,
+      ` deferredForBudget=${deferredForBudget}` +
+      ` interrupted=${finalInterrupted}`,
   );
   if (result.staleSnapshot) {
     throw new SnapshotStaleError(
       result.stalePaths.map((path) => ({ path, reason: "changed_during_send" })),
     );
   }
-  if (result.interrupted) process.exitCode = 130;
+  if (finalInterrupted) process.exitCode = 130;
+  else if (result.errors) process.exitCode = 1;
+  mainCompleted = true;
+  } finally {
+    releaseCollectorLock();
+    // Keep handlers through lock release and give any kernel-delivered signal
+    // one event-loop turn to persist an interrupted, non-exact status.
+    await new Promise((resolveYield) => setImmediate(resolveYield));
+    if (interrupted && activeStatusContext) {
+      try {
+        saveInterruptedStatus(activeStatusContext);
+      } catch (error) {
+        console.error("[harness-collect] failed to persist interrupted status:", error);
+      }
+    }
+    if (mainCompleted) activeStatusContext = null;
+    process.off("SIGINT", onSigint);
+    process.off("SIGTERM", onSigterm);
+  }
 }
 
 export {
   COLLECTOR_VERSION,
   SNAPSHOT_SCHEMA_VERSION,
+  collectItems,
+  countPendingCandidates,
   createSnapshotDocument,
   parseArgs,
+  postRunWithRetry,
+  resolvePendingStatus,
   sameFileFingerprint,
   sortCandidates,
+  sortCandidatesForScheduledRun,
   validateSnapshotDocument,
 };
 
 const invokedScript = process.argv[1] ? resolve(process.argv[1]) : null;
 if (invokedScript === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
+    releaseCollectorLock();
+    if (activeStatusContext) {
+      const { runMode, lastAttemptAt, previousStatus, loadedState } = activeStatusContext;
+      try {
+        saveStatus({
+          runState: "error",
+          runMode,
+          lastAttemptAt,
+          lastCompletedAt: new Date().toISOString(),
+          lastSuccessfulSyncAt: previousStatus?.lastSuccessfulSyncAt ?? null,
+          lastCheckpointAt: previousStatus?.lastCheckpointAt ?? null,
+          pendingCount: previousStatus?.pendingCount ?? null,
+          pendingCountExact: false,
+          unreadableCount: previousStatus?.unreadableCount ?? null,
+          errorCount: 1,
+          consecutiveFailures: (previousStatus?.consecutiveFailures ?? 0) + 1,
+          lastError: error.message || String(error),
+          stateRecovery: loadedState.recovery,
+        });
+      } catch (statusError) {
+        console.error("[harness-collect] failed to persist fatal status:", statusError);
+      }
+    }
     console.error(error);
-    process.exitCode = 1;
+    process.exitCode = error?.exitCode ?? 1;
   });
 }

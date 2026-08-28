@@ -24,7 +24,7 @@ import {
 const hash = (character: string) => character.repeat(64);
 const policyVersion = "v1";
 const NON_A4_A5_A6_TRACKED_PATH_COUNT = 543;
-const NON_A4_A5_A6_TRACKED_CONTENT_AGGREGATE_SHA256 = "39ba80d8fa7ab4b128d04ee26c4649287f445a4314f7194213b9426f4f2da006";
+const NON_A4_A5_A6_TRACKED_CONTENT_AGGREGATE_SHA256 = "bc8a4177509fae3f600c80b63d1ef9b60092848b366443e1d84092f22981c827";
 const H_EVAL_ALLOWED_PATHS = [
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract-v1.ts",
   "src/lib/loop-jobs/harness-evaluation/h-eval-job-contract.test.ts",
@@ -376,10 +376,10 @@ const A8C3B_ALLOWED_NON_H_EVAL_PATHS = [
   "src/lib/loop-jobs/dormant-worker-and-disposable-db.test.ts",
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-evaluate-dormant-handler-v1.test.ts",
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.test.ts",
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-generation-scoped-execution-v1.ts",
-  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
   "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-sqlite-immediate-write-transaction-v1.test.ts",
 ] as const;
 const A8C3B_ADDITIVE_NON_H_EVAL_PATHS = [
@@ -622,6 +622,42 @@ const BUGFIX_ADDITIVE_NON_H_EVAL_PATHS = [
 ] as const;
 const BUGFIX_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
   "src/components/living-atlas/atlas-dashboard.tsx": "1b9c7c6c34a709800f5a89e21d03107f9e736b61f801a0b0b0dd449b998adc7d",
+};
+// ADR-0040 activates only the standalone metadata collector. Project these
+// files back to the origin/main baseline when proving H-EVAL remains dormant.
+const AUTO_COLLECT_ALLOWED_NON_H_EVAL_PATHS = [
+  "docs/adr/0040-durable-automatic-harness-collection.md",
+  "docs/mcp-setup.md",
+  "docs/onboarding.md",
+  "package.json",
+  "README.md",
+  "scripts/bootstrap-local.mjs",
+  "scripts/collect-harness.mjs",
+  "scripts/com.applied-loop.harness-collect.plist",
+  "scripts/harness-collect.sh",
+  "scripts/manage-harness-collector.mjs",
+  "src/lib/harness-run-ingestion.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts",
+] as const;
+const AUTO_COLLECT_ADDITIVE_NON_H_EVAL_PATHS = [
+  "docs/adr/0040-durable-automatic-harness-collection.md",
+  "scripts/manage-harness-collector.mjs",
+] as const;
+const AUTO_COLLECT_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "docs/mcp-setup.md": "803f0aaa6468cd1d74442e0fbbd15c92b6e9e34173a2dd8e28315d04b4867fc5",
+  "docs/onboarding.md": "ac9fa557cdbd9dfa56eaeab04f5067b87b4f634c0b57b7728657962fead62645",
+  "package.json": "86db43976991b0dfe027f323fc8c464d35704d70b4ad571a72896b936db4b57a",
+  "README.md": "6069b12a089f94c2c8c10af418da7374ff43d42f00278b44eab2b3c375402556",
+  "scripts/bootstrap-local.mjs": "51ed960c5c3b38c6ea2a65429089b53298fcfef1793481b2c397cbffb3317b8b",
+  "scripts/collect-harness.mjs": "57b35b66f95ce707b343722beb767902cba475bae9863a935b1f78bbf3f09032",
+  "scripts/com.applied-loop.harness-collect.plist": "f05924bdc06f1367e97d1b102cbfc04a69d737dcf81f1c15eb13e00b0e592ae5",
+  "scripts/harness-collect.sh": "2fe5ed48d710d453c9d791c7c0b8388a2c0869233b31834b97919177cb4e528b",
+  "src/lib/harness-run-ingestion.test.ts": "0866ee819b5ef47d43ea8778f8c52f70966b951b7cffa1568c14a45b255ee23e",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-control-ledger-v1.test.ts": "0f8cc3f3bb44848e8ffe8e64520f159e77fc1b6bba3202fe2a8329791c2e4bb8",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-activation-readiness-v1.test.ts": "a4e6df57fac96405111d019a3ec41084a4b53c829f8204a76d35dfe1c0f26c94",
+  "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts": "f9a35e31f85ef522368e894fba870ad7c0b832b1ebc9c15d49ed4a3f6ad6727e",
 };
 const A9B_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/harness-evaluation-run-v1.ts",
@@ -1615,6 +1651,9 @@ function packageBaselineSha256(packageJson: JsonDataRecord): string {
   delete scripts["harness:evaluate-window-preview"];
   delete scripts["harness:preview-cycle-evidence"];
   delete scripts["harness:plan-usage-backfill"];
+  delete scripts["harness:collector:install"];
+  delete scripts["harness:collector:status"];
+  delete scripts["harness:collector:uninstall"];
   return createHash("sha256").update(canonicalJson(baseline), "utf8").digest("hex");
 }
 
@@ -1719,6 +1758,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A9D3_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A9D4_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(BUGFIX_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(AUTO_COLLECT_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1730,7 +1770,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
   for (const path of Object.keys(A8C2_RUNTIME_SNIPPETS)) preA8C2ContentSha256(root, path);
   for (const path of Object.keys(A8C3B_MODIFIED_BASE_CONTENT_SHA256)) preA8C3ContentSha256(root, path);
   const aggregate = nonA4A5A6Tracked
-    .map((path) => `${path}\t${A9D4_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7_MODIFIED_BASE_CONTENT_SHA256[path] ?? A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7B_MODIFIED_BASE_CONTENT_SHA256[path] ?? A8B_MODIFIED_BASE_CONTENT_SHA256[path] ?? BUGFIX_MODIFIED_BASE_CONTENT_SHA256[path] ?? preA8C2ContentSha256(root, path) ?? preA8C3ContentSha256(root, path) ?? contentSha256(join(root, path))}\n`)
+    .map((path) => `${path}\t${A9D4_MODIFIED_BASE_CONTENT_SHA256[path] ?? AUTO_COLLECT_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7_MODIFIED_BASE_CONTENT_SHA256[path] ?? A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7B_MODIFIED_BASE_CONTENT_SHA256[path] ?? A8B_MODIFIED_BASE_CONTENT_SHA256[path] ?? BUGFIX_MODIFIED_BASE_CONTENT_SHA256[path] ?? preA8C2ContentSha256(root, path) ?? preA8C3ContentSha256(root, path) ?? contentSha256(join(root, path))}\n`)
     .join("");
   assert.equal(
     createHash("sha256").update(aggregate, "utf8").digest("hex"),
@@ -1761,6 +1801,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A9D3_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A9D4_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (BUGFIX_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (AUTO_COLLECT_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || path === A8C2_REVIEW_ARTIFACT_PATH
         || path === A8C3_REVIEW_ARTIFACT_PATH
         || path === A8C3P_REVIEW_ARTIFACT_PATH

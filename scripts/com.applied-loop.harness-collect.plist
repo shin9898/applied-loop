@@ -1,24 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Applied Loop ハーネス観測の定期収集 (1時間ごと)
+  Applied Loop ハーネス観測の定期収集テンプレート (15分ごと)
 
   任意の prefix 介入比較: APPLIED_LOOP_CONTEXT_FINGERPRINT=sha256:<64hex> を
   harness-collect.sh の環境へ明示すると、その値を新規sessionのcohort identityに使う。
   未指定時は会話本文を読まず harness/model/repo からmetadata-derived hashを作る。
 
-  インストール手順:
-    1. このファイルを編集し、YOUR_USER を実際のユーザ名に置換する
-       (ProgramArguments のパスもリポジトリ実パスに合わせる)
-    2. cp scripts/com.applied-loop.harness-collect.plist ~/Library/LaunchAgents/
-    3. launchctl load ~/Library/LaunchAgents/com.applied-loop.harness-collect.plist
-    4. 動作確認: launchctl start com.applied-loop.harness-collect
-       ログ: scripts/harness-collect.log
-    5. 停止: launchctl unload ~/Library/LaunchAgents/com.applied-loop.harness-collect.plist
+  __APPLIED_LOOP_ROOT__ / __APPLIED_LOOP_DATA_DIR__ / __APPLIED_LOOP_NODE_PATH__ は
+  管理CLIがsetup時の実パスへ置換する。
+  このテンプレートを直接 ~/Library/LaunchAgents へコピーしないこと。
 
   前提:
     - Applied Loop が APPLIED_LOOP_URL (既定 http://localhost:3100) で起動していること
-    - リポジトリの .env に MCP_TOKEN があること (harness-collect.sh が読む)
+    - リポジトリの .env に MCP_TOKEN があること (collector が必要な値だけ読む)
 -->
 <plist version="1.0">
   <dict>
@@ -27,15 +22,34 @@
     <key>ProgramArguments</key>
     <array>
       <string>/bin/bash</string>
-      <string>/Users/YOUR_USER/tools/applied-loop/scripts/harness-collect.sh</string>
+      <string>__APPLIED_LOOP_ROOT__/scripts/harness-collect.sh</string>
     </array>
+    <key>WorkingDirectory</key>
+    <string>__APPLIED_LOOP_ROOT__</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>APPLIED_LOOP_NODE_PATH</key>
+      <string>__APPLIED_LOOP_NODE_PATH__</string>
+      <key>APPLIED_LOOP_COLLECT_RUN_MODE</key>
+      <string>scheduled</string>
+      <key>APPLIED_LOOP_COLLECT_RUN_BUDGET_MS</key>
+      <string>720000</string>
+      <key>APPLIED_LOOP_COLLECT_STATE_PATH</key>
+      <string>__APPLIED_LOOP_DATA_DIR__/state.json</string>
+      <key>APPLIED_LOOP_COLLECT_STATUS_PATH</key>
+      <string>__APPLIED_LOOP_DATA_DIR__/status.json</string>
+      <key>APPLIED_LOOP_COLLECT_LOCK_PATH</key>
+      <string>__APPLIED_LOOP_DATA_DIR__/collector.lock</string>
+    </dict>
     <key>StartInterval</key>
-    <integer>3600</integer>
+    <integer>900</integer>
     <key>RunAtLoad</key>
     <true/>
+    <key>ProcessType</key>
+    <string>Background</string>
     <key>StandardOutPath</key>
-    <string>/tmp/applied-loop-harness-collect.out.log</string>
+    <string>__APPLIED_LOOP_DATA_DIR__/launchd.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/applied-loop-harness-collect.err.log</string>
+    <string>__APPLIED_LOOP_DATA_DIR__/launchd.err.log</string>
   </dict>
 </plist>

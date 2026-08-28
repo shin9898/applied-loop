@@ -112,7 +112,55 @@ CLAUDE.md / Cursor Rules / Codex AGENTS に追記する文（必要に応じて�
 }
 ```
 
-## 3.5 ツール面（core / full）
+## 3.5 Claude / Codex ハーネスメタデータの自動収集（macOS）
+
+Claude Code / Codexのsession終了後に手動collectorを実行する必要はない。対話的macOSでは
+`npm run setup`の成功経路がper-user LaunchAgentを冪等に登録し、初回catch-upも開始する。
+追加コマンドは不要。
+
+CI・macOS以外・非対話環境では安全のため自動登録をskipする。非対話の配布scriptから明示的に
+有効化する場合は`APPLIED_LOOP_INSTALL_HARNESS_COLLECTOR=1 npm run setup`、対話環境でも登録を
+抑止する場合は`APPLIED_LOOP_SKIP_HARNESS_COLLECTOR=1 npm run setup`を使う。clone移動後の再登録や
+個別の修復には`npm run harness:collector:install`を使える。
+
+登録時とログイン時にcatch-upし、その後は15分ごとに増分収集する。pending sessionは最古を先頭に、
+oldest/newestを交互配置して次回tickへcheckpoint付きで継続する。1runの12分budgetはdirectory走査、
+各sessionのparse/POST/retry、最終pending走査の呼出し境界で適用する。ただし、開始済みの単一の同期
+filesystem syscall・`readFileSync`・parseやPOSTを途中中断するものではない。HTTP request timeout等の
+終了処理もあるため、実wall-clockは12分を少し超える場合がある。Applied Loopサーバーやnetworkが
+停止している間はcheckpointを進めず、復旧後の周期で未同期sessionを再送する。
+収集対象はmodel/token/tool名/時刻/session ID/repo等のメタデータだけで、会話本文、thinking本文、
+tool input/resultは保存・送信しない。
+
+状態確認:
+
+```bash
+npm run harness:collector:status
+# launchdを調べずcollector状態だけJSONで確認
+node scripts/collect-harness.mjs --status --json
+```
+
+`status`には最終完全同期、最終checkpoint、未同期session数、直近errorが出る。永続state/status/logは
+`~/.applied-loop/harness-collector/`、登録plistは
+`~/Library/LaunchAgents/com.applied-loop.harness-collect.plist`に置かれる。cloneを移動した場合は
+installを再実行して絶対pathを更新する。
+
+解除（checkpoint/logは復旧用に残す）:
+
+```bash
+npm run harness:collector:uninstall
+```
+
+検証用のsnapshot/max-sendsは通常運用へ混ぜない。必要なときだけcollectorを直接呼ぶ。
+
+```bash
+node scripts/collect-harness.mjs --dry-run --snapshot-out /tmp/harness-targets.json --max-sends 100
+node scripts/collect-harness.mjs --apply-snapshot /tmp/harness-targets.json --max-sends 100
+```
+
+設計・障害復旧・tradeoffの正本: [ADR-0040](./adr/0040-durable-automatic-harness-collection.md)。
+
+## 3.6 ツール面（core / full）
 
 既定は仲間向け **`MCP_SURFACE=core`**（`morning_briefing` / `list_pending_gates` / `request_gate` / `answer_gate` / `get_gate_result` / `watch_repos` の6本）。  
 本人の全ツールは `.env` に `MCP_SURFACE=full`。ADR-0019。  

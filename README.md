@@ -21,6 +21,7 @@
 
 ```bash
 npm run setup          # preflight / install / .env生成 / migrate / sample seed
+                        # macOSでは15分周期のClaude/Codex収集も自動登録
                         # 採点CLI検出 → 使うLLMを選ぶとMCP登録コマンドをそのまま出す
 npm run dev:all        # http://localhost:3100
 ```
@@ -33,6 +34,7 @@ npm run dev:all        # http://localhost:3100
 - **採点が出ない** → headless の Claude/Codex CLI にログイン済みか。`npm run regrade -- <gateId>`
 - **ポート** → `npm run preflight`（3100 / 3101）
 - **hook** → アプリ停止中は `~/.applied-loop/event-queue.jsonl` に退避。`dev:all` 後の次コミットで flush（[ops-logs.md](docs/ops-logs.md)）
+- **Claude/Codex収集** → `npm run harness:collector:status`（最終同期・未同期・error）
 
 ---
 

@@ -24,6 +24,7 @@ LLM を入れたばかりでも、**ツール名を覚えなくてよい**。順
 
 ```bash
 npm run setup          # preflight / install / .env生成 / migrate / sample seed
+                        # 対話的macOSではClaude/Codexの15分周期収集も自動登録
                         # → 採点CLI(claude/codex)の検出状況を表示
                         # → 使う LLM クライアントを選ぶと MCP 登録コマンドをそのまま表示
 npm run dev:all        # http://localhost:3100  +  WS :3101
@@ -78,6 +79,11 @@ npm run seed:tutorial
 ### ② 集める（詳細）
 
 ルールスニペットは [mcp-setup.md §2](./mcp-setup.md)。  
+Claude / Codex の利用メタデータは、対話的macOSの`npm run setup`成功経路でLaunchAgentが
+冪等に登録され、以後15分ごとに自動収集される。server停止中の分は復旧後にcatch-upする。
+状態は`npm run harness:collector:status`で確認する（詳細は
+[mcp-setup.md §3.5](./mcp-setup.md)）。
+
 監視リポジトリ + git hook（推奨: UI）:
 
 1. `/setup` の『監視リポジトリ』にパスを追加（例: `~/Desktop/triplethree/triple-onboarding`）
