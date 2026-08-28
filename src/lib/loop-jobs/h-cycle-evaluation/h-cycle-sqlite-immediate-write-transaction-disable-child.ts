@@ -17,7 +17,9 @@ const RESULT_PENDING = 0;
 const RESULT_EXPECTED_STORAGE_FAILURE = 1;
 const RESULT_UNEXPECTED = 2;
 const RESULT_CHILD_FAILURE = 3;
-const CHILD_WAIT_TIMEOUT_MS = 1_000;
+// Match the parent-side bounded handshake window; CI can spend several
+// seconds initializing a Worker before the parent is scheduled again.
+const CHILD_WAIT_TIMEOUT_MS = 10_000;
 const FIXTURE_DIRECTORY_PREFIX = "applied-loop-a8c3p-";
 
 type DataRecord = Record<string, unknown>;
