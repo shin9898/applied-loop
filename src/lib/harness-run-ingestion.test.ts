@@ -197,3 +197,61 @@ test("A5-CG2-T4 persists server-derived evidence through the real authenticated 
     rmSync(fixtureDir, { recursive: true, force: true });
   }
 });
+
+test("BUGFIX-CG2 reports local HarnessRun schema drift as an actionable 503", () => {
+  const fixtureDir = mkdtempSync(join(tmpdir(), "harness-schema-drift-"));
+  const fixturePath = join(fixtureDir, "route.db");
+  const token = "schema-drift-token";
+  const environment: NodeJS.ProcessEnv = {
+    ...process.env,
+    DATABASE_URL: `file:${fixturePath}`,
+    MCP_TOKEN: token,
+  };
+  const childSource = [
+    'import { POST } from "./src/app/api/harness-runs/route";',
+    'const body = { harness: "codex", sessionId: "schema-drift", tokensIn: 1, tokensOut: 0, cacheRead: 0, cacheCreate: 0, thinking: 0, turns: 1, startedAt: "2026-08-28T00:00:00.000Z" };',
+    `POST(new Request("http://localhost/api/harness-runs", { method: "POST", headers: { authorization: "Bearer ${token}", "content-type": "application/json" }, body: JSON.stringify(body) }))`,
+    '  .then(async (response) => console.log(JSON.stringify({ status: response.status, body: await response.json() })))',
+    '  .catch((error) => { console.error(error); process.exitCode = 1; });',
+  ].join("\n");
+
+  try {
+    const migrate = spawnSync("npx", ["prisma", "migrate", "deploy"], {
+      cwd: process.cwd(),
+      env: environment,
+      encoding: "utf8",
+    });
+    assert.equal(migrate.status, 0, migrate.stderr);
+
+    const adapterRequire = createRequire(
+      createRequire(import.meta.url).resolve("@prisma/adapter-better-sqlite3"),
+    );
+    const Database = adapterRequire("better-sqlite3") as new (path: string) => {
+      exec(sql: string): void;
+      close(): void;
+    };
+    const fixture = new Database(fixturePath);
+    fixture.exec('ALTER TABLE "HarnessRun" DROP COLUMN "inputTotalTokens"');
+    fixture.close();
+
+    const route = spawnSync("npx", ["tsx", "-e", childSource], {
+      cwd: process.cwd(),
+      env: environment,
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    assert.equal(route.status, 0, route.stderr);
+    const response = JSON.parse(route.stdout.trim()) as {
+      status: number;
+      body: { error: string; code: string; remediation: string };
+    };
+    assert.equal(response.status, 503);
+    assert.deepEqual(response.body, {
+      error: "database schema is out of date",
+      code: "SCHEMA_OUT_OF_DATE",
+      remediation: "Run npm run setup (or npx prisma migrate deploy), then restart the dev server.",
+    });
+  } finally {
+    rmSync(fixtureDir, { recursive: true, force: true });
+  }
+});

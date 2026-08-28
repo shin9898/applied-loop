@@ -255,6 +255,18 @@ const A9D4_MODIFIED_BASE_SRC_BLOBS: Readonly<Record<string, string>> = {
   "src/components/living-atlas/load-atlas-data.ts": "8a8159c3ec02e5b812ce41e3b89e63f84b71bfe4",
   "src/lib/harness-stats.ts": "4a2cb69cfcf85a78c408590722f05e543b9dccd9",
 };
+// BUGFIX 2026-08-28: preserve the pre-fix dashboard blob while allowing the
+// narrow min-width regression fix to coexist with the historical fences.
+const BUGFIX_ALLOWED_SRC_PATHS = [
+  "src/components/living-atlas/atlas-dashboard.tsx",
+  "src/lib/capture-schema-drift.test.ts",
+] as const;
+const BUGFIX_ADDITIVE_SRC_PATHS = [
+  "src/lib/capture-schema-drift.test.ts",
+] as const;
+const BUGFIX_MODIFIED_BASE_SRC_BLOBS: Readonly<Record<string, string>> = {
+  "src/components/living-atlas/atlas-dashboard.tsx": "d949c3d2bb0051caa0c6fada6318c75c257f5470",
+};
 const A9D4_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/components/living-atlas/load-atlas-data.ts",
   "src/lib/harness-stats.ts",
@@ -642,6 +654,7 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => !(A8C1_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .filter((path) => !(A9B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .filter((path) => !(A9D4_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
+        .filter((path) => !(BUGFIX_ADDITIVE_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.equal(trackedSourcePaths.length, 258);
       const currentBaseAggregate = trackedSourcePaths.map((path) => {
@@ -649,6 +662,7 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
           ?? A7_MODIFIED_BASE_SRC_BLOBS[path]
           ?? A6_MODIFIED_BASE_SRC_BLOBS[path]
           ?? A7B_MODIFIED_BASE_SRC_BLOBS[path]
+          ?? BUGFIX_MODIFIED_BASE_SRC_BLOBS[path]
           ?? execFileSync("git", ["hash-object", path], {
             cwd: process.cwd(),
             encoding: "utf8",
@@ -681,6 +695,7 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
                 && !(A8C1_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
                 && !(A9B_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
                 && !(A9D4_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
+                && !(BUGFIX_ADDITIVE_SRC_PATHS as readonly string[]).includes(path)
               );
           });
         assert.equal(tree.length, 258);
@@ -691,7 +706,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
           const modifiedBaseBlob = A9D4_MODIFIED_BASE_SRC_BLOBS[path]
             ?? A7_MODIFIED_BASE_SRC_BLOBS[path]
             ?? A6_MODIFIED_BASE_SRC_BLOBS[path]
-            ?? A7B_MODIFIED_BASE_SRC_BLOBS[path];
+            ?? A7B_MODIFIED_BASE_SRC_BLOBS[path]
+            ?? BUGFIX_MODIFIED_BASE_SRC_BLOBS[path];
           if (modifiedBaseBlob !== undefined) {
             assert.equal(expectedBlob, modifiedBaseBlob, path);
             continue;
@@ -741,7 +757,8 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
             || (A8C3_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A8C3P_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
             || (A9B_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
-            || (A9D4_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
+            || (A9D4_ALLOWED_SRC_PATHS as readonly string[]).includes(path)
+            || (BUGFIX_ALLOWED_SRC_PATHS as readonly string[]).includes(path),
         ),
         true,
       );
@@ -865,6 +882,14 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         .filter((path) => (A9D4_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
         .sort();
       assert.deepEqual(discoveredA9D4Sources, [...A9D4_ALLOWED_SRC_PATHS].sort());
+      const discoveredBugfixSources = [
+        ...execFileSync("git", ["ls-files", "src"], { cwd: process.cwd(), encoding: "utf8" })
+          .trim().split("\n").filter(Boolean),
+        ...untrackedSource,
+      ]
+        .filter((path) => (BUGFIX_ALLOWED_SRC_PATHS as readonly string[]).includes(path))
+        .sort();
+      assert.deepEqual(discoveredBugfixSources, [...BUGFIX_ALLOWED_SRC_PATHS].sort());
       assert.equal(
         sha256(await readFile(join(process.cwd(), A8C3_ADR_PATH))),
         A8C3_ADR_SHA256,
@@ -938,6 +963,10 @@ test("A2-CG4-T1 dormant-worker-and-disposable-db", async (t) => {
         A9D4_ALLOWED_SRC_PATHS.filter(
           (path) => !(A9D4_ADDITIVE_SRC_PATHS as readonly string[]).includes(path),
         ).sort(),
+      );
+      assert.deepEqual(
+        Object.keys(BUGFIX_MODIFIED_BASE_SRC_BLOBS).sort(),
+        BUGFIX_ALLOWED_SRC_PATHS.filter((path) => !path.endsWith(".test.ts")).sort(),
       );
       for (const path of A6_NON_ACTIVATION_PRODUCTION_PATHS) {
         const source = await readFile(join(process.cwd(), path), "utf8");

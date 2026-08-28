@@ -611,6 +611,18 @@ const A9D4_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
   "src/components/living-atlas/load-atlas-data.ts": "6c0b26003f8b4a1f6dc8da79e953c121d3e2ca49bb52f93805e428926a5ea673",
   "src/lib/harness-stats.ts": "4c5320ac7fd89457b1cfa1411c31e60e0fad13fd345d68c5c8f3fa6d65bd89d7",
 };
+// BUGFIX 2026-08-28: classify the dashboard min-width fix and its regression
+// test without weakening the historical non-activation aggregate.
+const BUGFIX_ALLOWED_NON_H_EVAL_PATHS = [
+  "src/components/living-atlas/atlas-dashboard.tsx",
+  "src/lib/capture-schema-drift.test.ts",
+] as const;
+const BUGFIX_ADDITIVE_NON_H_EVAL_PATHS = [
+  "src/lib/capture-schema-drift.test.ts",
+] as const;
+const BUGFIX_MODIFIED_BASE_CONTENT_SHA256: Readonly<Record<string, string>> = {
+  "src/components/living-atlas/atlas-dashboard.tsx": "1b9c7c6c34a709800f5a89e21d03107f9e736b61f801a0b0b0dd449b998adc7d",
+};
 const A9B_NON_ACTIVATION_PRODUCTION_PATHS = [
   "src/lib/harness-evaluation-run-v1.ts",
 ] as const;
@@ -1706,6 +1718,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         && !(A9D2_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A9D3_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(A9D4_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        && !(BUGFIX_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         && !(POST_A8B1_MAINLINE_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     )
     .sort();
@@ -1717,7 +1730,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
   for (const path of Object.keys(A8C2_RUNTIME_SNIPPETS)) preA8C2ContentSha256(root, path);
   for (const path of Object.keys(A8C3B_MODIFIED_BASE_CONTENT_SHA256)) preA8C3ContentSha256(root, path);
   const aggregate = nonA4A5A6Tracked
-    .map((path) => `${path}\t${A9D4_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7_MODIFIED_BASE_CONTENT_SHA256[path] ?? A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7B_MODIFIED_BASE_CONTENT_SHA256[path] ?? A8B_MODIFIED_BASE_CONTENT_SHA256[path] ?? preA8C2ContentSha256(root, path) ?? preA8C3ContentSha256(root, path) ?? contentSha256(join(root, path))}\n`)
+    .map((path) => `${path}\t${A9D4_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7_MODIFIED_BASE_CONTENT_SHA256[path] ?? A6_MODIFIED_BASE_CONTENT_SHA256[path] ?? A7B_MODIFIED_BASE_CONTENT_SHA256[path] ?? A8B_MODIFIED_BASE_CONTENT_SHA256[path] ?? BUGFIX_MODIFIED_BASE_CONTENT_SHA256[path] ?? preA8C2ContentSha256(root, path) ?? preA8C3ContentSha256(root, path) ?? contentSha256(join(root, path))}\n`)
     .join("");
   assert.equal(
     createHash("sha256").update(aggregate, "utf8").digest("hex"),
@@ -1747,6 +1760,7 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
         || (A9D2_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A9D3_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || (A9D4_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
+        || (BUGFIX_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path)
         || path === A8C2_REVIEW_ARTIFACT_PATH
         || path === A8C3_REVIEW_ARTIFACT_PATH
         || path === A8C3P_REVIEW_ARTIFACT_PATH
@@ -1931,6 +1945,13 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     .filter((path) => (A9D4_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
     .sort();
   assert.deepEqual(discoveredA9D4Paths, [...A9D4_ALLOWED_NON_H_EVAL_PATHS].sort());
+  const discoveredBugfixPaths = [
+    ...gitLines(root, ["ls-files"]),
+    ...untracked,
+  ]
+    .filter((path) => (BUGFIX_ALLOWED_NON_H_EVAL_PATHS as readonly string[]).includes(path))
+    .sort();
+  assert.deepEqual(discoveredBugfixPaths, [...BUGFIX_ALLOWED_NON_H_EVAL_PATHS].sort());
   const c3StaticFenceSource = readFileSync(
     join(root, "src/lib/loop-jobs/h-cycle-evaluation/h-cycle-one-shot-kind-isolation-v1.test.ts"),
     "utf8",
@@ -1993,6 +2014,12 @@ async function assertA4ChangedPathScope(root: string, a3Root: string): Promise<v
     Object.keys(A9D4_MODIFIED_BASE_CONTENT_SHA256).sort(),
     A9D4_ALLOWED_NON_H_EVAL_PATHS.filter(
       (path) => !(A9D4_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
+    ).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(BUGFIX_MODIFIED_BASE_CONTENT_SHA256).sort(),
+    BUGFIX_ALLOWED_NON_H_EVAL_PATHS.filter(
+      (path) => !(BUGFIX_ADDITIVE_NON_H_EVAL_PATHS as readonly string[]).includes(path),
     ).sort(),
   );
   assert.deepEqual(

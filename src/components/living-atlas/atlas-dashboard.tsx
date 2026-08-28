@@ -217,11 +217,11 @@ function StatusCommandPanel({
         3タブを同一グリッドセルに重ね、高さは最大（通常はステータス）で固定。
         切り替え時のパネル高さジャンプ／ちらつきを防ぐ。
       */}
-      <div className="grid min-h-0 flex-1 overflow-y-auto overflow-x-hidden [grid-template-areas:'stack']">
+      <div className="grid min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden [grid-template-areas:'stack']">
         <div
           role="tabpanel"
           aria-hidden={tab !== "status"}
-          className={`[grid-area:stack] flex flex-col gap-3 ${
+          className={`[grid-area:stack] min-w-0 flex flex-col gap-3 ${
             tab === "status" ? "" : "invisible pointer-events-none"
           }`}
         >
@@ -308,7 +308,7 @@ function StatusCommandPanel({
         <div
           role="tabpanel"
           aria-hidden={tab !== "weak"}
-          className={`[grid-area:stack] ${
+          className={`[grid-area:stack] min-w-0 ${
             tab === "weak" ? "" : "invisible pointer-events-none"
           }`}
         >
