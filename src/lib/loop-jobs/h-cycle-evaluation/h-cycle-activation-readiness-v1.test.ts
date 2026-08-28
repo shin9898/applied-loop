@@ -507,9 +507,9 @@ test("A8C0-CG3-T1 non-activation surface fence", () => {
 
   const immutableSurfaceSha256: Readonly<Record<string, string>> = {
     "docs/adr/0028-h-cycle-manual-preview.md": "eba902c852bf8e9f0bef9039a20366119391e8ae0ba5f315ed3e93205af66b06",
-    "package.json": "86db43976991b0dfe027f323fc8c464d35704d70b4ad571a72896b936db4b57a",
+    "package.json": "8ea6c2139f0f06f8bef6670766e2b540ade65037a95ae7314202e1b10e3a7933",
     "scripts/com.applied-loop.dev.plist": "56e77066a353bec5c27eaa4bc8eec1f090c87741a74016b13701654c5ddbf432",
-    "scripts/com.applied-loop.harness-collect.plist": "70a3f3872369575d8903756873a62811ea7ab6bc4d71743b8bb5c6f9dd123e12",
+    "scripts/com.applied-loop.harness-collect.plist": "f05924bdc06f1367e97d1b102cbfc04a69d737dcf81f1c15eb13e00b0e592ae5",
     "scripts/com.applied-loop.weekly-textbook.plist": "33dcbce39fef4d4698c611eae2b9b4a65e16e28d62a40606a87d9af9d2083824",
     "scripts/preview-h-cycle-evidence.ts": "d03552e9458caf8cf3a26f562c5747c31fcbc29ee21bb2d6742ea8ed4c3b0c7d",
     "src/lib/h-cycle-evidence-adapter.test.ts": "708f84f0a487a0c9356c2ffa8c1ac5cff374cce1519a4fe191b4b4826e525342",

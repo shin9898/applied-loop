@@ -1276,9 +1276,10 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
 
   test("A8C2-CG3-T1 scoped one-shot capability remains unreachable by default", async () => {
     const baseSha = "9a551964240c67a1123c48ae0ab59aa1beca28ba";
-    const protectedTreeEntryCount = 592;
-    const protectedTreeSha256 = "3ed94dc375658dc821f31f0464f928beef4bf4303f66b6b3c316bf52d2c6f89c";
+    const protectedTreeEntryCount = 587;
+    const protectedTreeSha256 = "6d38a61d1e05f4a5201ecd2297f3d5142aa039180e93c98267b5c80de7c36227";
     const allowedPaths = [
+      "README.md",
       "docs/adr/0033-h-cycle-generation-fenced-execution.md",
       "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
       "docs/adr/0035-harness-evaluation-next-action-proposals.md",
@@ -1286,6 +1287,9 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "docs/adr/0037-harness-evaluation-manual-window-adapter.md",
       "docs/adr/0038-harness-evaluation-manual-window-preview-caller.md",
       "docs/adr/0039-harness-measurement-canonicalization.md",
+      "docs/adr/0040-durable-automatic-harness-collection.md",
+      "docs/mcp-setup.md",
+      "docs/onboarding.md",
       "docs/phase-progress.md",
       "package.json",
       "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
@@ -1293,6 +1297,9 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
       "scripts/collect-harness.mjs",
       "scripts/com.applied-loop.harness-collect.plist",
       "scripts/harness-context-fingerprint.mjs",
+      "scripts/harness-collect.sh",
+      "scripts/manage-harness-collector.mjs",
+      "scripts/bootstrap-local.mjs",
       "src/app/api/harness-runs/route.ts",
       "src/components/living-atlas/atlas-dashboard.tsx",
       "src/components/living-atlas/load-atlas-data.ts",
@@ -2033,6 +2040,7 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
     assert.deepEqual(
       [...allowedPathSet],
       [
+        "README.md",
         "docs/adr/0033-h-cycle-generation-fenced-execution.md",
         "docs/adr/0034-h-cycle-sqlite-write-transaction-primitive.md",
         "docs/adr/0035-harness-evaluation-next-action-proposals.md",
@@ -2040,14 +2048,20 @@ if (process.env.A8C2_TEST_MODE === "claim-child") {
         "docs/adr/0037-harness-evaluation-manual-window-adapter.md",
         "docs/adr/0038-harness-evaluation-manual-window-preview-caller.md",
         "docs/adr/0039-harness-measurement-canonicalization.md",
+        "docs/adr/0040-durable-automatic-harness-collection.md",
+        "docs/mcp-setup.md",
+        "docs/onboarding.md",
         "docs/phase-progress.md",
         "package.json",
         "prisma/migrations/20260826100000_h_cycle_generation_scoped_execution/migration.sql",
         "prisma/migrations/20260826123000_harness_evaluation_run/migration.sql",
         "prisma/schema.prisma",
+        "scripts/bootstrap-local.mjs",
         "scripts/collect-harness.mjs",
         "scripts/com.applied-loop.harness-collect.plist",
+        "scripts/harness-collect.sh",
         "scripts/harness-context-fingerprint.mjs",
+        "scripts/manage-harness-collector.mjs",
         "src/app/api/harness-runs/route.ts",
         "src/components/living-atlas/atlas-dashboard.tsx",
         "src/components/living-atlas/load-atlas-data.ts",

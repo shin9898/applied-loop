@@ -21,6 +21,36 @@ function run(cmd) {
   execSync(cmd, { cwd: root, stdio: "inherit", env: process.env });
 }
 
+function harnessCollectorInstallDecision() {
+  if (process.env.APPLIED_LOOP_SKIP_HARNESS_COLLECTOR === "1") {
+    return { install: false, reason: "APPLIED_LOOP_SKIP_HARNESS_COLLECTOR=1" };
+  }
+  if (process.platform !== "darwin") {
+    return { install: false, reason: "macOS以外" };
+  }
+  if (process.env.CI) {
+    return { install: false, reason: "CI" };
+  }
+  const forced = process.env.APPLIED_LOOP_INSTALL_HARNESS_COLLECTOR === "1";
+  if (!forced && (!process.stdin.isTTY || !process.stdout.isTTY)) {
+    return {
+      install: false,
+      reason: "非対話環境（必要なら APPLIED_LOOP_INSTALL_HARNESS_COLLECTOR=1）",
+    };
+  }
+  return { install: true, reason: forced ? "明示opt-in" : "対話的macOS setup" };
+}
+
+function setupHarnessCollector() {
+  const decision = harnessCollectorInstallDecision();
+  if (!decision.install) {
+    console.log(`ハーネスメタデータ自動収集: skip (${decision.reason})`);
+    return;
+  }
+  console.log(`ハーネスメタデータ自動収集: LaunchAgentを登録 (${decision.reason})`);
+  run("node scripts/manage-harness-collector.mjs install");
+}
+
 function isWeakToken(value) {
   const v = (value ?? "").trim();
   if (!v) return true;
@@ -112,13 +142,14 @@ if (!existsSync(envPath)) {
 // 非対話。migrations を適用。失敗時は schema を db push（履歴ドリフトの保険）
 try {
   run("npx prisma migrate deploy");
-} catch (e) {
+} catch {
   console.warn("migrate deploy に失敗。prisma db push でスキーマを同期する…");
   run("npx prisma db push");
 }
 // generated client は gitignore。seed / Next の前に必須
 run("npx prisma generate");
 run("npm run seed:tutorial");
+setupHarnessCollector();
 
 // --- ここから W5-8 #14: 採点CLI診断 + MCP登録スニペット ---
 
@@ -217,6 +248,10 @@ console.log(`
 ---
 次の一手（2コマンド目）:
   npm run dev:all
+
+macOS の通常運用:
+  npm run setup の成功時に15分周期の自動収集を有効化済み
+  npm run harness:collector:status
 
 ブラウザ:
   http://localhost:3100/setup
