@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -108,6 +117,216 @@ test("A5-CG2-T3 makes the collector identify its source without broadening its m
   assert.match(source, /"collectorVersion",/);
   assert.match(source, /"contextFingerprint",/);
   assert.doesNotMatch(source, /(?:promptBody|conversationBody|messageText|toolArguments)/);
+});
+
+type CollectorSafetyFixture = {
+  home: string;
+  statePath: string;
+  snapshotPath: string;
+  firstPath: string;
+  env: NodeJS.ProcessEnv;
+};
+
+type CollectorReceivedPayload = Record<string, unknown>;
+
+const collectorSafetyScript = join(process.cwd(), "scripts", "collect-harness.mjs");
+
+function createCollectorSafetyFixture(): CollectorSafetyFixture {
+  const home = mkdtempSync(join(tmpdir(), "applied-loop-harness-collector-"));
+  const sessionsPath = join(home, ".codex", "sessions");
+  mkdirSync(sessionsPath, { recursive: true });
+
+  const session = (sessionId: string, timestamp: string) =>
+    [
+      { type: "session_meta", timestamp, payload: { id: sessionId, cwd: "/tmp/workbench" } },
+      { type: "turn_context", timestamp, payload: { model: "gpt-5.6" } },
+      { type: "event_msg", timestamp, payload: { type: "user_message" } },
+      {
+        type: "event_msg",
+        timestamp,
+        payload: {
+          type: "token_count",
+          info: {
+            total_token_usage: {
+              input_tokens: 100,
+              output_tokens: 20,
+              cached_input_tokens: 80,
+              reasoning_output_tokens: 5,
+            },
+          },
+        },
+      },
+    ];
+  const writeSession = (path: string, sessionId: string, timestamp: string) => {
+    writeFileSync(
+      path,
+      session(sessionId, timestamp).map((line) => JSON.stringify(line)).join("\n") + "\n",
+    );
+  };
+
+  const firstPath = join(sessionsPath, "01-a.jsonl");
+  writeSession(firstPath, "session-a", "2026-08-28T10:00:00.000Z");
+  writeSession(join(sessionsPath, "02-b.jsonl"), "session-b", "2026-08-28T11:00:00.000Z");
+
+  const statePath = join(home, "collector-state.json");
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    HOME: home,
+    APPLIED_LOOP_COLLECT_STATE_PATH: statePath,
+    APPLIED_LOOP_URL: "http://127.0.0.1:1",
+    MCP_TOKEN: "",
+  };
+  delete env.APPLIED_LOOP_CONTEXT_FINGERPRINT;
+  return {
+    home,
+    statePath,
+    snapshotPath: join(home, "targets.json"),
+    firstPath,
+    env,
+  };
+}
+
+function runCollectorSafety(
+  args: string[],
+  env: NodeJS.ProcessEnv,
+): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [collectorSafetyScript, ...args], {
+      cwd: process.cwd(),
+      env,
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString("utf8"); });
+    child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString("utf8"); });
+    child.once("error", reject);
+    child.once("close", (status: number | null) => resolve({ status, stdout, stderr }));
+  });
+}
+
+async function withCollectorSafetyServer<T>(
+  callback: (url: string, received: CollectorReceivedPayload[]) => Promise<T>,
+): Promise<T> {
+  const received: CollectorReceivedPayload[] = [];
+  const server = createServer((request, response) => {
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk: Buffer) => chunks.push(chunk));
+    request.on("end", () => {
+      try {
+        received.push(JSON.parse(Buffer.concat(chunks).toString("utf8")) as CollectorReceivedPayload);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ ok: true }));
+      } catch {
+        response.writeHead(400, { "content-type": "application/json" });
+        response.end(JSON.stringify({ ok: false }));
+      }
+    });
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    server.close();
+    throw new Error("collector test server did not expose a TCP address");
+  }
+  try {
+    return await callback(`http://127.0.0.1:${address.port}`, received);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+}
+
+test("A5-CG2-T5 creates a deterministic bounded snapshot without mutating checkpoint", async () => {
+  const fixture = createCollectorSafetyFixture();
+  try {
+    const result = await runCollectorSafety(
+      ["--dry-run", "--snapshot-out", fixture.snapshotPath, "--max-sends", "1"],
+      fixture.env,
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(existsSync(fixture.statePath), false);
+    const snapshot = JSON.parse(readFileSync(fixture.snapshotPath, "utf8")) as {
+      targets: Array<Record<string, unknown>>;
+      summary: Record<string, unknown>;
+    };
+    assert.equal(snapshot.targets.length, 1);
+    assert.equal(snapshot.targets[0].path, fixture.firstPath);
+    assert.equal(snapshot.summary.candidateCount, 2);
+    assert.equal(snapshot.summary.eligibleCount, 2);
+    assert.equal(snapshot.summary.selectedCount, 1);
+    assert.doesNotMatch(JSON.stringify(snapshot), /user_message|token_count/);
+  } finally {
+    rmSync(fixture.home, { recursive: true, force: true });
+  }
+});
+
+test("A5-CG2-T6 fails closed before sending stale targets and resumes under a hard limit", async () => {
+  const fixture = createCollectorSafetyFixture();
+  try {
+    const snapshotResult = await runCollectorSafety(
+      ["--dry-run", "--snapshot-out", fixture.snapshotPath],
+      fixture.env,
+    );
+    assert.equal(snapshotResult.status, 0, snapshotResult.stderr);
+    appendFileSync(fixture.firstPath, "\n");
+    await withCollectorSafetyServer(async (url, received) => {
+      const stale = await runCollectorSafety(
+        ["--apply-snapshot", fixture.snapshotPath],
+        { ...fixture.env, APPLIED_LOOP_URL: url },
+      );
+      assert.equal(stale.status, 1);
+      assert.match(stale.stderr, /snapshot_stale/);
+      assert.equal(received.length, 0);
+      assert.equal(existsSync(fixture.statePath), false);
+    });
+  } finally {
+    rmSync(fixture.home, { recursive: true, force: true });
+  }
+});
+
+test("A5-CG2-T7 applies a fresh snapshot once per target and resumes after max-sends", async () => {
+  const fixture = createCollectorSafetyFixture();
+  try {
+    const snapshotResult = await runCollectorSafety(
+      ["--dry-run", "--snapshot-out", fixture.snapshotPath],
+      fixture.env,
+    );
+    assert.equal(snapshotResult.status, 0, snapshotResult.stderr);
+    await withCollectorSafetyServer(async (url, received) => {
+      const firstApply = await runCollectorSafety(
+        ["--apply-snapshot", fixture.snapshotPath, "--max-sends", "1"],
+        { ...fixture.env, APPLIED_LOOP_URL: url },
+      );
+      assert.equal(firstApply.status, 0, firstApply.stderr);
+      assert.match(firstApply.stdout, /sent=1/);
+      assert.match(firstApply.stdout, /attempts=1/);
+      assert.match(firstApply.stdout, /stoppedAtLimit=true/);
+      assert.equal(received.length, 1);
+      assert.equal(received[0].collectorVersion, "harness-collector-v3");
+      assert.equal(Object.hasOwn(received[0], "message"), false);
+
+      const resumedApply = await runCollectorSafety(
+        ["--apply-snapshot", fixture.snapshotPath],
+        { ...fixture.env, APPLIED_LOOP_URL: url },
+      );
+      assert.equal(resumedApply.status, 0, resumedApply.stderr);
+      assert.equal(received.length, 2);
+
+      const idempotentApply = await runCollectorSafety(
+        ["--apply-snapshot", fixture.snapshotPath],
+        { ...fixture.env, APPLIED_LOOP_URL: url },
+      );
+      assert.equal(idempotentApply.status, 0, idempotentApply.stderr);
+      assert.equal(received.length, 2);
+      assert.match(idempotentApply.stdout, /skippedUnchanged=2/);
+    });
+  } finally {
+    rmSync(fixture.home, { recursive: true, force: true });
+  }
 });
 
 test("A5-CG2-T4 persists server-derived evidence through the real authenticated route on a disposable DB", () => {
