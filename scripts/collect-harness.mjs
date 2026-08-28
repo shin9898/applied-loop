@@ -12,6 +12,12 @@
  * 使い方:
  *   node scripts/collect-harness.mjs
  *   APPLIED_LOOP_URL=http://localhost:3100 MCP_TOKEN=... node scripts/collect-harness.mjs
+ *   node scripts/collect-harness.mjs --dry-run --snapshot-out /tmp/harness-targets.json --max-sends 707
+ *   node scripts/collect-harness.mjs --apply-snapshot /tmp/harness-targets.json --max-sends 707
+ *
+ * snapshot は送信対象のファイルパス・size/mtime・sessionId・cohort identity
+ * だけを保持し、会話本文や送信 payload は保持しない。通常の定期収集は
+ * 従来どおり無制限の増分収集として動作する。
  */
 
 import { createHash } from "node:crypto";
@@ -22,7 +28,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, basename } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import {
@@ -31,7 +37,9 @@ import {
 } from "./harness-context-fingerprint.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const STATE_PATH = join(SCRIPT_DIR, ".harness-collect-state.json");
+const STATE_PATH =
+  process.env.APPLIED_LOOP_COLLECT_STATE_PATH ||
+  join(SCRIPT_DIR, ".harness-collect-state.json");
 const BASE_URL = (process.env.APPLIED_LOOP_URL || "http://localhost:3100").replace(
   /\/$/,
   ""
@@ -39,9 +47,89 @@ const BASE_URL = (process.env.APPLIED_LOOP_URL || "http://localhost:3100").repla
 const TOKEN = process.env.MCP_TOKEN || loadEnvToken();
 const CLAUDE_PROJECTS = join(homedir(), ".claude", "projects");
 const CODEX_SESSIONS = join(homedir(), ".codex", "sessions");
-const DRY_RUN = process.argv.includes("--dry-run");
 // Source identity only. It is not derived from or a hash of conversation text.
 const COLLECTOR_VERSION = "harness-collector-v3";
+const SNAPSHOT_SCHEMA_VERSION = 1;
+
+function parseNonNegativeInteger(raw, optionName) {
+  if (!/^\d+$/.test(raw)) {
+    throw new Error(`${optionName} must be a non-negative integer: ${raw}`);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(`${optionName} is too large: ${raw}`);
+  }
+  return value;
+}
+
+function parseArgs(argv = []) {
+  const options = {
+    dryRun: false,
+    snapshotOutPath: null,
+    applySnapshotPath: null,
+    maxSends: null,
+    help: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--dry-run") {
+      options.dryRun = true;
+      continue;
+    }
+    if (arg === "--help" || arg === "-h") {
+      options.help = true;
+      continue;
+    }
+
+    const optionWithValue = ["--max-sends", "--snapshot-out", "--apply-snapshot"].find(
+      (option) => arg === option || arg.startsWith(`${option}=`),
+    );
+    if (!optionWithValue) {
+      throw new Error(`unknown option: ${arg}`);
+    }
+
+    let value = arg.slice(optionWithValue.length + 1);
+    if (!value) {
+      index += 1;
+      value = argv[index];
+    }
+    if (!value || value.startsWith("--")) {
+      throw new Error(`${optionWithValue} requires a value`);
+    }
+
+    if (optionWithValue === "--max-sends") {
+      options.maxSends = parseNonNegativeInteger(value, optionWithValue);
+    } else if (optionWithValue === "--snapshot-out") {
+      options.snapshotOutPath = resolve(value);
+    } else {
+      options.applySnapshotPath = resolve(value);
+    }
+  }
+
+  if (options.help) return options;
+  if (options.snapshotOutPath && options.applySnapshotPath) {
+    throw new Error("--snapshot-out and --apply-snapshot are mutually exclusive");
+  }
+  if (options.snapshotOutPath && !options.dryRun) {
+    throw new Error("--snapshot-out requires --dry-run");
+  }
+  return options;
+}
+
+function usage() {
+  return [
+    "Usage:",
+    "  node scripts/collect-harness.mjs",
+    "  node scripts/collect-harness.mjs --max-sends N",
+    "  node scripts/collect-harness.mjs --dry-run --snapshot-out PATH [--max-sends N]",
+    "  node scripts/collect-harness.mjs --apply-snapshot PATH [--max-sends N]",
+    "",
+    "--snapshot-out is read-only and creates a deterministic local target manifest.",
+    "--apply-snapshot sends only targets in that manifest and fails closed if any target is stale.",
+    "--max-sends limits HTTP send attempts; it is a safety valve, not a cohort definition.",
+  ].join("\n");
+}
 
 function loadEnvToken() {
   try {
@@ -66,6 +154,125 @@ function loadState() {
 
 function saveState(state) {
   writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + "\n", "utf8");
+}
+
+function sameFileFingerprint(left, right) {
+  return left?.size === right?.size && left?.mtimeMs === right?.mtimeMs;
+}
+
+function compareStrings(left, right) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
+function sortCandidates(candidates) {
+  return [...candidates].sort(
+    (left, right) =>
+      compareStrings(left.path, right.path) ||
+      compareStrings(left.harness, right.harness),
+  );
+}
+
+function parseCandidate(item) {
+  return item.harness === "claude"
+    ? parseClaudeFile(item.path, item.fallbackRepo)
+    : parseCodexFile(item.path);
+}
+
+function createSnapshotTarget(item, fileStats, parsed, contextFingerprint) {
+  return {
+    path: item.path,
+    harness: item.harness,
+    fallbackRepo: item.fallbackRepo ?? null,
+    size: fileStats.size,
+    mtimeMs: fileStats.mtimeMs,
+    sessionId: parsed.sessionId,
+    contextFingerprint,
+  };
+}
+
+function createSnapshotDocument(targets, summary) {
+  return {
+    schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+    collectorVersion: COLLECTOR_VERSION,
+    createdAt: new Date().toISOString(),
+    targets,
+    summary: {
+      ...summary,
+      selectedCount: targets.length,
+    },
+  };
+}
+
+function validateSnapshotDocument(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    throw new Error("invalid snapshot: expected an object");
+  }
+  if (snapshot.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
+    throw new Error(
+      `invalid snapshot: unsupported schemaVersion ${String(snapshot.schemaVersion)}`,
+    );
+  }
+  if (snapshot.collectorVersion !== COLLECTOR_VERSION) {
+    throw new Error(
+      `invalid snapshot: collectorVersion must be ${COLLECTOR_VERSION}`,
+    );
+  }
+  if (!Array.isArray(snapshot.targets)) {
+    throw new Error("invalid snapshot: targets must be an array");
+  }
+
+  const seenPaths = new Set();
+  for (const [index, target] of snapshot.targets.entries()) {
+    if (!target || typeof target !== "object") {
+      throw new Error(`invalid snapshot target at index ${index}`);
+    }
+    if (
+      typeof target.path !== "string" ||
+      !isAbsolute(target.path) ||
+      !target.path
+    ) {
+      throw new Error(`invalid snapshot target path at index ${index}`);
+    }
+    if (seenPaths.has(target.path)) {
+      throw new Error(`invalid snapshot: duplicate target path ${target.path}`);
+    }
+    seenPaths.add(target.path);
+    if (target.harness !== "claude" && target.harness !== "codex") {
+      throw new Error(`invalid snapshot target harness at index ${index}`);
+    }
+    if (
+      target.fallbackRepo !== null &&
+      typeof target.fallbackRepo !== "string"
+    ) {
+      throw new Error(`invalid snapshot target fallbackRepo at index ${index}`);
+    }
+    if (!Number.isSafeInteger(target.size) || target.size < 0) {
+      throw new Error(`invalid snapshot target size at index ${index}`);
+    }
+    if (!Number.isFinite(target.mtimeMs) || target.mtimeMs < 0) {
+      throw new Error(`invalid snapshot target mtimeMs at index ${index}`);
+    }
+    if (typeof target.sessionId !== "string" || !target.sessionId) {
+      throw new Error(`invalid snapshot target sessionId at index ${index}`);
+    }
+    if (!isHarnessContextFingerprint(target.contextFingerprint)) {
+      throw new Error(
+        `invalid snapshot target contextFingerprint at index ${index}`,
+      );
+    }
+  }
+  return snapshot;
+}
+
+function loadSnapshot(snapshotPath) {
+  const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
+  return validateSnapshotDocument(snapshot);
+}
+
+function saveSnapshot(snapshotPath, snapshot) {
+  validateSnapshotDocument(snapshot);
+  writeFileSync(snapshotPath, JSON.stringify(snapshot, null, 2) + "\n", "utf8");
 }
 
 /** Claude Code: `/` → `-`, `.` → `--` の逆変換 (ハイフン名は曖昧) */
@@ -486,9 +693,9 @@ function assertNoConversationBody(payload) {
   walk(payload, "");
 }
 
-async function postRun(payload) {
+async function postRun(payload, { dryRun }) {
   assertNoConversationBody(payload);
-  if (DRY_RUN) {
+  if (dryRun) {
     console.log("[dry-run]", payload.harness, payload.sessionId, {
       model: payload.model,
       repo: payload.repo,
@@ -520,68 +727,382 @@ function fileFingerprint(path) {
   return { size: st.size, mtimeMs: st.mtimeMs };
 }
 
-async function main() {
-  const state = loadState();
-  state.files ??= {};
+function buildSnapshotPlan(candidates, state, maxSends) {
+  const orderedCandidates = sortCandidates(candidates);
+  const targets = [];
+  const failures = [];
+  let skippedUnchanged = 0;
+  let unparseable = 0;
+  let eligibleCount = 0;
 
-  const candidates = [...listClaudeSessions(), ...listCodexSessions()];
-  let sent = 0;
-  let skipped = 0;
-  let errors = 0;
-
-  console.log(
-    `[harness-collect] candidates=${candidates.length} url=${BASE_URL} dryRun=${DRY_RUN}`
-  );
-
-  for (const item of candidates) {
+  for (const item of orderedCandidates) {
     let fp;
     try {
       fp = fileFingerprint(item.path);
-    } catch {
+    } catch (error) {
+      failures.push({
+        path: item.path,
+        reason: "stat_failed",
+        message: error.message || String(error),
+      });
       continue;
     }
+
     const prev = state.files[item.path];
-    if (prev && prev.size === fp.size && prev.mtimeMs === fp.mtimeMs) {
-      skipped += 1;
+    if (prev && sameFileFingerprint(prev, fp)) {
+      skippedUnchanged += 1;
+      continue;
+    }
+
+    let parsed;
+    try {
+      parsed = parseCandidate(item);
+    } catch (error) {
+      failures.push({
+        path: item.path,
+        reason: "parse_failed",
+        message: error.message || String(error),
+      });
+      continue;
+    }
+    if (!parsed) {
+      unparseable += 1;
+      continue;
+    }
+
+    const payload = toPayload(parsed, prev?.contextFingerprint);
+    assertNoConversationBody(payload);
+    eligibleCount += 1;
+    if (maxSends !== null && targets.length >= maxSends) continue;
+
+    targets.push(
+      createSnapshotTarget(
+        item,
+        fp,
+        parsed,
+        payload.contextFingerprint,
+      ),
+    );
+  }
+
+  return {
+    document: createSnapshotDocument(targets, {
+      candidateCount: orderedCandidates.length,
+      eligibleCount,
+      skippedUnchanged,
+      unparseable,
+      errorCount: failures.length,
+      maxSends,
+    }),
+    failures,
+  };
+}
+
+class SnapshotStaleError extends Error {
+  constructor(details) {
+    const preview = details
+      .slice(0, 3)
+      .map((detail) => `${detail.reason}:${detail.path}`)
+      .join(", ");
+    super(
+      `snapshot_stale: ${details.length} target(s) changed or became unreadable` +
+        (preview ? ` (${preview})` : ""),
+    );
+    this.name = "SnapshotStaleError";
+    this.details = details;
+  }
+}
+
+function preflightSnapshot(snapshot) {
+  const preparedByPath = new Map();
+  const stale = [];
+
+  for (const target of snapshot.targets) {
+    let fp;
+    try {
+      fp = fileFingerprint(target.path);
+    } catch (error) {
+      stale.push({
+        path: target.path,
+        reason: "missing_or_unreadable",
+        message: error.message || String(error),
+      });
+      continue;
+    }
+    if (!sameFileFingerprint(fp, target)) {
+      stale.push({ path: target.path, reason: "fingerprint_changed" });
+      continue;
+    }
+
+    let parsed;
+    try {
+      parsed = parseCandidate(target);
+    } catch (error) {
+      stale.push({
+        path: target.path,
+        reason: "parse_failed",
+        message: error.message || String(error),
+      });
+      continue;
+    }
+    if (!parsed) {
+      stale.push({ path: target.path, reason: "became_unparseable" });
+      continue;
+    }
+    if (parsed.harness !== target.harness || parsed.sessionId !== target.sessionId) {
+      stale.push({ path: target.path, reason: "session_identity_changed" });
       continue;
     }
 
     try {
-      const parsed =
-        item.harness === "claude"
-          ? parseClaudeFile(item.path, item.fallbackRepo)
-          : parseCodexFile(item.path);
-      if (!parsed) {
-        state.files[item.path] = { ...fp, skipped: true };
-        skipped += 1;
-        continue;
+      const payload = toPayload(parsed, target.contextFingerprint);
+      assertNoConversationBody(payload);
+    } catch (error) {
+      stale.push({
+        path: target.path,
+        reason: "payload_invariant_failed",
+        message: error.message || String(error),
+      });
+      continue;
+    }
+    preparedByPath.set(target.path, { parsed });
+  }
+
+  if (stale.length) throw new SnapshotStaleError(stale);
+  return preparedByPath;
+}
+
+async function collectItems(
+  items,
+  state,
+  { dryRun, maxSends, preparedByPath = null, shouldStop = () => false },
+) {
+  const result = {
+    sent: 0,
+    attempts: 0,
+    skippedUnchanged: 0,
+    unparseable: 0,
+    errors: 0,
+    staleSnapshot: 0,
+    stalePaths: [],
+    stoppedAtLimit: false,
+    interrupted: false,
+  };
+
+  for (const item of items) {
+    if (shouldStop()) {
+      result.interrupted = true;
+      break;
+    }
+
+    let fp;
+    try {
+      fp = fileFingerprint(item.path);
+    } catch (error) {
+      if (preparedByPath) {
+        result.staleSnapshot += 1;
+        result.stalePaths.push(item.path);
+        break;
       }
-      const payload = toPayload(parsed, prev?.contextFingerprint);
-      await postRun(payload);
-      state.files[item.path] = {
-        ...fp,
-        harness: parsed.harness,
-        sessionId: parsed.sessionId,
-        contextFingerprint: payload.contextFingerprint,
-      };
-      sent += 1;
-      if (sent % 50 === 0) {
-        saveState(state);
-        console.log(`[harness-collect] progress sent=${sent}`);
+      result.errors += 1;
+      console.error(`[harness-collect] stat error ${item.path}:`, error.message || error);
+      continue;
+    }
+
+    if (preparedByPath && !sameFileFingerprint(fp, item)) {
+      result.staleSnapshot += 1;
+      result.stalePaths.push(item.path);
+      break;
+    }
+
+    const prev = state.files[item.path];
+    if (prev && sameFileFingerprint(prev, fp)) {
+      result.skippedUnchanged += 1;
+      continue;
+    }
+
+    let parsed = preparedByPath?.get(item.path)?.parsed;
+    try {
+      if (!parsed) parsed = parseCandidate(item);
+    } catch (error) {
+      if (preparedByPath) {
+        result.staleSnapshot += 1;
+        result.stalePaths.push(item.path);
+        break;
       }
-    } catch (e) {
-      errors += 1;
-      console.error(`[harness-collect] error ${item.path}:`, e.message || e);
+      result.errors += 1;
+      console.error(`[harness-collect] parse error ${item.path}:`, error.message || error);
+      continue;
+    }
+
+    if (!parsed) {
+      if (preparedByPath) {
+        result.staleSnapshot += 1;
+        result.stalePaths.push(item.path);
+        break;
+      }
+      if (!dryRun) state.files[item.path] = { ...fp, skipped: true };
+      result.unparseable += 1;
+      continue;
+    }
+
+    if (
+      preparedByPath &&
+      (parsed.harness !== item.harness || parsed.sessionId !== item.sessionId)
+    ) {
+      result.staleSnapshot += 1;
+      result.stalePaths.push(item.path);
+      break;
+    }
+
+    try {
+      const payload = preparedByPath
+        ? toPayload(parsed, item.contextFingerprint)
+        : toPayload(parsed, prev?.contextFingerprint);
+      assertNoConversationBody(payload);
+
+      if (maxSends !== null && result.attempts >= maxSends) {
+        result.stoppedAtLimit = true;
+        break;
+      }
+
+      // attempts counts HTTP simulations too, so the safety valve remains a hard cap
+      // even when the server returns errors.
+      result.attempts += 1;
+      await postRun(payload, { dryRun });
+      result.sent += 1;
+      if (!dryRun) {
+        state.files[item.path] = {
+          ...fp,
+          harness: parsed.harness,
+          sessionId: parsed.sessionId,
+          contextFingerprint: payload.contextFingerprint,
+        };
+        if (result.sent % 50 === 0) {
+          saveState(state);
+          console.log(`[harness-collect] progress sent=${result.sent}`);
+        }
+      }
+    } catch (error) {
+      result.errors += 1;
+      console.error(`[harness-collect] error ${item.path}:`, error.message || error);
     }
   }
 
-  saveState(state);
-  console.log(
-    `[harness-collect] done sent=${sent} skippedUnchanged=${skipped} errors=${errors}`
-  );
+  return result;
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+async function main(argv = process.argv.slice(2)) {
+  const options = parseArgs(argv);
+  if (options.help) {
+    console.log(usage());
+    return;
+  }
+
+  const state = loadState();
+  state.files ??= {};
+  const candidates = sortCandidates([...listClaudeSessions(), ...listCodexSessions()]);
+
+  if (options.snapshotOutPath) {
+    const plan = buildSnapshotPlan(candidates, state, options.maxSends);
+    console.log(
+      `[harness-collect] snapshot-plan candidates=${plan.document.summary.candidateCount}` +
+        ` eligible=${plan.document.summary.eligibleCount}` +
+        ` selected=${plan.document.summary.selectedCount}` +
+        ` skippedUnchanged=${plan.document.summary.skippedUnchanged}` +
+        ` unparseable=${plan.document.summary.unparseable}` +
+        ` errors=${plan.document.summary.errorCount}`,
+    );
+    if (plan.failures.length) {
+      const first = plan.failures[0];
+      throw new Error(
+        `snapshot_not_created: ${plan.failures.length} candidate(s) failed` +
+          ` (${first.reason}:${first.path})`,
+      );
+    }
+    saveSnapshot(options.snapshotOutPath, plan.document);
+    console.log(
+      `[harness-collect] snapshot-written path=${options.snapshotOutPath}` +
+        ` targets=${plan.document.targets.length}`,
+    );
+    return;
+  }
+
+  let items = candidates;
+  let preparedByPath = null;
+  let snapshot = null;
+  if (options.applySnapshotPath) {
+    snapshot = loadSnapshot(options.applySnapshotPath);
+    preparedByPath = preflightSnapshot(snapshot);
+    items = snapshot.targets;
+  }
+
+  // A snapshot is already a finite target set; max-sends can only narrow it.
+  const maxSends = snapshot
+    ? Math.min(options.maxSends ?? snapshot.targets.length, snapshot.targets.length)
+    : options.maxSends;
+  console.log(
+    `[harness-collect] candidates=${items.length} url=${BASE_URL}` +
+      ` dryRun=${options.dryRun} maxSends=${maxSends ?? "unlimited"}` +
+      ` snapshot=${snapshot ? options.applySnapshotPath : "none"}`,
+  );
+
+  let interrupted = false;
+  const onSigint = () => {
+    if (!interrupted) {
+      interrupted = true;
+      console.error("[harness-collect] interrupt requested; finishing current request");
+    }
+  };
+  process.once("SIGINT", onSigint);
+
+  let result;
+  try {
+    result = await collectItems(items, state, {
+      dryRun: options.dryRun,
+      maxSends,
+      preparedByPath,
+      shouldStop: () => interrupted,
+    });
+  } finally {
+    process.off("SIGINT", onSigint);
+    // Dry-run must remain read-only; actual collection persists only successful sends
+    // and deliberate parse skips.
+    if (!options.dryRun) saveState(state);
+  }
+
+  console.log(
+    `[harness-collect] done sent=${result.sent}` +
+      ` attempts=${result.attempts}` +
+      ` skippedUnchanged=${result.skippedUnchanged}` +
+      ` unparseable=${result.unparseable}` +
+      ` errors=${result.errors}` +
+      ` staleSnapshot=${result.staleSnapshot}` +
+      ` stoppedAtLimit=${result.stoppedAtLimit}` +
+      ` interrupted=${result.interrupted}`,
+  );
+  if (result.staleSnapshot) {
+    throw new SnapshotStaleError(
+      result.stalePaths.map((path) => ({ path, reason: "changed_during_send" })),
+    );
+  }
+  if (result.interrupted) process.exitCode = 130;
+}
+
+export {
+  COLLECTOR_VERSION,
+  SNAPSHOT_SCHEMA_VERSION,
+  createSnapshotDocument,
+  parseArgs,
+  sameFileFingerprint,
+  sortCandidates,
+  validateSnapshotDocument,
+};
+
+const invokedScript = process.argv[1] ? resolve(process.argv[1]) : null;
+if (invokedScript === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
