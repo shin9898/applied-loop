@@ -9,8 +9,8 @@ import {
 function row(overrides: Partial<HarnessMonthlyReportRow> = {}): HarnessMonthlyReportRow {
   return {
     harness: "claude",
-    model: "claude-sonnet-5",
-    repo: "workbench",
+    model: "model-d",
+    repo: "sample-repo",
     turns: 1,
     tokensOut: 100,
     tokensIn: 10,
@@ -70,13 +70,13 @@ describe("harness monthly report build", () => {
     if (!parsedMonth.ok) return;
 
     const report = buildHarnessMonthlyReport(parsedMonth, [
-      row({ model: "claude-sonnet-5", repo: "workbench" }),
-      row({ model: "claude-sonnet-5", repo: "workbench" }),
+      row({ model: "model-d", repo: "sample-repo" }),
+      row({ model: "model-d", repo: "sample-repo" }),
       row({ model: null, repo: null, turns: 2, tokensOut: 5, tokensIn: 1, cacheRead: 0, cacheCreate: 0, inputUncachedTokens: 1, cacheReadTokens: 0 }),
       row({
         harness: "codex",
-        model: "gpt-5.6-sol",
-        repo: "workbench",
+        model: "model-a",
+        repo: "sample-repo",
         turns: 1,
         tokensOut: 50,
         tokensIn: 100,
@@ -104,7 +104,7 @@ describe("harness monthly report build", () => {
     assert.equal(unknownModel!.harness, "claude");
     assert.equal(unknownModel!.totals.runs, 1);
 
-    const solModel = report.modelSegments.find((s) => s.key === "gpt-5.6-sol");
+    const solModel = report.modelSegments.find((s) => s.key === "model-a");
     assert.ok(solModel);
     assert.equal(solModel!.harness, "codex");
     assert.equal(solModel!.totals.runs, 1);
@@ -131,14 +131,14 @@ describe("harness monthly report build", () => {
       row({ tokensIn: -1, cacheRead: 0, cacheCreate: 0, inputUncachedTokens: -1, cacheReadTokens: 0 }),
       row({
         harness: "codex",
-        model: "gpt-5.6-sol",
+        model: "model-a",
         tokensIn: 0,
         cacheRead: 0,
         cacheCreate: 0,
         inputUncachedTokens: 0,
         cacheReadTokens: 0,
       }),
-      row({ model: "claude-sonnet-5" }),
+      row({ model: "model-d" }),
     ]);
 
     assert.equal(report.summary.queried, 3);

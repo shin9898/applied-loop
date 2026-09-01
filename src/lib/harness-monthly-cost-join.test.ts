@@ -10,8 +10,8 @@ import {
 function row(overrides: Partial<HarnessMonthlyReportRow> = {}): HarnessMonthlyReportRow {
   return {
     harness: "codex",
-    model: "gpt-5.6-sol",
-    repo: "workbench",
+    model: "model-a",
+    repo: "sample-repo",
     turns: 1,
     tokensOut: 100,
     tokensIn: 1_000_000,
@@ -34,22 +34,22 @@ function buildReport(rows: HarnessMonthlyReportRow[]) {
 describe("harness monthly cost join", () => {
   it("C-T1 matches DB model segments against cost entries and computes blended usd/M", () => {
     const report = buildReport([
-      row({ model: "gpt-5.6-sol", tokensIn: 1_000_000 }),
-      row({ model: "gpt-5.6-luna", tokensIn: 2_000_000 }),
+      row({ model: "model-a", tokensIn: 1_000_000 }),
+      row({ model: "model-b", tokensIn: 2_000_000 }),
     ]);
 
     const join = joinHarnessMonthlyCosts(report, [
-      { model: "gpt-5.6-sol", costUSD: 10 },
-      { model: "gpt-5.6-luna", costUSD: 1 },
+      { model: "model-a", costUSD: 10 },
+      { model: "model-b", costUSD: 1 },
     ]);
 
-    const sol = join.entries.find((e) => e.model === "gpt-5.6-sol");
+    const sol = join.entries.find((e) => e.model === "model-a");
     assert.ok(sol);
     assert.equal(sol!.matched, true);
     assert.equal(sol!.totalInput, 1_000_000);
     assert.equal(sol!.blendedUsdPerMTokTotalInput, 10);
 
-    const luna = join.entries.find((e) => e.model === "gpt-5.6-luna");
+    const luna = join.entries.find((e) => e.model === "model-b");
     assert.ok(luna);
     assert.equal(luna!.blendedUsdPerMTokTotalInput, 0.5);
 
@@ -59,15 +59,15 @@ describe("harness monthly cost join", () => {
   });
 
   it("C-T2 lists DB-only and cost-only models as unmatched without crashing the join", () => {
-    const report = buildReport([row({ model: "gpt-5.6-sol", tokensIn: 500_000 })]);
+    const report = buildReport([row({ model: "model-a", tokensIn: 500_000 })]);
 
     const join = joinHarnessMonthlyCosts(report, [
-      { model: "gpt-5.6-sol", costUSD: 5 },
-      { model: "gpt-5.6-terra", costUSD: 2 },
+      { model: "model-a", costUSD: 5 },
+      { model: "model-c", costUSD: 2 },
     ]);
 
-    assert.deepEqual(join.unmatchedCostModels, ["gpt-5.6-terra"]);
-    const terra = join.entries.find((e) => e.model === "gpt-5.6-terra");
+    assert.deepEqual(join.unmatchedCostModels, ["model-c"]);
+    const terra = join.entries.find((e) => e.model === "model-c");
     assert.ok(terra);
     assert.equal(terra!.matched, false);
     assert.equal(terra!.totalInput, null);
@@ -75,13 +75,13 @@ describe("harness monthly cost join", () => {
     assert.equal(join.totalCostUSD, 7);
 
     const reportWithUnpricedModel = buildReport([
-      row({ model: "gpt-5.6-sol" }),
-      row({ model: "claude-fable-5", harness: "claude", tokensIn: 10, cacheRead: 0, cacheCreate: 0, inputUncachedTokens: 10, cacheReadTokens: 0 }),
+      row({ model: "model-a" }),
+      row({ model: "model-e", harness: "claude", tokensIn: 10, cacheRead: 0, cacheCreate: 0, inputUncachedTokens: 10, cacheReadTokens: 0 }),
     ]);
     const joinWithUnpriced = joinHarnessMonthlyCosts(reportWithUnpricedModel, [
-      { model: "gpt-5.6-sol", costUSD: 5 },
+      { model: "model-a", costUSD: 5 },
     ]);
-    assert.deepEqual(joinWithUnpriced.unmatchedDbModels, ["claude-fable-5"]);
+    assert.deepEqual(joinWithUnpriced.unmatchedDbModels, ["model-e"]);
   });
 
   it("C-T3 leaves blended null when the matched model has no positive totalInput", () => {
@@ -90,8 +90,8 @@ describe("harness monthly cost join", () => {
       row({ tokensIn: -1, inputUncachedTokens: -1 }),
     ]);
 
-    const join = joinHarnessMonthlyCosts(report, [{ model: "gpt-5.6-sol", costUSD: 3 }]);
-    const sol = join.entries.find((e) => e.model === "gpt-5.6-sol");
+    const join = joinHarnessMonthlyCosts(report, [{ model: "model-a", costUSD: 3 }]);
+    const sol = join.entries.find((e) => e.model === "model-a");
     assert.ok(sol);
     assert.equal(sol!.matched, true);
     assert.equal(sol!.totalInput, 0);
@@ -101,7 +101,7 @@ describe("harness monthly cost join", () => {
   it("C-T4 rejects negative costUSD entries", () => {
     const report = buildReport([row()]);
     assert.throws(
-      () => joinHarnessMonthlyCosts(report, [{ model: "gpt-5.6-sol", costUSD: -1 }]),
+      () => joinHarnessMonthlyCosts(report, [{ model: "model-a", costUSD: -1 }]),
       /costUSD/,
     );
   });

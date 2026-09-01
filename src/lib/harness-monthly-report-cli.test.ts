@@ -10,8 +10,8 @@ import {
 function row(overrides: Partial<HarnessMonthlyReportRow> = {}): HarnessMonthlyReportRow {
   return {
     harness: "codex",
-    model: "gpt-5.6-sol",
-    repo: "workbench",
+    model: "model-a",
+    repo: "sample-repo",
     turns: 1,
     tokensOut: 100,
     tokensIn: 1_000_000,
@@ -102,7 +102,7 @@ describe("harness monthly report CLI", () => {
       ["--month", "2026-08", "--costs-json", "/neg.json"],
       {
         query: async () => sampleReport(),
-        readFile: () => Promise.resolve(JSON.stringify([{ model: "gpt-5.6-sol", costUSD: -1 }])),
+        readFile: () => Promise.resolve(JSON.stringify([{ model: "model-a", costUSD: -1 }])),
         stdout: (text) => (stdout3 += text),
         stderr: (text) => (stderr3 += text),
       },

@@ -11,8 +11,8 @@ import {
 function row(overrides: Partial<HarnessMonthlyReportRow> = {}): HarnessMonthlyReportRow {
   return {
     harness: "codex",
-    model: "gpt-5.6-sol",
-    repo: "workbench",
+    model: "model-a",
+    repo: "sample-repo",
     turns: 1,
     tokensOut: 100,
     tokensIn: 1_000_000,
@@ -35,11 +35,11 @@ function buildReport(rows: HarnessMonthlyReportRow[]) {
 describe("harness monthly report markdown render", () => {
   it("R-T1 renders the five required sections for a populated month, without a cost section", () => {
     const report = buildReport([
-      row({ model: "gpt-5.6-sol", repo: "workbench" }),
+      row({ model: "model-a", repo: "sample-repo" }),
       row({
         harness: "claude",
-        model: "claude-sonnet-5",
-        repo: "workbench",
+        model: "model-d",
+        repo: "sample-repo",
         tokensIn: 10,
         cacheRead: 30,
         cacheCreate: 10,
@@ -57,9 +57,9 @@ describe("harness monthly report markdown render", () => {
     assert.match(markdown, /## 4\. データ品質ノート/);
     // no cost section when costJoin is omitted.
     assert.doesNotMatch(markdown, /コスト/);
-    assert.match(markdown, /gpt-5\.6-sol/);
-    assert.match(markdown, /claude-sonnet-5/);
-    assert.match(markdown, /workbench/);
+    assert.match(markdown, /model-a/);
+    assert.match(markdown, /model-d/);
+    assert.match(markdown, /sample-repo/);
 
     // Every Markdown table's header and data rows must carry the same column count.
     for (const line of markdown.split("\n")) {
@@ -83,15 +83,15 @@ describe("harness monthly report markdown render", () => {
   });
 
   it("R-T2 renders a cost section only when a costJoin is supplied", () => {
-    const report = buildReport([row({ model: "gpt-5.6-sol" })]);
+    const report = buildReport([row({ model: "model-a" })]);
     const costJoin = joinHarnessMonthlyCosts(report, [
-      { model: "gpt-5.6-sol", costUSD: 10 },
-      { model: "gpt-5.6-terra", costUSD: 2 },
+      { model: "model-a", costUSD: 10 },
+      { model: "model-c", costUSD: 2 },
     ]);
 
     const markdown = renderHarnessMonthlyReportMarkdown(report, costJoin);
     assert.match(markdown, /## \d\. コスト/);
-    assert.match(markdown, /gpt-5\.6-terra/);
+    assert.match(markdown, /model-c/);
     assert.match(markdown, /10\.00/); // sol costUSD
   });
 
