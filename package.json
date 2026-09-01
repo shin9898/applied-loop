@@ -33,6 +33,7 @@
     "eval:overlap-guard": "tsx scripts/eval-overlap-guard.ts",
     "dismiss:report": "tsx scripts/dismiss-reasons-report.ts",
     "harness:audit-cache": "tsx scripts/audit-harness-cache.ts",
+    "harness:report-monthly": "tsx scripts/report-harness-monthly.ts",
     "harness:collector:install": "node scripts/manage-harness-collector.mjs install",
     "harness:collector:status": "node scripts/manage-harness-collector.mjs status",
     "harness:collector:uninstall": "node scripts/manage-harness-collector.mjs uninstall",
